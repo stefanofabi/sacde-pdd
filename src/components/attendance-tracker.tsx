@@ -84,7 +84,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   
-  const [newRequestState, setNewRequestState] = useState({ crewId: "", responsibleId: "" });
+  const [newRequestState, setNewRequestState] = useState({ obraId: "", crewId: "", responsibleId: "" });
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -125,12 +125,17 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       return allCrews.filter(crew => !dailyCrewIds.includes(crew.id));
   }, [allCrews, dailyCrewIds]);
   
-  const availableCrewOptions = useMemo(() => {
-    return availableCrews.map(crew => ({
+  const availableCrewsForRequest = useMemo(() => {
+    if (!newRequestState.obraId) return [];
+    return availableCrews.filter(crew => crew.obraId === newRequestState.obraId);
+  }, [availableCrews, newRequestState.obraId]);
+  
+  const availableCrewOptionsForRequest = useMemo(() => {
+    return availableCrewsForRequest.map(crew => ({
         value: crew.id,
-        label: `${crew.name} (${obraNameMap[crew.obraId]})`
+        label: crew.name
     }));
-  }, [availableCrews, obraNameMap]);
+  }, [availableCrewsForRequest]);
   
   const filteredCrewsForTable = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
@@ -177,10 +182,10 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   };
 
   const handleAddRequest = () => {
-    if (!selectedDate || !newRequestState.crewId || !newRequestState.responsibleId) {
+    if (!selectedDate || !newRequestState.obraId || !newRequestState.crewId || !newRequestState.responsibleId) {
       toast({
         title: "Error de validación",
-        description: "Debe seleccionar una cuadrilla y un responsable.",
+        description: "Debe seleccionar una obra, una cuadrilla y un responsable.",
         variant: "destructive",
       });
       return;
@@ -197,7 +202,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             };
             return { ...prev, [dateKey]: newDailyData };
         });
-        setNewRequestState({ crewId: "", responsibleId: "" });
+        setNewRequestState({ obraId: "", crewId: "", responsibleId: "" });
         setIsRequestDialogOpen(false);
         toast({
           title: "Solicitud creada",
@@ -291,7 +296,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                     <Copy className="mr-2 h-4 w-4" />
                     Clonar Día Anterior
                 </Button>
-                <Button onClick={() => { setNewRequestState({ crewId: "", responsibleId: "" }); setIsRequestDialogOpen(true); }}>
+                <Button onClick={() => { setNewRequestState({ obraId: "", crewId: "", responsibleId: "" }); setIsRequestDialogOpen(true); }}>
                     <UserPlus className="mr-2 h-4 w-4" />
                     Crear Solicitud de Asistencia
                 </Button>
@@ -359,20 +364,39 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
           <DialogHeader>
             <DialogTitle>Nueva Solicitud de Asistencia</DialogTitle>
             <DialogDescription>
-              Seleccione una cuadrilla y asigne un responsable para enviar el parte.
+              Seleccione la obra, luego la cuadrilla y finalmente asigne un responsable.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
+                <Label htmlFor="request-obra">Obra</Label>
+                <Select
+                    value={newRequestState.obraId}
+                    onValueChange={(value) => setNewRequestState(prev => ({ ...prev, obraId: value, crewId: "" }))}
+                    disabled={isPending}
+                >
+                    <SelectTrigger id="request-obra">
+                        <SelectValue placeholder="Seleccione una obra" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {initialObras.map((obra) => (
+                            <SelectItem key={obra.id} value={obra.id}>
+                                {obra.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="request-crew">Cuadrilla</Label>
               <Combobox
-                    options={availableCrewOptions}
+                    options={availableCrewOptionsForRequest}
                     value={newRequestState.crewId}
                     onValueChange={(value) => setNewRequestState(prev => ({ ...prev, crewId: value }))}
                     placeholder="Seleccione una cuadrilla"
                     searchPlaceholder="Buscar cuadrilla..."
-                    emptyMessage="No se encontró la cuadrilla."
-                    disabled={isPending}
+                    emptyMessage="No hay cuadrillas para esta obra."
+                    disabled={isPending || !newRequestState.obraId}
               />
             </div>
             <div className="space-y-2">
