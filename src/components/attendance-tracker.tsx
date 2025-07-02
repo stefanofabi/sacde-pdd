@@ -141,10 +141,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         const responsibleId = attendance[formattedDate]?.[crew.id]?.responsibleId;
         const responsibleName = responsibleId ? (employeeNameMap[responsibleId] || '') : '';
         return crew.name.toLowerCase().includes(lowerCaseSearchTerm) ||
-        (employeeNameMap[crew.capatazId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-        (employeeNameMap[crew.apuntadorId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-        (employeeNameMap[crew.jefeDeObraId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-        (employeeNameMap[crew.controlGestionId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
         (obraNameMap[crew.obraId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
         (responsibleName).toLowerCase().includes(lowerCaseSearchTerm)
     });
@@ -323,10 +319,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                 <TableRow>
                   <TableHead>Cuadrilla</TableHead>
                   <TableHead>Obra</TableHead>
-                  <TableHead>Capataz</TableHead>
-                  <TableHead>Apuntador</TableHead>
-                  <TableHead>Jefe de Obra</TableHead>
-                  <TableHead>Control y Gestión</TableHead>
                   <TableHead>Responsable</TableHead>
                   <TableHead className="text-center w-[150px]">Enviado</TableHead>
                 </TableRow>
@@ -337,10 +329,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                       <TableRow key={crew.id}>
                         <TableCell className="font-medium">{crew.name}</TableCell>
                         <TableCell>{obraNameMap[crew.obraId] || 'N/A'}</TableCell>
-                        <TableCell>{employeeNameMap[crew.capatazId] || 'N/A'}</TableCell>
-                        <TableCell>{employeeNameMap[crew.apuntadorId] || 'N/A'}</TableCell>
-                        <TableCell>{employeeNameMap[crew.jefeDeObraId] || 'N/A'}</TableCell>
-                        <TableCell>{employeeNameMap[crew.controlGestionId] || 'N/A'}</TableCell>
                         <TableCell>{employeeNameMap[attendance[formattedDate]?.[crew.id]?.responsibleId ?? ''] || 'N/A'}</TableCell>
                         <TableCell className="text-center">
                           <Switch
@@ -354,7 +342,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                     ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
+                    <TableCell colSpan={4} className="h-24 text-center">
                       {dailyCrewIds.length === 0 
                         ? "No hay cuadrillas asignadas para este día."
                         : "No se encontraron cuadrillas con el filtro aplicado."
