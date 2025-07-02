@@ -54,6 +54,27 @@ export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
   return crewWithId;
 }
 
+export async function deleteCrew(crewId: string): Promise<void> {
+    const crews = await getCrews();
+    const attendance = await getAttendance();
+
+    const isCrewInUse = Object.values(attendance).some(dailyAttendance => 
+        Object.keys(dailyAttendance).includes(crewId)
+    );
+
+    if (isCrewInUse) {
+        throw new Error('No se puede eliminar la cuadrilla porque tiene registros de asistencia.');
+    }
+
+    const updatedCrews = crews.filter(crew => crew.id !== crewId);
+    
+    if (updatedCrews.length === crews.length) {
+        throw new Error('La cuadrilla a eliminar no fue encontrada.');
+    }
+
+    await writeData(crewsFilePath, updatedCrews);
+}
+
 export async function addObra(newObra: Omit<Obra, 'id'>): Promise<Obra> {
     const obras = await getObras();
     const obraWithId = { ...newObra, id: crypto.randomUUID() };

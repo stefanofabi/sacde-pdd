@@ -7,7 +7,8 @@ export interface Obra {
 export interface Crew {
   id: string;
   name: string;
-  responsible: string;
+  capataz: string;
+  apuntador: string;
   obraId: string;
 }
 

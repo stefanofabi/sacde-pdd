@@ -86,7 +86,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const [isManageCrewsDialogOpen, setIsManageCrewsDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [newCrewName, setNewCrewName] = useState("");
-  const [newCrewResponsible, setNewCrewResponsible] = useState("");
+  const [newCrewCapataz, setNewCrewCapataz] = useState("");
+  const [newCrewApuntador, setNewCrewApuntador] = useState("");
   const [newCrewObraId, setNewCrewObraId] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -126,7 +127,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const filteredCrewsForTable = useMemo(() => {
     return crewsForDay.filter((crew) =>
         crew.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        crew.responsible.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        crew.capataz.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        crew.apuntador.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (obraNameMap[crew.obraId] || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [crewsForDay, searchTerm, obraNameMap]);
@@ -156,7 +158,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   };
 
   const handleAddCrew = () => {
-    if (!newCrewName.trim() || !newCrewResponsible.trim() || !newCrewObraId) {
+    if (!newCrewName.trim() || !newCrewCapataz.trim() || !newCrewApuntador.trim() || !newCrewObraId) {
       toast({
         title: "Error de validación",
         description: "Debe completar todos los campos, incluyendo la obra.",
@@ -169,17 +171,19 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         try {
             const newCrew = await addCrew({
                 name: newCrewName,
-                responsible: newCrewResponsible,
+                capataz: newCrewCapataz,
+                apuntador: newCrewApuntador,
                 obraId: newCrewObraId,
             });
             setAllCrews((prevCrews) => [...prevCrews, newCrew]);
             setNewCrewName("");
-            setNewCrewResponsible("");
+            setNewCrewCapataz("");
+            setNewCrewApuntador("");
             setNewCrewObraId("");
             setIsAddCrewDialogOpen(false);
             toast({
               title: "Cuadrilla agregada",
-              description: `La cuadrilla "${newCrew.name}" ha sido creada.`,
+              description: `La cuadrilla "${newCrew.name}" ha sido creada. Ahora puede gestionarla desde la sección 'Cuadrillas'.`,
             });
         } catch (error) {
             toast({
@@ -303,7 +307,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                 <TableRow>
                   <TableHead>Cuadrilla</TableHead>
                   <TableHead>Obra</TableHead>
-                  <TableHead>Responsable</TableHead>
+                  <TableHead>Capataz</TableHead>
+                  <TableHead>Apuntador</TableHead>
                   <TableHead className="text-center w-[150px]">Enviado</TableHead>
                 </TableRow>
               </TableHeader>
@@ -313,7 +318,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                       <TableRow key={crew.id}>
                         <TableCell className="font-medium">{crew.name}</TableCell>
                         <TableCell>{obraNameMap[crew.obraId] || 'N/A'}</TableCell>
-                        <TableCell>{crew.responsible}</TableCell>
+                        <TableCell>{crew.capataz}</TableCell>
+                        <TableCell>{crew.apuntador}</TableCell>
                         <TableCell className="text-center">
                           <Switch
                             checked={attendance[formattedDate]?.[crew.id] || false}
@@ -326,7 +332,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                     ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       {dailyCrewIds.length === 0 
                         ? "No hay cuadrillas asignadas para este día."
                         : "No se encontraron cuadrillas con el filtro aplicado."
@@ -354,8 +360,12 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
               <Input id="crew-name" value={newCrewName} onChange={(e) => setNewCrewName(e.target.value)} className="col-span-3" placeholder="Ej. Equipo de Instalación" disabled={isPending}/>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-responsible" className="text-right">Responsable</Label>
-              <Input id="crew-responsible" value={newCrewResponsible} onChange={(e) => setNewCrewResponsible(e.target.value)} className="col-span-3" placeholder="Ej. Juan Pérez" disabled={isPending}/>
+              <Label htmlFor="crew-capataz" className="text-right">Capataz</Label>
+              <Input id="crew-capataz" value={newCrewCapataz} onChange={(e) => setNewCrewCapataz(e.target.value)} className="col-span-3" placeholder="Ej. Juan Pérez" disabled={isPending}/>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-apuntador" className="text-right">Apuntador</Label>
+              <Input id="crew-apuntador" value={newCrewApuntador} onChange={(e) => setNewCrewApuntador(e.target.value)} className="col-span-3" placeholder="Ej. Pedro Gómez" disabled={isPending}/>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-obra" className="text-right">Obra</Label>
