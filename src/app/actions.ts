@@ -196,23 +196,6 @@ export async function addAttendanceRequest(dateKey: string, crewId: string, resp
   await writeData(attendanceFilePath, newAttendanceData);
 }
 
-export async function setDailyCrews(dateKey: string, crewIds: string[]): Promise<AttendanceData> {
-    const attendance = await getAttendance();
-    const existingDailyData = attendance[dateKey] || {};
-    const newDailyData: Record<string, AttendanceInfo> = {};
-
-    crewIds.forEach(id => {
-        newDailyData[id] = existingDailyData[id] || { sent: false, responsibleId: null, sentAt: null };
-    });
-
-    const newAttendanceData = {
-        ...attendance,
-        [dateKey]: newDailyData,
-    };
-    await writeData(attendanceFilePath, newAttendanceData);
-    return newAttendanceData;
-}
-
 export async function clonePreviousDayAttendance(dateKey: string): Promise<AttendanceData> {
     const attendance = await getAttendance();
     const targetDate = new Date(dateKey);

@@ -52,17 +52,13 @@ import {
   Search,
   Loader2,
   Copy,
-  Users,
-  X,
-  Plus,
   UserPlus,
 } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, AttendanceData, Obra, Employee, AttendanceInfo } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addAttendanceRequest, updateAttendanceSentStatus, setDailyCrews, clonePreviousDayAttendance } from "@/app/actions";
-import { ScrollArea } from "./ui/scroll-area";
+import { addAttendanceRequest, updateAttendanceSentStatus, clonePreviousDayAttendance } from "@/app/actions";
 
 interface AttendanceTrackerProps {
   initialCrews: Crew[];
@@ -77,7 +73,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
-  const [isManageCrewsDialogOpen, setIsManageCrewsDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   
@@ -129,12 +124,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     }));
   }, [availableCrews, obraNameMap]);
   
-  const [tempDailyCrewIds, setTempDailyCrewIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    setTempDailyCrewIds(dailyCrewIds);
-  }, [dailyCrewIds, isManageCrewsDialogOpen]);
-
   const filteredCrewsForTable = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
     return crewsForDay.filter((crew) => {
@@ -207,28 +196,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     });
   };
 
-  const handleSaveDailyCrews = () => {
-    if (!selectedDate) return;
-    const dateKey = format(selectedDate, "yyyy-MM-dd");
-    startTransition(async () => {
-        try {
-            const newAttendance = await setDailyCrews(dateKey, tempDailyCrewIds);
-            setAttendance(newAttendance);
-            setIsManageCrewsDialogOpen(false);
-            toast({
-              title: "Lista actualizada",
-              description: "Se guardaron las cuadrillas para el parte del día.",
-            });
-        } catch (error) {
-            toast({
-              title: "Error",
-              description: "No se pudo guardar la lista de cuadrillas.",
-              variant: "destructive",
-            });
-        }
-    });
-  };
-
   const handleCloneDay = () => {
       if (!selectedDate) return;
       const dateKey = format(selectedDate, "yyyy-MM-dd");
@@ -293,10 +260,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
               />
             </div>
             <div className="flex flex-wrap gap-2">
-                <Button onClick={() => setIsManageCrewsDialogOpen(true)} variant="outline">
-                    <Users className="mr-2 h-4 w-4" />
-                    Gestionar Parte Diario
-                </Button>
                 <Button onClick={() => setIsCloneDialogOpen(true)} variant="outline">
                     <Copy className="mr-2 h-4 w-4" />
                     Clonar Día Anterior
@@ -407,62 +370,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-       <Dialog open={isManageCrewsDialogOpen} onOpenChange={setIsManageCrewsDialogOpen}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-            <DialogHeader>
-                <DialogTitle>Gestionar Parte Diario para el {displayDate}</DialogTitle>
-                <DialogDescription>
-                    Añada o quite cuadrillas de la lista de asistencia para este día. Las cuadrillas añadidas aquí no tendrán un responsable asignado por defecto.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0">
-                <div className="flex flex-col gap-2">
-                    <h3 className="font-semibold">Cuadrillas Disponibles</h3>
-                    <ScrollArea className="flex-1 rounded-md border p-2">
-                        {availableCrews
-                            .filter(c => !tempDailyCrewIds.includes(c.id))
-                            .map(crew => (
-                            <div key={crew.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                <div>
-                                    <p className="font-medium">{crew.name}</p>
-                                    <p className="text-sm text-muted-foreground">{obraNameMap[crew.obraId]}</p>
-                                </div>
-                                <Button size="icon" variant="outline" onClick={() => setTempDailyCrewIds(ids => [...ids, crew.id])} disabled={isPending}>
-                                    <Plus className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                    </ScrollArea>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <h3 className="font-semibold">Cuadrillas en el Parte ({tempDailyCrewIds.length})</h3>
-                    <ScrollArea className="flex-1 rounded-md border p-2">
-                        {allCrews
-                            .filter(c => tempDailyCrewIds.includes(c.id))
-                            .map(crew => (
-                               <div key={crew.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                <div>
-                                    <p className="font-medium">{crew.name}</p>
-                                    <p className="text-sm text-muted-foreground">{obraNameMap[crew.obraId]}</p>
-                                </div>
-                                <Button size="icon" variant="destructive" onClick={() => setTempDailyCrewIds(ids => ids.filter(id => id !== crew.id))} disabled={isPending}>
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                    </ScrollArea>
-                </div>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
-                <Button onClick={handleSaveDailyCrews} disabled={isPending}>
-                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Guardar Cambios
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-       </Dialog>
       
       <AlertDialog open={isCloneDialogOpen} onOpenChange={setIsCloneDialogOpen}>
         <AlertDialogContent>

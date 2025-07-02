@@ -1,9 +1,9 @@
 {
   "2025-07-02": {
     "crew-1": {
-      "sent": false,
+      "sent": true,
       "responsibleId": "emp-002",
-      "sentAt": null
+      "sentAt": "2025-07-02T04:47:12.820Z"
     },
     "crew-2": {
       "sent": true,
