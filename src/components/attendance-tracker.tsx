@@ -45,6 +45,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -55,40 +62,52 @@ import {
   Copy,
   Users,
   X,
-  Plus
+  Plus,
+  Briefcase,
 } from "lucide-react";
-import { format, startOfToday, subDays } from "date-fns";
+import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, AttendanceData, AttendanceStatus } from "@/types";
+import type { Crew, AttendanceData, AttendanceStatus, Obra } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addCrew, updateAttendanceStatus, setDailyCrews, clonePreviousDayAttendance } from "@/app/actions";
+import { addCrew, updateAttendanceStatus, setDailyCrews, clonePreviousDayAttendance, addObra } from "@/app/actions";
 
 interface AttendanceTrackerProps {
   initialCrews: Crew[];
   initialAttendance: AttendanceData;
+  initialObras: Obra[];
 }
 
-export default function AttendanceTracker({ initialCrews, initialAttendance }: AttendanceTrackerProps) {
+export default function AttendanceTracker({ initialCrews, initialAttendance, initialObras }: AttendanceTrackerProps) {
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
+  const [allObras, setAllObras] = useState<Obra[]>(initialObras);
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddCrewDialogOpen, setIsAddCrewDialogOpen] = useState(false);
   const [isManageCrewsDialogOpen, setIsManageCrewsDialogOpen] = useState(false);
+  const [isManageObrasDialogOpen, setIsManageObrasDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [newCrewName, setNewCrewName] = useState("");
   const [newCrewResponsible, setNewCrewResponsible] = useState("");
+  const [newCrewObraId, setNewCrewObraId] = useState("");
+  const [newObraName, setNewObraName] = useState("");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    setSelectedDate(startOfToday());
+    if (typeof window !== "undefined") {
+      setSelectedDate(startOfToday());
+    }
   }, []);
 
   const formattedDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
   const displayDate = selectedDate
     ? format(selectedDate, "PPP", { locale: es })
     : "Seleccione una fecha";
+
+  const obraNameMap = useMemo(() => {
+    return Object.fromEntries(allObras.map(obra => [obra.id, obra.name]));
+  }, [allObras]);
 
   const dailyCrewIds = useMemo(() => {
     return formattedDate ? Object.keys(attendance[formattedDate] || {}) : [];
@@ -111,9 +130,10 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
   const filteredCrewsForTable = useMemo(() => {
     return crewsForDay.filter((crew) =>
         crew.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        crew.responsible.toLowerCase().includes(searchTerm.toLowerCase())
+        crew.responsible.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (obraNameMap[crew.obraId] || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [crewsForDay, searchTerm]);
+  }, [crewsForDay, searchTerm, obraNameMap]);
   
   const handleUpdateAttendance = (crewId: string, status: AttendanceStatus) => {
     if (!selectedDate) return;
@@ -140,10 +160,10 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
   };
 
   const handleAddCrew = () => {
-    if (!newCrewName.trim() || !newCrewResponsible.trim()) {
+    if (!newCrewName.trim() || !newCrewResponsible.trim() || !newCrewObraId) {
       toast({
         title: "Error de validación",
-        description: "El nombre y el responsable no pueden estar vacíos.",
+        description: "Debe completar todos los campos, incluyendo la obra.",
         variant: "destructive",
       });
       return;
@@ -154,19 +174,49 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
             const newCrew = await addCrew({
                 name: newCrewName,
                 responsible: newCrewResponsible,
+                obraId: newCrewObraId,
             });
             setAllCrews((prevCrews) => [...prevCrews, newCrew]);
             setNewCrewName("");
             setNewCrewResponsible("");
+            setNewCrewObraId("");
             setIsAddCrewDialogOpen(false);
             toast({
               title: "Cuadrilla agregada",
-              description: `La cuadrilla "${newCrew.name}" ha sido creada en la lista maestra.`,
+              description: `La cuadrilla "${newCrew.name}" ha sido creada.`,
             });
         } catch (error) {
             toast({
               title: "Error",
               description: "No se pudo agregar la cuadrilla.",
+              variant: "destructive",
+            });
+        }
+    });
+  };
+
+  const handleAddObra = () => {
+    if (!newObraName.trim()) {
+      toast({
+        title: "Error de validación",
+        description: "El nombre de la obra no puede estar vacío.",
+        variant: "destructive",
+      });
+      return;
+    }
+    startTransition(async () => {
+        try {
+            const newObra = await addObra({ name: newObraName });
+            setAllObras((prev) => [...prev, newObra]);
+            setNewObraName("");
+            toast({
+              title: "Obra agregada",
+              description: `La obra "${newObra.name}" ha sido creada.`,
+            });
+        } catch (error) {
+            toast({
+              title: "Error",
+              description: "No se pudo agregar la obra.",
               variant: "destructive",
             });
         }
@@ -252,7 +302,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar en la lista del día..."
+                placeholder="Buscar por cuadrilla, obra..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -266,6 +316,10 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                 <Button onClick={() => setIsCloneDialogOpen(true)} variant="outline">
                     <Copy className="mr-2 h-4 w-4" />
                     Clonar Día Anterior
+                </Button>
+                 <Button onClick={() => setIsManageObrasDialogOpen(true)} variant="outline">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Gestionar Obras
                 </Button>
                 <Button onClick={() => setIsAddCrewDialogOpen(true)}>
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -284,6 +338,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
               <TableHeader>
                 <TableRow>
                   <TableHead>Cuadrilla</TableHead>
+                  <TableHead>Obra</TableHead>
                   <TableHead>Responsable</TableHead>
                   <TableHead className="text-center w-[150px]">Enviado</TableHead>
                 </TableRow>
@@ -293,6 +348,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                   filteredCrewsForTable.map((crew) => (
                       <TableRow key={crew.id}>
                         <TableCell className="font-medium">{crew.name}</TableCell>
+                        <TableCell>{obraNameMap[crew.obraId] || 'N/A'}</TableCell>
                         <TableCell>{crew.responsible}</TableCell>
                         <TableCell className="text-center">
                           <Switch
@@ -306,7 +362,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                     ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
+                    <TableCell colSpan={4} className="h-24 text-center">
                       {dailyCrewIds.length === 0 
                         ? "No hay cuadrillas asignadas para este día."
                         : "No se encontraron cuadrillas con el filtro aplicado."
@@ -325,7 +381,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
           <DialogHeader>
             <DialogTitle>Crear Nueva Cuadrilla</DialogTitle>
             <DialogDescription>
-              Complete los detalles para registrar una nueva cuadrilla en la lista maestra.
+              Complete los detalles para registrar una nueva cuadrilla.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -336,6 +392,19 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-responsible" className="text-right">Responsable</Label>
               <Input id="crew-responsible" value={newCrewResponsible} onChange={(e) => setNewCrewResponsible(e.target.value)} className="col-span-3" placeholder="Ej. Juan Pérez" disabled={isPending}/>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-obra" className="text-right">Obra</Label>
+               <Select onValueChange={setNewCrewObraId} value={newCrewObraId} disabled={isPending}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Seleccione una obra" />
+                </SelectTrigger>
+                <SelectContent>
+                  {allObras.map((obra) => (
+                    <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -366,7 +435,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                             <div key={crew.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                 <div>
                                     <p className="font-medium">{crew.name}</p>
-                                    <p className="text-sm text-muted-foreground">{crew.responsible}</p>
+                                    <p className="text-sm text-muted-foreground">{obraNameMap[crew.obraId]}</p>
                                 </div>
                                 <Button size="icon" variant="outline" onClick={() => setTempDailyCrewIds(ids => [...ids, crew.id])} disabled={isPending}>
                                     <Plus className="h-4 w-4" />
@@ -384,7 +453,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                                <div key={crew.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                 <div>
                                     <p className="font-medium">{crew.name}</p>
-                                    <p className="text-sm text-muted-foreground">{crew.responsible}</p>
+                                    <p className="text-sm text-muted-foreground">{obraNameMap[crew.obraId]}</p>
                                 </div>
                                 <Button size="icon" variant="destructive" onClick={() => setTempDailyCrewIds(ids => ids.filter(id => id !== crew.id))} disabled={isPending}>
                                     <X className="h-4 w-4" />
@@ -420,6 +489,52 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isManageObrasDialogOpen} onOpenChange={setIsManageObrasDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+                <DialogTitle>Gestionar Obras</DialogTitle>
+                <DialogDescription>
+                    Vea, edite y agregue nuevas obras a la lista maestra.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4 py-4">
+                <div className="flex flex-col gap-2">
+                    <h3 className="font-semibold">Obras Existentes</h3>
+                    <ScrollArea className="h-48 rounded-md border p-2">
+                        {allObras.length > 0 ? (
+                            allObras.map(obra => (
+                                <div key={obra.id} className="p-2 rounded-md">
+                                    <p className="font-medium">{obra.name}</p>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-sm text-muted-foreground p-2">No hay obras creadas.</p>
+                        )}
+                    </ScrollArea>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <h3 className="font-semibold">Agregar Nueva Obra</h3>
+                    <div className="flex items-center gap-2">
+                        <Input 
+                            id="new-obra-name" 
+                            placeholder="Nombre de la nueva obra" 
+                            value={newObraName} 
+                            onChange={(e) => setNewObraName(e.target.value)}
+                            disabled={isPending}
+                        />
+                        <Button onClick={handleAddObra} disabled={isPending || !newObraName.trim()}>
+                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Agregar
+                        </Button>
+                    </div>
+                </div>
+            </div>
+             <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="secondary">Cerrar</Button></DialogClose>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

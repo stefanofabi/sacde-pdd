@@ -1,0 +1,15 @@
+
+[
+  {
+    "id": "obra-1",
+    "name": "Proyecto Central"
+  },
+  {
+    "id": "obra-2",
+    "name": "Edificio Norte"
+  },
+  {
+    "id": "obra-3",
+    "name": "Ampliacion Sur"
+  }
+]
