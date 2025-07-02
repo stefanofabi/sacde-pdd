@@ -41,7 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <Link href="/asistencias" legacyBehavior passHref>
+              <Link href="/asistencias">
                 <SidebarMenuButton isActive={isActive('/asistencias')}>
                   <CalendarClock />
                   Asistencias
@@ -49,7 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/obras" legacyBehavior passHref>
+              <Link href="/obras">
                 <SidebarMenuButton isActive={isActive('/obras')}>
                   <Briefcase />
                   Obras
