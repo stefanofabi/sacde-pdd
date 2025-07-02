@@ -5,6 +5,6 @@ export interface Crew {
   responsible: string;
 }
 
-export type AttendanceStatus = "presente" | "ausente" | "franco" | "permiso";
+export type AttendanceStatus = boolean;
 
 export type AttendanceData = Record<string, Record<string, AttendanceStatus>>;

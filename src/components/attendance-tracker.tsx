@@ -19,13 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -52,40 +46,37 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Calendar as CalendarIcon,
   PlusCircle,
   Search,
   Loader2,
-  Trash2,
+  Copy,
+  Users,
+  X,
+  Plus
 } from "lucide-react";
-import { format, startOfToday } from "date-fns";
+import { format, startOfToday, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, AttendanceData, AttendanceStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addCrew, updateAttendanceStatus, removeAttendance, deleteCrew } from "@/app/actions";
+import { addCrew, updateAttendanceStatus, setDailyCrews, clonePreviousDayAttendance } from "@/app/actions";
 
 interface AttendanceTrackerProps {
   initialCrews: Crew[];
   initialAttendance: AttendanceData;
 }
 
-const attendanceStatusOptions: { value: AttendanceStatus; label: string }[] = [
-    { value: "presente", label: "Presente" },
-    { value: "ausente", label: "Ausente" },
-    { value: "franco", label: "Franco" },
-    { value: "permiso", label: "Permiso" },
-];
-
 export default function AttendanceTracker({ initialCrews, initialAttendance }: AttendanceTrackerProps) {
   const { toast } = useToast();
-  const [crews, setCrews] = useState<Crew[]>(initialCrews);
+  const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | AttendanceStatus | "undefined">("all");
   const [isAddCrewDialogOpen, setIsAddCrewDialogOpen] = useState(false);
-  const [crewToDelete, setCrewToDelete] = useState<Crew | null>(null);
+  const [isManageCrewsDialogOpen, setIsManageCrewsDialogOpen] = useState(false);
+  const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [newCrewName, setNewCrewName] = useState("");
   const [newCrewResponsible, setNewCrewResponsible] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -99,28 +90,30 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
     ? format(selectedDate, "PPP", { locale: es })
     : "Seleccione una fecha";
 
-  const filteredCrews = useMemo(() => {
-    if (!selectedDate) return [];
-    const dailyAttendance = attendance[formattedDate] || {};
+  const dailyCrewIds = useMemo(() => {
+    return formattedDate ? Object.keys(attendance[formattedDate] || {}) : [];
+  }, [attendance, formattedDate]);
 
-    return crews.filter((crew) => {
-      const status = dailyAttendance[crew.id];
-      const matchesSearch =
+  const crewsForDay = useMemo(() => {
+    return allCrews.filter(crew => dailyCrewIds.includes(crew.id));
+  }, [allCrews, dailyCrewIds]);
+
+  const availableCrews = useMemo(() => {
+      return allCrews.filter(crew => !dailyCrewIds.includes(crew.id));
+  }, [allCrews, dailyCrewIds]);
+  
+  const [tempDailyCrewIds, setTempDailyCrewIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setTempDailyCrewIds(dailyCrewIds);
+  }, [dailyCrewIds, isManageCrewsDialogOpen]);
+
+  const filteredCrewsForTable = useMemo(() => {
+    return crewsForDay.filter((crew) =>
         crew.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        crew.responsible.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      if (!matchesSearch) return false;
-
-      switch (statusFilter) {
-        case "all":
-          return true;
-        case "undefined":
-          return !status;
-        default:
-          return status === statusFilter;
-      }
-    });
-  }, [crews, attendance, selectedDate, searchTerm, statusFilter, formattedDate]);
+        crew.responsible.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [crewsForDay, searchTerm]);
   
   const handleUpdateAttendance = (crewId: string, status: AttendanceStatus) => {
     if (!selectedDate) return;
@@ -145,58 +138,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
       }
     });
   };
-  
-  const handleRemoveAttendance = (crewId: string) => {
-    if (!selectedDate) return;
-    const dateKey = format(selectedDate, "yyyy-MM-dd");
 
-    startTransition(async () => {
-        try {
-            await removeAttendance(dateKey, crewId);
-            setAttendance((prev) => {
-                const newDailyAttendance = { ...(prev[dateKey] || {}) };
-                delete newDailyAttendance[crewId];
-                return {
-                    ...prev,
-                    [dateKey]: newDailyAttendance,
-                };
-            });
-            toast({
-              title: "Asistencia reiniciada",
-              description: "El estado de la cuadrilla se ha marcado como no definido para esta fecha.",
-            });
-        } catch (error) {
-            toast({
-              title: "Error",
-              description: "No se pudo reiniciar la asistencia.",
-              variant: "destructive",
-            });
-        }
-    });
-  };
-
-  const handleDeleteCrew = () => {
-    if (!crewToDelete) return;
-
-    startTransition(async () => {
-      try {
-        await deleteCrew(crewToDelete.id);
-        setCrews((prev) => prev.filter((c) => c.id !== crewToDelete.id));
-        setCrewToDelete(null);
-        toast({
-          title: "Cuadrilla eliminada",
-          description: `La cuadrilla "${crewToDelete.name}" ha sido eliminada.`,
-        });
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "No se pudo eliminar la cuadrilla.",
-          variant: "destructive",
-        });
-      }
-    });
-  };
-  
   const handleAddCrew = () => {
     if (!newCrewName.trim() || !newCrewResponsible.trim()) {
       toast({
@@ -213,13 +155,13 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                 name: newCrewName,
                 responsible: newCrewResponsible,
             });
-            setCrews((prevCrews) => [...prevCrews, newCrew]);
+            setAllCrews((prevCrews) => [...prevCrews, newCrew]);
             setNewCrewName("");
             setNewCrewResponsible("");
             setIsAddCrewDialogOpen(false);
             toast({
               title: "Cuadrilla agregada",
-              description: `La cuadrilla "${newCrew.name}" ha sido creada.`,
+              description: `La cuadrilla "${newCrew.name}" ha sido creada en la lista maestra.`,
             });
         } catch (error) {
             toast({
@@ -231,14 +173,57 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
     });
   };
 
+  const handleSaveDailyCrews = () => {
+    if (!selectedDate) return;
+    const dateKey = format(selectedDate, "yyyy-MM-dd");
+    startTransition(async () => {
+        try {
+            const newAttendance = await setDailyCrews(dateKey, tempDailyCrewIds);
+            setAttendance(newAttendance);
+            setIsManageCrewsDialogOpen(false);
+            toast({
+              title: "Lista actualizada",
+              description: "Se guardaron las cuadrillas para el parte del día.",
+            });
+        } catch (error) {
+            toast({
+              title: "Error",
+              description: "No se pudo guardar la lista de cuadrillas.",
+              variant: "destructive",
+            });
+        }
+    });
+  };
+
+  const handleCloneDay = () => {
+      if (!selectedDate) return;
+      const dateKey = format(selectedDate, "yyyy-MM-dd");
+      startTransition(async () => {
+        try {
+            const newAttendance = await clonePreviousDayAttendance(dateKey);
+            setAttendance(newAttendance);
+            setIsCloneDialogOpen(false);
+            toast({
+                title: "Día clonado",
+                description: `Se clonó la lista de cuadrillas del día anterior. Todos los estados se reiniciaron a 'no enviado'.`,
+            });
+        } catch (error) {
+             toast({
+              title: "Error al clonar",
+              description: "No se pudo clonar el día anterior. Es posible que no haya datos.",
+              variant: "destructive",
+            });
+        }
+      });
+  }
+
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle>Registro de Asistencia</CardTitle>
           <CardDescription>
-            Seleccione una fecha y filtre para ver y modificar el estado de las
-            cuadrillas.
+            Seleccione una fecha y gestione las cuadrillas para el parte diario.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -260,38 +245,33 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                   onSelect={setSelectedDate}
                   initialFocus
                   locale={es}
+                  disabled={(date) => date > new Date()}
                 />
               </PopoverContent>
             </Popover>
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar cuadrilla o responsable..."
+                placeholder="Buscar en la lista del día..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Select
-              value={statusFilter}
-              onValueChange={(value: any) => setStatusFilter(value)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="presente">Presente</SelectItem>
-                <SelectItem value="ausente">Ausente</SelectItem>
-                <SelectItem value="franco">Franco</SelectItem>
-                <SelectItem value="permiso">Permiso</SelectItem>
-                <SelectItem value="undefined">No Definido</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={() => setIsAddCrewDialogOpen(true)} className="gap-2">
-              <PlusCircle className="h-4 w-4" />
-              Agregar Cuadrilla
-            </Button>
+            <div className="flex flex-wrap gap-2">
+                <Button onClick={() => setIsManageCrewsDialogOpen(true)} variant="outline">
+                    <Users className="mr-2 h-4 w-4" />
+                    Gestionar Cuadrillas del Día
+                </Button>
+                <Button onClick={() => setIsCloneDialogOpen(true)} variant="outline">
+                    <Copy className="mr-2 h-4 w-4" />
+                    Clonar Día Anterior
+                </Button>
+                <Button onClick={() => setIsAddCrewDialogOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Crear Cuadrilla Nueva
+                </Button>
+            </div>
           </div>
 
           <div className="rounded-lg border relative">
@@ -305,57 +285,32 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                 <TableRow>
                   <TableHead>Cuadrilla</TableHead>
                   <TableHead>Responsable</TableHead>
-                  <TableHead className="text-center">Estado</TableHead>
+                  <TableHead className="text-center w-[150px]">Enviado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCrews.length > 0 ? (
-                  filteredCrews.map((crew) => (
+                {filteredCrewsForTable.length > 0 ? (
+                  filteredCrewsForTable.map((crew) => (
                       <TableRow key={crew.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <span>{crew.name}</span>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setCrewToDelete(crew)} disabled={isPending}>
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Eliminar cuadrilla</span>
-                            </Button>
-                          </div>
-                        </TableCell>
+                        <TableCell className="font-medium">{crew.name}</TableCell>
                         <TableCell>{crew.responsible}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center">
-                          <Select
-                              value={attendance[formattedDate]?.[crew.id] || 'undefined'}
-                              onValueChange={(value: AttendanceStatus | 'undefined') => {
-                                if (value === 'undefined') {
-                                    handleRemoveAttendance(crew.id);
-                                } else {
-                                    handleUpdateAttendance(crew.id, value);
-                                }
-                              }}
-                              disabled={isPending}
-                          >
-                              <SelectTrigger className="w-[180px]">
-                                  <SelectValue placeholder="Definir estado..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="undefined">
-                                      <span className="text-muted-foreground">No Definido</span>
-                                  </SelectItem>
-                                  <SelectItem value="presente">Presente</SelectItem>
-                                  <SelectItem value="ausente">Ausente</SelectItem>
-                                  <SelectItem value="franco">Franco</SelectItem>
-                                  <SelectItem value="permiso">Permiso</SelectItem>
-                              </SelectContent>
-                          </Select>
-                          </div>
+                        <TableCell className="text-center">
+                          <Switch
+                            checked={attendance[formattedDate]?.[crew.id] || false}
+                            onCheckedChange={(checked) => handleUpdateAttendance(crew.id, checked)}
+                            disabled={isPending}
+                            aria-label={`Marcar asistencia para ${crew.name}`}
+                          />
                         </TableCell>
                       </TableRow>
                     ))
                 ) : (
                   <TableRow>
                     <TableCell colSpan={3} className="h-24 text-center">
-                      No se encontraron cuadrillas con los filtros aplicados.
+                      {dailyCrewIds.length === 0 
+                        ? "No hay cuadrillas asignadas para este día."
+                        : "No se encontraron cuadrillas con el filtro aplicado."
+                      }
                     </TableCell>
                   </TableRow>
                 )}
@@ -368,45 +323,23 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
       <Dialog open={isAddCrewDialogOpen} onOpenChange={setIsAddCrewDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Agregar Nueva Cuadrilla</DialogTitle>
+            <DialogTitle>Crear Nueva Cuadrilla</DialogTitle>
             <DialogDescription>
-              Complete los detalles para registrar una nueva cuadrilla.
+              Complete los detalles para registrar una nueva cuadrilla en la lista maestra.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-name" className="text-right">
-                Nombre
-              </Label>
-              <Input
-                id="crew-name"
-                value={newCrewName}
-                onChange={(e) => setNewCrewName(e.target.value)}
-                className="col-span-3"
-                placeholder="Ej. Equipo de Instalación"
-                disabled={isPending}
-              />
+              <Label htmlFor="crew-name" className="text-right">Nombre</Label>
+              <Input id="crew-name" value={newCrewName} onChange={(e) => setNewCrewName(e.target.value)} className="col-span-3" placeholder="Ej. Equipo de Instalación" disabled={isPending}/>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-responsible" className="text-right">
-                Responsable
-              </Label>
-              <Input
-                id="crew-responsible"
-                value={newCrewResponsible}
-                onChange={(e) => setNewCrewResponsible(e.target.value)}
-                className="col-span-3"
-                placeholder="Ej. Juan Pérez"
-                disabled={isPending}
-              />
+              <Label htmlFor="crew-responsible" className="text-right">Responsable</Label>
+              <Input id="crew-responsible" value={newCrewResponsible} onChange={(e) => setNewCrewResponsible(e.target.value)} className="col-span-3" placeholder="Ej. Juan Pérez" disabled={isPending}/>
             </div>
           </div>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary" disabled={isPending}>
-                Cancelar
-              </Button>
-            </DialogClose>
+            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
             <Button type="submit" onClick={handleAddCrew} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar Cuadrilla
@@ -415,18 +348,74 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={!!crewToDelete} onOpenChange={(open) => !open && setCrewToDelete(null)}>
+       <Dialog open={isManageCrewsDialogOpen} onOpenChange={setIsManageCrewsDialogOpen}>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+            <DialogHeader>
+                <DialogTitle>Gestionar Cuadrillas para el {displayDate}</DialogTitle>
+                <DialogDescription>
+                    Añada o quite cuadrillas de la lista de asistencia para este día.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0">
+                <div className="flex flex-col gap-2">
+                    <h3 className="font-semibold">Cuadrillas Disponibles</h3>
+                    <ScrollArea className="flex-1 rounded-md border p-2">
+                        {availableCrews
+                            .filter(c => !tempDailyCrewIds.includes(c.id))
+                            .map(crew => (
+                            <div key={crew.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                <div>
+                                    <p className="font-medium">{crew.name}</p>
+                                    <p className="text-sm text-muted-foreground">{crew.responsible}</p>
+                                </div>
+                                <Button size="icon" variant="outline" onClick={() => setTempDailyCrewIds(ids => [...ids, crew.id])} disabled={isPending}>
+                                    <Plus className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </ScrollArea>
+                </div>
+                <div className="flex flex-col gap-2">
+                    <h3 className="font-semibold">Cuadrillas en el Parte ({tempDailyCrewIds.length})</h3>
+                    <ScrollArea className="flex-1 rounded-md border p-2">
+                        {allCrews
+                            .filter(c => tempDailyCrewIds.includes(c.id))
+                            .map(crew => (
+                               <div key={crew.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                <div>
+                                    <p className="font-medium">{crew.name}</p>
+                                    <p className="text-sm text-muted-foreground">{crew.responsible}</p>
+                                </div>
+                                <Button size="icon" variant="destructive" onClick={() => setTempDailyCrewIds(ids => ids.filter(id => id !== crew.id))} disabled={isPending}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </ScrollArea>
+                </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
+                <Button onClick={handleSaveDailyCrews} disabled={isPending}>
+                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Guardar Cambios
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+       </Dialog>
+      
+      <AlertDialog open={isCloneDialogOpen} onOpenChange={setIsCloneDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
+                <AlertDialogTitle>¿Clonar lista del día anterior?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Se eliminará permanentemente la cuadrilla "{crewToDelete?.name}" y todos sus registros de asistencia asociados.
+                    Esta acción reemplazará la lista de cuadrillas de hoy ({displayDate}) con la lista del día anterior. Todos los estados de asistencia se reiniciarán a "no enviado". ¿Desea continuar?
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setCrewToDelete(null)} disabled={isPending}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteCrew} disabled={isPending} className="bg-destructive hover:bg-destructive/90">
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Eliminar"}
+                <AlertDialogCancel onClick={() => setIsCloneDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleCloneDay} disabled={isPending}>
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, clonar"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

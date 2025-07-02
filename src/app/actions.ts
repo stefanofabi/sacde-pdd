@@ -4,6 +4,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { Crew, AttendanceData, AttendanceStatus } from '@/types';
+import { format, subDays } from 'date-fns';
 
 const crewsFilePath = path.join(process.cwd(), 'src', 'data', 'crews.json');
 const attendanceFilePath = path.join(process.cwd(), 'src', 'data', 'attendance.json');
@@ -47,20 +48,6 @@ export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
   return crewWithId;
 }
 
-export async function deleteCrew(crewId: string): Promise<void> {
-  const crews = await getCrews();
-  const updatedCrews = crews.filter((crew) => crew.id !== crewId);
-  await writeData(crewsFilePath, updatedCrews);
-
-  const attendance = await getAttendance();
-  Object.keys(attendance).forEach((dateKey) => {
-    if (attendance[dateKey]?.[crewId]) {
-      delete attendance[dateKey][crewId];
-    }
-  });
-  await writeData(attendanceFilePath, attendance);
-}
-
 export async function updateAttendanceStatus(dateKey: string, crewId: string, status: AttendanceStatus): Promise<AttendanceStatus> {
   const attendance = await getAttendance();
   const dailyAttendance = attendance[dateKey] || {};
@@ -76,10 +63,41 @@ export async function updateAttendanceStatus(dateKey: string, crewId: string, st
   return status;
 }
 
-export async function removeAttendance(dateKey: string, crewId: string): Promise<void> {
-  const attendance = await getAttendance();
-  if (attendance[dateKey]?.[crewId]) {
-    delete attendance[dateKey][crewId];
-    await writeData(attendanceFilePath, attendance);
-  }
+export async function setDailyCrews(dateKey: string, crewIds: string[]): Promise<AttendanceData> {
+    const attendance = await getAttendance();
+    const existingDailyData = attendance[dateKey] || {};
+    const newDailyData: Record<string, AttendanceStatus> = {};
+
+    crewIds.forEach(id => {
+        newDailyData[id] = existingDailyData[id] || false;
+    });
+
+    const newAttendanceData = {
+        ...attendance,
+        [dateKey]: newDailyData,
+    };
+    await writeData(attendanceFilePath, newAttendanceData);
+    return newAttendanceData;
+}
+
+export async function clonePreviousDayAttendance(dateKey: string): Promise<AttendanceData> {
+    const attendance = await getAttendance();
+    const targetDate = new Date(dateKey);
+    const previousDate = subDays(targetDate, 1);
+    const previousDateKey = format(previousDate, "yyyy-MM-dd");
+
+    const previousDayData = attendance[previousDateKey] || {};
+    
+    const newDailyData: Record<string, AttendanceStatus> = {};
+    Object.keys(previousDayData).forEach(crewId => {
+        newDailyData[crewId] = false; // Reset status to not sent
+    });
+    
+    const newAttendanceData = {
+        ...attendance,
+        [dateKey]: newDailyData
+    };
+
+    await writeData(attendanceFilePath, newAttendanceData);
+    return newAttendanceData;
 }
