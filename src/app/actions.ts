@@ -2,13 +2,14 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, AttendanceStatus, Obra } from '@/types';
+import type { Crew, AttendanceData, AttendanceStatus, Obra, Employee } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
 const crewsFilePath = path.join(dataDir, 'crews.json');
 const attendanceFilePath = path.join(dataDir, 'attendance.json');
 const obrasFilePath = path.join(dataDir, 'obras.json');
+const employeesFilePath = path.join(dataDir, 'employees.json');
 
 
 async function readData<T>(filePath: string): Promise<T> {
@@ -17,7 +18,7 @@ async function readData<T>(filePath: string): Promise<T> {
     return JSON.parse(data);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      if (filePath.includes('crews') || filePath.includes('obras')) return [] as T;
+      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees')) return [] as T;
       if (filePath.includes('attendance')) return {} as T;
     }
     console.error(`Error reading file ${filePath}:`, error);
@@ -38,6 +39,10 @@ export async function getCrews(): Promise<Crew[]> {
   return readData<Crew[]>(crewsFilePath);
 }
 
+export async function getEmployees(): Promise<Employee[]> {
+    return readData<Employee[]>(employeesFilePath);
+}
+
 export async function getObras(): Promise<Obra[]> {
     return readData<Obra[]>(obrasFilePath);
 }
@@ -52,6 +57,14 @@ export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
   const updatedCrews = [...crews, crewWithId];
   await writeData(crewsFilePath, updatedCrews);
   return crewWithId;
+}
+
+export async function addEmployee(newEmployee: Omit<Employee, 'id'>): Promise<Employee> {
+    const employees = await getEmployees();
+    const employeeWithId = { ...newEmployee, id: crypto.randomUUID() };
+    const updatedEmployees = [...employees, employeeWithId];
+    await writeData(employeesFilePath, updatedEmployees);
+    return employeeWithId;
 }
 
 export async function deleteCrew(crewId: string): Promise<void> {
@@ -75,6 +88,18 @@ export async function deleteCrew(crewId: string): Promise<void> {
     await writeData(crewsFilePath, updatedCrews);
 }
 
+export async function deleteEmployee(employeeId: string): Promise<void> {
+    const employees = await getEmployees();
+    const updatedEmployees = employees.filter(emp => emp.id !== employeeId);
+
+    if (updatedEmployees.length === employees.length) {
+        throw new Error('El empleado a eliminar no fue encontrado.');
+    }
+    
+    await writeData(employeesFilePath, updatedEmployees);
+}
+
+
 export async function addObra(newObra: Omit<Obra, 'id'>): Promise<Obra> {
     const obras = await getObras();
     const obraWithId = { ...newObra, id: crypto.randomUUID() };
@@ -86,11 +111,16 @@ export async function addObra(newObra: Omit<Obra, 'id'>): Promise<Obra> {
 export async function deleteObra(obraId: string): Promise<void> {
     const obras = await getObras();
     const crews = await getCrews();
+    const employees = await getEmployees();
 
-    const isObraInUse = crews.some(crew => crew.obraId === obraId);
-
-    if (isObraInUse) {
+    const isObraInUseByCrew = crews.some(crew => crew.obraId === obraId);
+    if (isObraInUseByCrew) {
         throw new Error('No se puede eliminar la obra porque tiene cuadrillas asignadas.');
+    }
+
+    const isObraInUseByEmployee = employees.some(emp => emp.obraId === obraId);
+    if (isObraInUseByEmployee) {
+        throw new Error('No se puede eliminar la obra porque tiene empleados asignados.');
     }
 
     const updatedObras = obras.filter(obra => obra.id !== obraId);

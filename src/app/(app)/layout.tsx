@@ -5,7 +5,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Briefcase, CalendarClock, Users } from 'lucide-react';
+import { Briefcase, CalendarClock, Users, IdCard } from 'lucide-react';
 
 import {
   SidebarProvider,
@@ -70,6 +70,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuButton isActive={isActive('/cuadrillas')}>
                   <Users />
                   Cuadrillas
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/empleados">
+                <SidebarMenuButton isActive={isActive('/empleados')}>
+                  <IdCard />
+                  Empleados
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
