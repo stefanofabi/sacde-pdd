@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
@@ -48,7 +49,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide, Search } from "lucide-react";
 import type { Employee, Obra, EmployeeCondition, EmployeeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addEmployee, deleteEmployee } from "@/app/actions";
@@ -80,6 +81,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [formState, setFormState] = useState(emptyForm);
 
@@ -88,6 +90,27 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
   const obraNameMap = useMemo(() => {
     return Object.fromEntries(initialObras.map(obra => [obra.id, obra.name]));
   }, [initialObras]);
+
+  const filteredEmployees = useMemo(() => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
+    if (!lowerCaseSearchTerm) {
+        return employees;
+    }
+
+    return employees.filter((emp) => {
+        const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
+        const legajo = emp.legajo.toLowerCase();
+        const cuil = emp.cuil ? emp.cuil.toLowerCase() : '';
+
+        return (
+            fullName.includes(lowerCaseSearchTerm) ||
+            legajo.includes(lowerCaseSearchTerm) ||
+            (cuil && cuil.includes(lowerCaseSearchTerm)) ||
+            emp.apellido.toLowerCase().includes(lowerCaseSearchTerm) ||
+            emp.nombre.toLowerCase().includes(lowerCaseSearchTerm)
+        );
+    });
+  }, [employees, searchTerm]);
 
   const handleInputChange = (field: keyof typeof emptyForm, value: any) => {
     setFormState(prev => ({ ...prev, [field]: value }));
@@ -170,17 +193,30 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>Lista de Empleados</CardTitle>
-                <CardDescription>
-                    Aquí puede ver y gestionar todos los empleados.
-                </CardDescription>
+        <CardHeader>
+             <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <CardTitle>Lista de Empleados</CardTitle>
+                    <CardDescription>
+                        Busque empleados por nombre, apellido, legajo o CUIL.
+                    </CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                     <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar empleado..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 w-full sm:w-[250px]"
+                        />
+                    </div>
+                    <Button onClick={() => { setFormState(emptyForm); setIsAddDialogOpen(true); }}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Agregar Empleado
+                    </Button>
+                </div>
             </div>
-            <Button onClick={() => { setFormState(emptyForm); setIsAddDialogOpen(true); }}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Agregar Empleado
-            </Button>
         </CardHeader>
         <CardContent>
             <div className="rounded-lg border">
@@ -196,8 +232,8 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {employees.length > 0 ? (
-                            employees.map((emp) => (
+                        {filteredEmployees.length > 0 ? (
+                            filteredEmployees.map((emp) => (
                                 <TableRow key={emp.id}>
                                     <TableCell className="font-mono">{emp.legajo}</TableCell>
                                     <TableCell className="font-medium">{`${emp.apellido}, ${emp.nombre}`}</TableCell>
@@ -228,7 +264,10 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                         ) : (
                             <TableRow>
                                 <TableCell colSpan={6} className="h-24 text-center">
-                                    No hay empleados creados.
+                                     {employees.length === 0 
+                                        ? "No hay empleados creados." 
+                                        : "No se encontraron empleados con los filtros aplicados."
+                                    }
                                 </TableCell>
                             </TableRow>
                         )}
@@ -388,3 +427,5 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
     </>
   );
 }
+
+    
