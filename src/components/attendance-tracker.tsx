@@ -63,13 +63,12 @@ import {
   Users,
   X,
   Plus,
-  Briefcase,
 } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, AttendanceData, AttendanceStatus, Obra } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addCrew, updateAttendanceStatus, setDailyCrews, clonePreviousDayAttendance, addObra } from "@/app/actions";
+import { addCrew, updateAttendanceStatus, setDailyCrews, clonePreviousDayAttendance } from "@/app/actions";
 
 interface AttendanceTrackerProps {
   initialCrews: Crew[];
@@ -80,18 +79,15 @@ interface AttendanceTrackerProps {
 export default function AttendanceTracker({ initialCrews, initialAttendance, initialObras }: AttendanceTrackerProps) {
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
-  const [allObras, setAllObras] = useState<Obra[]>(initialObras);
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddCrewDialogOpen, setIsAddCrewDialogOpen] = useState(false);
   const [isManageCrewsDialogOpen, setIsManageCrewsDialogOpen] = useState(false);
-  const [isManageObrasDialogOpen, setIsManageObrasDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [newCrewName, setNewCrewName] = useState("");
   const [newCrewResponsible, setNewCrewResponsible] = useState("");
   const [newCrewObraId, setNewCrewObraId] = useState("");
-  const [newObraName, setNewObraName] = useState("");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -106,8 +102,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     : "Seleccione una fecha";
 
   const obraNameMap = useMemo(() => {
-    return Object.fromEntries(allObras.map(obra => [obra.id, obra.name]));
-  }, [allObras]);
+    return Object.fromEntries(initialObras.map(obra => [obra.id, obra.name]));
+  }, [initialObras]);
 
   const dailyCrewIds = useMemo(() => {
     return formattedDate ? Object.keys(attendance[formattedDate] || {}) : [];
@@ -189,34 +185,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             toast({
               title: "Error",
               description: "No se pudo agregar la cuadrilla.",
-              variant: "destructive",
-            });
-        }
-    });
-  };
-
-  const handleAddObra = () => {
-    if (!newObraName.trim()) {
-      toast({
-        title: "Error de validación",
-        description: "El nombre de la obra no puede estar vacío.",
-        variant: "destructive",
-      });
-      return;
-    }
-    startTransition(async () => {
-        try {
-            const newObra = await addObra({ name: newObraName });
-            setAllObras((prev) => [...prev, newObra]);
-            setNewObraName("");
-            toast({
-              title: "Obra agregada",
-              description: `La obra "${newObra.name}" ha sido creada.`,
-            });
-        } catch (error) {
-            toast({
-              title: "Error",
-              description: "No se pudo agregar la obra.",
               variant: "destructive",
             });
         }
@@ -317,10 +285,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                     <Copy className="mr-2 h-4 w-4" />
                     Clonar Día Anterior
                 </Button>
-                 <Button onClick={() => setIsManageObrasDialogOpen(true)} variant="outline">
-                    <Briefcase className="mr-2 h-4 w-4" />
-                    Gestionar Obras
-                </Button>
                 <Button onClick={() => setIsAddCrewDialogOpen(true)}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Crear Cuadrilla Nueva
@@ -400,7 +364,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   <SelectValue placeholder="Seleccione una obra" />
                 </SelectTrigger>
                 <SelectContent>
-                  {allObras.map((obra) => (
+                  {initialObras.map((obra) => (
                     <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -489,52 +453,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <Dialog open={isManageObrasDialogOpen} onOpenChange={setIsManageObrasDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-                <DialogTitle>Gestionar Obras</DialogTitle>
-                <DialogDescription>
-                    Vea, edite y agregue nuevas obras a la lista maestra.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-4 py-4">
-                <div className="flex flex-col gap-2">
-                    <h3 className="font-semibold">Obras Existentes</h3>
-                    <ScrollArea className="h-48 rounded-md border p-2">
-                        {allObras.length > 0 ? (
-                            allObras.map(obra => (
-                                <div key={obra.id} className="p-2 rounded-md">
-                                    <p className="font-medium">{obra.name}</p>
-                                </div>
-                            ))
-                        ) : (
-                            <p className="text-sm text-muted-foreground p-2">No hay obras creadas.</p>
-                        )}
-                    </ScrollArea>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <h3 className="font-semibold">Agregar Nueva Obra</h3>
-                    <div className="flex items-center gap-2">
-                        <Input 
-                            id="new-obra-name" 
-                            placeholder="Nombre de la nueva obra" 
-                            value={newObraName} 
-                            onChange={(e) => setNewObraName(e.target.value)}
-                            disabled={isPending}
-                        />
-                        <Button onClick={handleAddObra} disabled={isPending || !newObraName.trim()}>
-                            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Agregar
-                        </Button>
-                    </div>
-                </div>
-            </div>
-             <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="secondary">Cerrar</Button></DialogClose>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
