@@ -1,0 +1,7 @@
+
+[
+  { "id": "1", "name": "Cuadrilla Alpha", "responsible": "Juan Pérez" },
+  { "id": "2", "name": "Equipo Bravo", "responsible": "Maria García" },
+  { "id": "3", "name": "Delta Force", "responsible": "Carlos Rodriguez" },
+  { "id": "4", "name": "Constructores del Sur", "responsible": "Ana Martinez" }
+]

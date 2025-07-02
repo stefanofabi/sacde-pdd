@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,90 +43,36 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Calendar as CalendarIcon,
   PlusCircle,
   CheckCircle2,
   XCircle,
   Search,
+  Loader2,
 } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew } from "@/types";
+import type { Crew, AttendanceData } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { addCrew, toggleAttendance } from "@/app/actions";
 
-const CREWS_STORAGE_KEY = "attendance-tracker-crews";
-const ATTENDANCE_STORAGE_KEY = "attendance-tracker-attendance";
+interface AttendanceTrackerProps {
+  initialCrews: Crew[];
+  initialAttendance: AttendanceData;
+}
 
-const initialCrews: Crew[] = [
-  { id: "1", name: "Cuadrilla Alpha", responsible: "Juan Pérez" },
-  { id: "2", name: "Equipo Bravo", responsible: "Maria García" },
-  { id: "3", name: "Delta Force", responsible: "Carlos Rodriguez" },
-  { id: "4", name: "Constructores del Sur", responsible: "Ana Martinez" },
-];
-
-export default function AttendanceTracker() {
+export default function AttendanceTracker({ initialCrews, initialAttendance }: AttendanceTrackerProps) {
   const { toast } = useToast();
-  const [crews, setCrews] = useState<Crew[]>([]);
-  const [attendance, setAttendance] = useState<Record<string, Record<string, boolean>>>({});
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [crews, setCrews] = useState<Crew[]>(initialCrews);
+  const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(startOfToday());
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "sent" | "not-sent">("all");
   const [isAddCrewDialogOpen, setIsAddCrewDialogOpen] = useState(false);
   const [newCrewName, setNewCrewName] = useState("");
   const [newCrewResponsible, setNewCrewResponsible] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    try {
-      const storedCrews = localStorage.getItem(CREWS_STORAGE_KEY);
-      if (storedCrews) {
-        setCrews(JSON.parse(storedCrews));
-      } else {
-        setCrews(initialCrews);
-      }
-
-      const storedAttendance = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
-      const today = startOfToday();
-      if (storedAttendance) {
-        setAttendance(JSON.parse(storedAttendance));
-      } else {
-        const initialAttendance = {
-          [format(today, "yyyy-MM-dd")]: { "1": true, "3": false, "2": true },
-        };
-        setAttendance(initialAttendance);
-      }
-      setSelectedDate(today);
-    } catch (error) {
-      console.error("Failed to parse data from localStorage", error);
-      toast({
-        title: "Error al cargar datos",
-        description: "Restableciendo a los valores predeterminados.",
-        variant: "destructive",
-      });
-      setCrews(initialCrews);
-      const today = startOfToday();
-      setAttendance({
-        [format(today, "yyyy-MM-dd")]: { "1": true, "3": false, "2": true },
-      });
-      setSelectedDate(today);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem(CREWS_STORAGE_KEY, JSON.stringify(crews));
-    }
-  }, [crews, isLoading]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(attendance));
-    }
-  }, [attendance, isLoading]);
+  const [isPending, startTransition] = useTransition();
 
   const formattedDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
   const displayDate = selectedDate
@@ -153,16 +100,27 @@ export default function AttendanceTracker() {
     if (!selectedDate) return;
     const dateKey = format(selectedDate, "yyyy-MM-dd");
 
-    setAttendance((prev) => {
-      const dailyAttendance = prev[dateKey] || {};
-      const newDailyAttendance = {
-        ...dailyAttendance,
-        [crewId]: !dailyAttendance[crewId],
-      };
-      return {
-        ...prev,
-        [dateKey]: newDailyAttendance,
-      };
+    startTransition(async () => {
+      try {
+        const newStatus = await toggleAttendance(dateKey, crewId);
+        setAttendance((prev) => {
+          const dailyAttendance = prev[dateKey] || {};
+          const newDailyAttendance = {
+            ...dailyAttendance,
+            [crewId]: newStatus,
+          };
+          return {
+            ...prev,
+            [dateKey]: newDailyAttendance,
+          };
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudo actualizar la asistencia.",
+          variant: "destructive",
+        });
+      }
     });
   };
 
@@ -175,42 +133,30 @@ export default function AttendanceTracker() {
       });
       return;
     }
-    const newCrew: Crew = {
-      id: crypto.randomUUID(),
-      name: newCrewName,
-      responsible: newCrewResponsible,
-    };
-    setCrews((prevCrews) => [...prevCrews, newCrew]);
-    setNewCrewName("");
-    setNewCrewResponsible("");
-    setIsAddCrewDialogOpen(false);
-    toast({
-      title: "Cuadrilla agregada",
-      description: `La cuadrilla "${newCrew.name}" ha sido creada.`,
+    
+    startTransition(async () => {
+        try {
+            const newCrew = await addCrew({
+                name: newCrewName,
+                responsible: newCrewResponsible,
+            });
+            setCrews((prevCrews) => [...prevCrews, newCrew]);
+            setNewCrewName("");
+            setNewCrewResponsible("");
+            setIsAddCrewDialogOpen(false);
+            toast({
+              title: "Cuadrilla agregada",
+              description: `La cuadrilla "${newCrew.name}" ha sido creada.`,
+            });
+        } catch (error) {
+            toast({
+              title: "Error",
+              description: "No se pudo agregar la cuadrilla.",
+              variant: "destructive",
+            });
+        }
     });
   };
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Cargando registros...</CardTitle>
-          <CardDescription>Por favor espere.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <Skeleton className="h-10 w-full md:w-48" />
-              <Skeleton className="h-10 flex-1" />
-              <Skeleton className="h-10 w-full md:w-40" />
-              <Skeleton className="h-10 w-full md:w-48" />
-            </div>
-            <Skeleton className="h-[400px] w-full" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <>
@@ -282,7 +228,12 @@ export default function AttendanceTracker() {
             </Button>
           </div>
 
-          <div className="rounded-lg border">
+          <div className="rounded-lg border relative">
+             {isPending && (
+              <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -305,6 +256,7 @@ export default function AttendanceTracker() {
                               checked={hasSent}
                               onCheckedChange={() => handleToggleAttendance(crew.id)}
                               aria-label={`Marcar asistencia para ${crew.name}`}
+                              disabled={isPending}
                             />
                              {hasSent ? (
                               <CheckCircle2 className="h-5 w-5 text-primary transition-all" />
@@ -348,6 +300,7 @@ export default function AttendanceTracker() {
                 onChange={(e) => setNewCrewName(e.target.value)}
                 className="col-span-3"
                 placeholder="Ej. Equipo de Instalación"
+                disabled={isPending}
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
@@ -360,16 +313,20 @@ export default function AttendanceTracker() {
                 onChange={(e) => setNewCrewResponsible(e.target.value)}
                 className="col-span-3"
                 placeholder="Ej. Juan Pérez"
+                disabled={isPending}
               />
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="secondary">
+              <Button type="button" variant="secondary" disabled={isPending}>
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit" onClick={handleAddCrew}>Guardar Cuadrilla</Button>
+            <Button type="submit" onClick={handleAddCrew} disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Guardar Cuadrilla
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

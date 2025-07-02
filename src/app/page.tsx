@@ -1,7 +1,12 @@
+
 import AttendanceTracker from "@/components/attendance-tracker";
 import { Toaster } from "@/components/ui/toaster";
+import { getCrews, getAttendance } from "@/app/actions";
 
-export default function Home() {
+export default async function Home() {
+  const initialCrews = await getCrews();
+  const initialAttendance = await getAttendance();
+
   return (
     <>
       <main className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8">
@@ -14,7 +19,10 @@ export default function Home() {
               Plataforma para el seguimiento de asistencias de cuadrillas.
             </p>
           </header>
-          <AttendanceTracker />
+          <AttendanceTracker 
+            initialCrews={initialCrews}
+            initialAttendance={initialAttendance}
+          />
         </div>
       </main>
       <Toaster />
