@@ -58,14 +58,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarContent>
           <SidebarMenu>
             <SidebarMenuItem>
-              <Link href="/asistencias">
-                <SidebarMenuButton isActive={isActive('/asistencias')}>
-                  <CalendarClock />
-                  Asistencias
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
               <Link href="/cuadrillas">
                 <SidebarMenuButton isActive={isActive('/cuadrillas')}>
                   <Users />
@@ -73,11 +65,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
-             <SidebarMenuItem>
+            <SidebarMenuItem>
               <Link href="/empleados">
                 <SidebarMenuButton isActive={isActive('/empleados')}>
                   <IdCard />
                   Empleados
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/asistencias">
+                <SidebarMenuButton isActive={isActive('/asistencias')}>
+                  <CalendarClock />
+                  Asistencias
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>
