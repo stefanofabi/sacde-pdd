@@ -48,6 +48,13 @@ import {
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Calendar as CalendarIcon,
   Search,
   Loader2,
@@ -73,6 +80,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
+  const [sentStatusFilter, setSentStatusFilter] = useState<"all" | "sent" | "not-sent">("all");
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   
@@ -126,14 +134,23 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   
   const filteredCrewsForTable = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return crewsForDay.filter((crew) => {
+    
+    return crewsForDay
+      .filter((crew) => {
+        if (sentStatusFilter === 'all') {
+          return true;
+        }
+        const isSent = !!attendance[formattedDate]?.[crew.id]?.sent;
+        return sentStatusFilter === 'sent' ? isSent : !isSent;
+      })
+      .filter((crew) => {
         const responsibleId = attendance[formattedDate]?.[crew.id]?.responsibleId;
         const responsibleName = responsibleId ? (employeeNameMap[responsibleId] || '') : '';
         return crew.name.toLowerCase().includes(lowerCaseSearchTerm) ||
         (obraNameMap[crew.obraId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
         (responsibleName).toLowerCase().includes(lowerCaseSearchTerm)
     });
-  }, [crewsForDay, searchTerm, obraNameMap, employeeNameMap, attendance, formattedDate]);
+  }, [crewsForDay, searchTerm, sentStatusFilter, obraNameMap, employeeNameMap, attendance, formattedDate]);
   
   const handleUpdateSentStatus = (crewId: string, sent: boolean) => {
     if (!selectedDate) return;
@@ -259,6 +276,16 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                 className="pl-10"
               />
             </div>
+            <Select value={sentStatusFilter} onValueChange={(value: "all" | "sent" | "not-sent") => setSentStatusFilter(value)}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filtrar por estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  <SelectItem value="sent">Enviados</SelectItem>
+                  <SelectItem value="not-sent">No Enviados</SelectItem>
+                </SelectContent>
+            </Select>
             <div className="flex flex-wrap gap-2">
                 <Button onClick={() => setIsCloneDialogOpen(true)} variant="outline">
                     <Copy className="mr-2 h-4 w-4" />
