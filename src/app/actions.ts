@@ -59,6 +59,26 @@ export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
   return crewWithId;
 }
 
+export async function updateCrew(crewId: string, updatedCrewData: Partial<Omit<Crew, 'id'>>): Promise<Crew> {
+    const crews = await getCrews();
+    const crewIndex = crews.findIndex(c => c.id === crewId);
+
+    if (crewIndex === -1) {
+        throw new Error('La cuadrilla a actualizar no fue encontrada.');
+    }
+
+    if (updatedCrewData.employeeIds && !Array.isArray(updatedCrewData.employeeIds)) {
+        updatedCrewData.employeeIds = [];
+    }
+
+    const updatedCrew = { ...crews[crewIndex], ...updatedCrewData };
+    const updatedCrews = [...crews];
+    updatedCrews[crewIndex] = updatedCrew;
+
+    await writeData(crewsFilePath, updatedCrews);
+    return updatedCrew;
+}
+
 export async function addEmployee(newEmployee: Omit<Employee, 'id'>): Promise<Employee> {
     const employees = await getEmployees();
     if (employees.some(emp => emp.legajo === newEmployee.legajo)) {

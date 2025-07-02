@@ -12,6 +12,7 @@ export interface Crew {
   apuntadorId: string;
   jefeDeObraId: string;
   controlGestionId: string;
+  employeeIds: string[];
 }
 
 export type AttendanceStatus = boolean;

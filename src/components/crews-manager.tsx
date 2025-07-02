@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -47,10 +47,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Pencil, Users, Plus, X } from "lucide-react";
 import type { Crew, Obra, Employee } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addCrew, deleteCrew } from "@/app/actions";
+import { addCrew, deleteCrew, updateCrew } from "@/app/actions";
+import { ScrollArea } from "./ui/scroll-area";
+import { Separator } from "./ui/separator";
+import { Badge } from "./ui/badge";
 
 interface CrewsManagerProps {
   initialCrews: Crew[];
@@ -64,18 +67,30 @@ const emptyForm = {
     capatazId: "",
     apuntadorId: "",
     jefeDeObraId: "",
-    controlGestionId: ""
+    controlGestionId: "",
+    employeeIds: [] as string[],
 };
 
 export default function CrewsManager({ initialCrews, initialObras, initialEmployees }: CrewsManagerProps) {
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCrewDialogOpen, setIsCrewDialogOpen] = useState(false);
   const [crewToDelete, setCrewToDelete] = useState<Crew | null>(null);
+  const [editingCrew, setEditingCrew] = useState<Crew | null>(null);
   
   const [newCrewState, setNewCrewState] = useState(emptyForm);
   
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (isCrewDialogOpen) {
+      if (editingCrew) {
+        setNewCrewState({ ...editingCrew, employeeIds: editingCrew.employeeIds || [] });
+      } else {
+        setNewCrewState(emptyForm);
+      }
+    }
+  }, [editingCrew, isCrewDialogOpen]);
 
   const obraNameMap = useMemo(() => {
     return Object.fromEntries(initialObras.map(obra => [obra.id, obra.name]));
@@ -91,12 +106,16 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
         label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo}${emp.cuil ? `, C: ${emp.cuil}` : ''})`
     }));
   }, [initialEmployees]);
+
+  const jornalEmployees = useMemo(() => {
+    return initialEmployees.filter(emp => emp.condicion === 'jornal' && emp.estado === 'activo');
+  }, [initialEmployees]);
   
-  const handleInputChange = (field: keyof typeof emptyForm, value: string) => {
+  const handleInputChange = (field: keyof typeof emptyForm, value: string | string[]) => {
     setNewCrewState(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleAddCrew = () => {
+  const handleSaveCrew = () => {
     const { name, obraId, capatazId, apuntadorId, jefeDeObraId, controlGestionId } = newCrewState;
     if (!name.trim() || !obraId || !capatazId || !apuntadorId || !jefeDeObraId || !controlGestionId) {
       toast({
@@ -108,18 +127,27 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
     }
     startTransition(async () => {
       try {
-        const newCrew = await addCrew(newCrewState);
-        setAllCrews((prev) => [...prev, newCrew]);
-        setNewCrewState(emptyForm);
-        setIsAddDialogOpen(false);
-        toast({
-          title: "Cuadrilla agregada",
-          description: `La cuadrilla "${newCrew.name}" ha sido creada.`,
-        });
+        if (editingCrew) {
+          const updatedCrew = await updateCrew(editingCrew.id, newCrewState);
+          setAllCrews(prev => prev.map(c => c.id === updatedCrew.id ? updatedCrew : c));
+          toast({
+            title: "Cuadrilla actualizada",
+            description: `La cuadrilla "${updatedCrew.name}" ha sido actualizada.`,
+          });
+        } else {
+          const newCrew = await addCrew(newCrewState);
+          setAllCrews((prev) => [...prev, newCrew]);
+          toast({
+            title: "Cuadrilla agregada",
+            description: `La cuadrilla "${newCrew.name}" ha sido creada.`,
+          });
+        }
+        setIsCrewDialogOpen(false);
+        setEditingCrew(null);
       } catch (error) {
         toast({
           title: "Error",
-          description: "No se pudo agregar la cuadrilla.",
+          description: error instanceof Error ? error.message : "No se pudo guardar la cuadrilla.",
           variant: "destructive",
         });
       }
@@ -149,6 +177,16 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
     });
   };
 
+  const handleOpenAddDialog = () => {
+    setEditingCrew(null);
+    setIsCrewDialogOpen(true);
+  }
+
+  const handleOpenEditDialog = (crew: Crew) => {
+    setEditingCrew(crew);
+    setIsCrewDialogOpen(true);
+  }
+
   return (
     <>
       <Card>
@@ -156,10 +194,10 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
             <div>
                 <CardTitle>Lista de Cuadrillas</CardTitle>
                 <CardDescription>
-                    Aquí puede ver y gestionar todas las cuadrillas.
+                    Aquí puede ver, crear, editar y gestionar todas las cuadrillas.
                 </CardDescription>
             </div>
-            <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Button onClick={handleOpenAddDialog}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Agregar Cuadrilla
             </Button>
@@ -175,7 +213,8 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                             <TableHead>Apuntador</TableHead>
                             <TableHead>Jefe de Obra</TableHead>
                             <TableHead>Control y Gestión</TableHead>
-                            <TableHead className="text-right w-[100px]">Acciones</TableHead>
+                            <TableHead className="text-center">Personal</TableHead>
+                            <TableHead className="text-right w-[120px]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -188,7 +227,19 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                                     <TableCell>{employeeNameMap[crew.apuntadorId] || 'N/A'}</TableCell>
                                     <TableCell>{employeeNameMap[crew.jefeDeObraId] || 'N/A'}</TableCell>
                                     <TableCell>{employeeNameMap[crew.controlGestionId] || 'N/A'}</TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-center">
+                                      <Badge variant="secondary">{crew.employeeIds?.length || 0}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right space-x-1">
+                                         <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleOpenEditDialog(crew)}
+                                            disabled={isPending}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                            <span className="sr-only">Editar {crew.name}</span>
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -204,7 +255,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={7} className="h-24 text-center">
+                                <TableCell colSpan={8} className="h-24 text-center">
                                     No hay cuadrillas creadas.
                                 </TableCell>
                             </TableRow>
@@ -215,84 +266,124 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
         </CardContent>
       </Card>
       
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+      <Dialog open={isCrewDialogOpen} onOpenChange={setIsCrewDialogOpen}>
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Agregar Nueva Cuadrilla</DialogTitle>
+            <DialogTitle>{editingCrew ? 'Editar Cuadrilla' : 'Agregar Nueva Cuadrilla'}</DialogTitle>
             <DialogDescription>
-              Complete los detalles para registrar una nueva cuadrilla.
+              Complete los detalles de la cuadrilla y asigne el personal necesario.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-name" className="text-right">Nombre</Label>
-              <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleInputChange('name', e.target.value)} className="col-span-3" placeholder="Ej. Equipo de Montaje" disabled={isPending}/>
+          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="crew-name">Nombre</Label>
+                <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Ej. Equipo de Montaje" disabled={isPending}/>
+              </div>
+              <div>
+                <Label htmlFor="crew-obra">Obra</Label>
+                 <Select onValueChange={(value) => handleInputChange('obraId', value)} value={newCrewState.obraId} disabled={isPending}>
+                  <SelectTrigger><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
+                  <SelectContent>
+                    {initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="crew-capataz">Capataz</Label>
+                 <Combobox
+                    options={employeeOptions}
+                    value={newCrewState.capatazId}
+                    onValueChange={(value) => handleInputChange('capatazId', value)}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
+                    disabled={isPending}
+                  />
+              </div>
+              <div>
+                <Label htmlFor="crew-apuntador">Apuntador</Label>
+                 <Combobox
+                    options={employeeOptions}
+                    value={newCrewState.apuntadorId}
+                    onValueChange={(value) => handleInputChange('apuntadorId', value)}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
+                    disabled={isPending}
+                  />
+              </div>
+              <div>
+                <Label htmlFor="crew-jefe">Jefe de Obra</Label>
+                 <Combobox
+                    options={employeeOptions}
+                    value={newCrewState.jefeDeObraId}
+                    onValueChange={(value) => handleInputChange('jefeDeObraId', value)}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
+                    disabled={isPending}
+                  />
+              </div>
+               <div>
+                <Label htmlFor="crew-control" className="whitespace-nowrap">Control y Gestión</Label>
+                 <Combobox
+                    options={employeeOptions}
+                    value={newCrewState.controlGestionId}
+                    onValueChange={(value) => handleInputChange('controlGestionId', value)}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
+                    disabled={isPending}
+                  />
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-obra" className="text-right">Obra</Label>
-               <Select onValueChange={(value) => handleInputChange('obraId', value)} value={newCrewState.obraId} disabled={isPending}>
-                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-                <SelectContent>
-                  {initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-capataz" className="text-right">Capataz</Label>
-               <Combobox
-                  options={employeeOptions}
-                  value={newCrewState.capatazId}
-                  onValueChange={(value) => handleInputChange('capatazId', value)}
-                  placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                  emptyMessage="No se encontró el empleado."
-                  disabled={isPending}
-                  className="col-span-3"
-                />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-apuntador" className="text-right">Apuntador</Label>
-               <Combobox
-                  options={employeeOptions}
-                  value={newCrewState.apuntadorId}
-                  onValueChange={(value) => handleInputChange('apuntadorId', value)}
-                  placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                  emptyMessage="No se encontró el empleado."
-                  disabled={isPending}
-                  className="col-span-3"
-                />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-jefe" className="text-right">Jefe de Obra</Label>
-               <Combobox
-                  options={employeeOptions}
-                  value={newCrewState.jefeDeObraId}
-                  onValueChange={(value) => handleInputChange('jefeDeObraId', value)}
-                  placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                  emptyMessage="No se encontró el empleado."
-                  disabled={isPending}
-                  className="col-span-3"
-                />
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-control" className="text-right whitespace-nowrap">Control y Gestión</Label>
-               <Combobox
-                  options={employeeOptions}
-                  value={newCrewState.controlGestionId}
-                  onValueChange={(value) => handleInputChange('controlGestionId', value)}
-                  placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                  emptyMessage="No se encontró el empleado."
-                  disabled={isPending}
-                  className="col-span-3"
-                />
+            <Separator className="my-4" />
+             <div>
+                <h3 className="mb-4 text-lg font-medium leading-none">Asignar Personal <Badge variant="outline">Jornal Activo</Badge></h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-72">
+                    <div className="flex flex-col gap-2">
+                        <h4 className="font-semibold text-sm">Personal Disponible</h4>
+                        <ScrollArea className="flex-1 rounded-md border p-2">
+                            {jornalEmployees
+                                .filter(emp => !newCrewState.employeeIds.includes(emp.id))
+                                .map(emp => (
+                                <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                    <div>
+                                        <p className="font-medium">{employeeNameMap[emp.id]}</p>
+                                        <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
+                                    </div>
+                                    <Button size="icon" variant="outline" onClick={() => handleInputChange('employeeIds', [...newCrewState.employeeIds, emp.id])} disabled={isPending}>
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </ScrollArea>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                         <h4 className="font-semibold text-sm">Personal Asignado ({newCrewState.employeeIds.length})</h4>
+                        <ScrollArea className="flex-1 rounded-md border p-2">
+                             {jornalEmployees
+                                .filter(emp => newCrewState.employeeIds.includes(emp.id))
+                                .map(emp => (
+                                   <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                    <div>
+                                        <p className="font-medium">{employeeNameMap[emp.id]}</p>
+                                        <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
+                                    </div>
+                                    <Button size="icon" variant="destructive" onClick={() => handleInputChange('employeeIds', newCrewState.employeeIds.filter(id => id !== emp.id))} disabled={isPending}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </ScrollArea>
+                    </div>
+                </div>
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
-            <Button type="submit" onClick={handleAddCrew} disabled={isPending}>
+            <Button type="submit" onClick={handleSaveCrew} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar
             </Button>
@@ -303,7 +394,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
       <AlertDialog open={!!crewToDelete} onOpenChange={(open) => !open && setCrewToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
+                <AlertDialogTitle>¿Está absolutely seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
                     Esta acción no se puede deshacer. Se eliminará permanentemente la cuadrilla "{crewToDelete?.name}".
                     No podrá eliminar una cuadrilla si tiene registros de asistencia asociados.

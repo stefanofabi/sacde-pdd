@@ -70,6 +70,8 @@ import { es } from "date-fns/locale";
 import type { Crew, AttendanceData, AttendanceStatus, Obra, Employee } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addCrew, updateAttendanceStatus, setDailyCrews, clonePreviousDayAttendance } from "@/app/actions";
+import { Separator } from "./ui/separator";
+import { Badge } from "./ui/badge";
 
 interface AttendanceTrackerProps {
   initialCrews: Crew[];
@@ -84,7 +86,8 @@ const emptyCrewForm = {
     capatazId: "",
     apuntadorId: "",
     jefeDeObraId: "",
-    controlGestionId: ""
+    controlGestionId: "",
+    employeeIds: [] as string[],
 };
 
 export default function AttendanceTracker({ initialCrews, initialAttendance, initialObras, initialEmployees }: AttendanceTrackerProps) {
@@ -124,6 +127,10 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         value: emp.id,
         label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo}${emp.cuil ? `, C: ${emp.cuil}` : ''})`
     }));
+  }, [initialEmployees]);
+  
+  const jornalEmployees = useMemo(() => {
+    return initialEmployees.filter(emp => emp.condicion === 'jornal' && emp.estado === 'activo');
   }, [initialEmployees]);
 
   const dailyCrewIds = useMemo(() => {
@@ -180,7 +187,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     });
   };
 
-  const handleCrewFormChange = (field: keyof typeof emptyCrewForm, value: string) => {
+  const handleCrewFormChange = (field: keyof typeof emptyCrewForm, value: string | string[]) => {
     setNewCrewState(prev => ({ ...prev, [field]: value }));
   };
 
@@ -309,7 +316,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                     <Copy className="mr-2 h-4 w-4" />
                     Clonar Día Anterior
                 </Button>
-                <Button onClick={() => setIsAddCrewDialogOpen(true)}>
+                <Button onClick={() => { setNewCrewState(emptyCrewForm); setIsAddCrewDialogOpen(true); }}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Crear Cuadrilla Nueva
                 </Button>
@@ -371,78 +378,118 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       </Card>
 
       <Dialog open={isAddCrewDialogOpen} onOpenChange={setIsAddCrewDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Crear Nueva Cuadrilla</DialogTitle>
             <DialogDescription>
               Complete los detalles para registrar una nueva cuadrilla.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-name" className="text-right">Nombre</Label>
-              <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleCrewFormChange('name', e.target.value)} className="col-span-3" placeholder="Ej. Equipo de Instalación" disabled={isPending}/>
+          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="crew-name">Nombre</Label>
+                <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleCrewFormChange('name', e.target.value)} placeholder="Ej. Equipo de Montaje" disabled={isPending}/>
+              </div>
+              <div>
+                <Label htmlFor="crew-obra">Obra</Label>
+                 <Select onValueChange={(value) => handleCrewFormChange('obraId', value)} value={newCrewState.obraId} disabled={isPending}>
+                  <SelectTrigger><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
+                  <SelectContent>
+                    {initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="crew-capataz">Capataz</Label>
+                 <Combobox
+                    options={employeeOptions}
+                    value={newCrewState.capatazId}
+                    onValueChange={(value) => handleCrewFormChange('capatazId', value)}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
+                    disabled={isPending}
+                  />
+              </div>
+              <div>
+                <Label htmlFor="crew-apuntador">Apuntador</Label>
+                 <Combobox
+                    options={employeeOptions}
+                    value={newCrewState.apuntadorId}
+                    onValueChange={(value) => handleCrewFormChange('apuntadorId', value)}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
+                    disabled={isPending}
+                  />
+              </div>
+              <div>
+                <Label htmlFor="crew-jefe">Jefe de Obra</Label>
+                 <Combobox
+                    options={employeeOptions}
+                    value={newCrewState.jefeDeObraId}
+                    onValueChange={(value) => handleCrewFormChange('jefeDeObraId', value)}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
+                    disabled={isPending}
+                  />
+              </div>
+               <div>
+                <Label htmlFor="crew-control" className="whitespace-nowrap">Control y Gestión</Label>
+                 <Combobox
+                    options={employeeOptions}
+                    value={newCrewState.controlGestionId}
+                    onValueChange={(value) => handleCrewFormChange('controlGestionId', value)}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
+                    disabled={isPending}
+                  />
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-obra" className="text-right">Obra</Label>
-               <Select onValueChange={(value) => handleCrewFormChange('obraId', value)} value={newCrewState.obraId} disabled={isPending}>
-                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-                <SelectContent>
-                  {initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-capataz" className="text-right">Capataz</Label>
-               <Combobox
-                  options={employeeOptions}
-                  value={newCrewState.capatazId}
-                  onValueChange={(value) => handleCrewFormChange('capatazId', value)}
-                  placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                  emptyMessage="No se encontró el empleado."
-                  disabled={isPending}
-                  className="col-span-3"
-                />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-apuntador" className="text-right">Apuntador</Label>
-               <Combobox
-                  options={employeeOptions}
-                  value={newCrewState.apuntadorId}
-                  onValueChange={(value) => handleCrewFormChange('apuntadorId', value)}
-                  placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                  emptyMessage="No se encontró el empleado."
-                  disabled={isPending}
-                  className="col-span-3"
-                />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-jefe" className="text-right">Jefe de Obra</Label>
-               <Combobox
-                  options={employeeOptions}
-                  value={newCrewState.jefeDeObraId}
-                  onValueChange={(value) => handleCrewFormChange('jefeDeObraId', value)}
-                  placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                  emptyMessage="No se encontró el empleado."
-                  disabled={isPending}
-                  className="col-span-3"
-                />
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-control" className="text-right whitespace-nowrap">Control y Gestión</Label>
-               <Combobox
-                  options={employeeOptions}
-                  value={newCrewState.controlGestionId}
-                  onValueChange={(value) => handleCrewFormChange('controlGestionId', value)}
-                  placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                  emptyMessage="No se encontró el empleado."
-                  disabled={isPending}
-                  className="col-span-3"
-                />
+            <Separator className="my-4" />
+             <div>
+                <h3 className="mb-4 text-lg font-medium leading-none">Asignar Personal <Badge variant="outline">Jornal Activo</Badge></h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-72">
+                    <div className="flex flex-col gap-2">
+                        <h4 className="font-semibold text-sm">Personal Disponible</h4>
+                        <ScrollArea className="flex-1 rounded-md border p-2">
+                            {jornalEmployees
+                                .filter(emp => !newCrewState.employeeIds.includes(emp.id))
+                                .map(emp => (
+                                <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                    <div>
+                                        <p className="font-medium">{employeeNameMap[emp.id]}</p>
+                                        <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
+                                    </div>
+                                    <Button size="icon" variant="outline" onClick={() => handleCrewFormChange('employeeIds', [...newCrewState.employeeIds, emp.id])} disabled={isPending}>
+                                        <Plus className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </ScrollArea>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                         <h4 className="font-semibold text-sm">Personal Asignado ({newCrewState.employeeIds.length})</h4>
+                        <ScrollArea className="flex-1 rounded-md border p-2">
+                             {jornalEmployees
+                                .filter(emp => newCrewState.employeeIds.includes(emp.id))
+                                .map(emp => (
+                                   <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                    <div>
+                                        <p className="font-medium">{employeeNameMap[emp.id]}</p>
+                                        <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
+                                    </div>
+                                    <Button size="icon" variant="destructive" onClick={() => handleCrewFormChange('employeeIds', newCrewState.employeeIds.filter(id => id !== emp.id))} disabled={isPending}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </ScrollArea>
+                    </div>
+                </div>
             </div>
           </div>
           <DialogFooter>
