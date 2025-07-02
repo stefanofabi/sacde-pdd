@@ -46,7 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, PlusCircle, Trash2, Pencil, Plus, X } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Pencil, Plus, X, Search } from "lucide-react";
 import type { Crew, Obra, Employee } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addCrew, deleteCrew, updateCrew } from "@/app/actions";
@@ -77,6 +77,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   const [crewToDelete, setCrewToDelete] = useState<Crew | null>(null);
   const [editingCrew, setEditingCrew] = useState<Crew | null>(null);
   const [selectedObraId, setSelectedObraId] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
   
   const [newCrewState, setNewCrewState] = useState(emptyForm);
   
@@ -109,11 +110,25 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   }, [initialEmployees]);
 
   const filteredCrews = useMemo(() => {
-    if (selectedObraId === "all") {
-        return allCrews;
+    const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
+
+    let crews = allCrews;
+    if (selectedObraId !== "all") {
+        crews = crews.filter(crew => crew.obraId === selectedObraId);
     }
-    return allCrews.filter(crew => crew.obraId === selectedObraId);
-  }, [allCrews, selectedObraId]);
+    
+    if (!lowerCaseSearchTerm) {
+        return crews;
+    }
+
+    return crews.filter((crew) =>
+        crew.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap[crew.capatazId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap[crew.apuntadorId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap[crew.jefeDeObraId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap[crew.controlGestionId] || '').toLowerCase().includes(lowerCaseSearchTerm)
+    );
+  }, [allCrews, selectedObraId, searchTerm, employeeNameMap]);
   
   const handleInputChange = (field: keyof typeof emptyForm, value: string | string[]) => {
     setNewCrewState(prev => ({ ...prev, [field]: value }));
@@ -199,10 +214,19 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                 <div>
                     <CardTitle>Lista de Cuadrillas</CardTitle>
                     <CardDescription>
-                        Filtre por obra o gestione las cuadrillas existentes.
+                        Busque, filtre por obra o gestione las cuadrillas existentes.
                     </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar cuadrilla..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 w-full sm:w-[200px]"
+                        />
+                    </div>
                     <Select onValueChange={setSelectedObraId} defaultValue="all">
                         <SelectTrigger className="w-full sm:w-[250px]">
                             <SelectValue placeholder="Filtrar por obra..." />
@@ -277,7 +301,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                                 <TableCell colSpan={7} className="h-24 text-center">
                                     {allCrews.length === 0 
                                         ? "No hay cuadrillas creadas." 
-                                        : "No se encontraron cuadrillas para la obra seleccionada."
+                                        : "No se encontraron cuadrillas con los filtros aplicados."
                                     }
                                 </TableCell>
                             </TableRow>
