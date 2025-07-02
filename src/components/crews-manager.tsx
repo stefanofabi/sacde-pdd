@@ -88,7 +88,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   const employeeOptions = useMemo(() => {
     return initialEmployees.map(emp => ({
         value: emp.id,
-        label: `${emp.nombre} ${emp.apellido} (${emp.legajo})`
+        label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo}${emp.cuil ? `, C: ${emp.cuil}` : ''})`
     }));
   }, [initialEmployees]);
   
@@ -244,7 +244,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                   value={newCrewState.capatazId}
                   onValueChange={(value) => handleInputChange('capatazId', value)}
                   placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar empleado..."
+                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
                   emptyMessage="No se encontró el empleado."
                   disabled={isPending}
                   className="col-span-3"
@@ -257,7 +257,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                   value={newCrewState.apuntadorId}
                   onValueChange={(value) => handleInputChange('apuntadorId', value)}
                   placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar empleado..."
+                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
                   emptyMessage="No se encontró el empleado."
                   disabled={isPending}
                   className="col-span-3"
@@ -270,7 +270,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                   value={newCrewState.jefeDeObraId}
                   onValueChange={(value) => handleInputChange('jefeDeObraId', value)}
                   placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar empleado..."
+                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
                   emptyMessage="No se encontró el empleado."
                   disabled={isPending}
                   className="col-span-3"
@@ -283,7 +283,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                   value={newCrewState.controlGestionId}
                   onValueChange={(value) => handleInputChange('controlGestionId', value)}
                   placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar empleado..."
+                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
                   emptyMessage="No se encontró el empleado."
                   disabled={isPending}
                   className="col-span-3"

@@ -122,7 +122,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const employeeOptions = useMemo(() => {
     return initialEmployees.map(emp => ({
         value: emp.id,
-        label: `${emp.nombre} ${emp.apellido} (${emp.legajo})`
+        label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo}${emp.cuil ? `, C: ${emp.cuil}` : ''})`
     }));
   }, [initialEmployees]);
 
@@ -399,7 +399,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   value={newCrewState.capatazId}
                   onValueChange={(value) => handleCrewFormChange('capatazId', value)}
                   placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar empleado..."
+                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
                   emptyMessage="No se encontró el empleado."
                   disabled={isPending}
                   className="col-span-3"
@@ -412,7 +412,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   value={newCrewState.apuntadorId}
                   onValueChange={(value) => handleCrewFormChange('apuntadorId', value)}
                   placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar empleado..."
+                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
                   emptyMessage="No se encontró el empleado."
                   disabled={isPending}
                   className="col-span-3"
@@ -425,7 +425,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   value={newCrewState.jefeDeObraId}
                   onValueChange={(value) => handleCrewFormChange('jefeDeObraId', value)}
                   placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar empleado..."
+                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
                   emptyMessage="No se encontró el empleado."
                   disabled={isPending}
                   className="col-span-3"
@@ -438,7 +438,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   value={newCrewState.controlGestionId}
                   onValueChange={(value) => handleCrewFormChange('controlGestionId', value)}
                   placeholder="Seleccione un empleado"
-                  searchPlaceholder="Buscar empleado..."
+                  searchPlaceholder="Buscar por nombre, legajo o CUIL..."
                   emptyMessage="No se encontró el empleado."
                   disabled={isPending}
                   className="col-span-3"
