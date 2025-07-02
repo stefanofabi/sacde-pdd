@@ -152,11 +152,11 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
 
     startTransition(async () => {
       try {
-        await updateAttendanceSentStatus(dateKey, crewId, sent);
+        const updatedInfo = await updateAttendanceSentStatus(dateKey, crewId, sent);
         setAttendance((prev) => {
            const newDailyData = { ...prev[dateKey] };
            if(newDailyData[crewId]) {
-             newDailyData[crewId] = { ...newDailyData[crewId], sent: sent };
+             newDailyData[crewId] = updatedInfo;
            }
            return { ...prev, [dateKey]: newDailyData };
         });
@@ -187,7 +187,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         setAttendance(prev => {
             const newDailyData = {
                 ...(prev[dateKey] || {}),
-                [newRequestState.crewId]: { sent: false, responsibleId: newRequestState.responsibleId }
+                [newRequestState.crewId]: { sent: false, responsibleId: newRequestState.responsibleId, sentAt: null }
             };
             return { ...prev, [dateKey]: newDailyData };
         });
@@ -320,29 +320,37 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   <TableHead>Cuadrilla</TableHead>
                   <TableHead>Obra</TableHead>
                   <TableHead>Responsable</TableHead>
+                  <TableHead>Fecha de Envío</TableHead>
                   <TableHead className="text-center w-[150px]">Enviado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCrewsForTable.length > 0 ? (
-                  filteredCrewsForTable.map((crew) => (
+                  filteredCrewsForTable.map((crew) => {
+                    const dailyInfo = attendance[formattedDate]?.[crew.id];
+                    const sentAt = dailyInfo?.sentAt;
+                    return (
                       <TableRow key={crew.id}>
                         <TableCell className="font-medium">{crew.name}</TableCell>
                         <TableCell>{obraNameMap[crew.obraId] || 'N/A'}</TableCell>
-                        <TableCell>{employeeNameMap[attendance[formattedDate]?.[crew.id]?.responsibleId ?? ''] || 'N/A'}</TableCell>
+                        <TableCell>{employeeNameMap[dailyInfo?.responsibleId ?? ''] || 'N/A'}</TableCell>
+                        <TableCell>
+                          {sentAt ? format(new Date(sentAt), 'Pp', { locale: es }) : 'Pendiente'}
+                        </TableCell>
                         <TableCell className="text-center">
                           <Switch
-                            checked={attendance[formattedDate]?.[crew.id]?.sent || false}
+                            checked={dailyInfo?.sent || false}
                             onCheckedChange={(checked) => handleUpdateSentStatus(crew.id, checked)}
                             disabled={isPending}
                             aria-label={`Marcar asistencia para ${crew.name}`}
                           />
                         </TableCell>
                       </TableRow>
-                    ))
+                    )
+                  })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       {dailyCrewIds.length === 0 
                         ? "No hay cuadrillas asignadas para este día."
                         : "No se encontraron cuadrillas con el filtro aplicado."

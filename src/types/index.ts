@@ -18,6 +18,7 @@ export interface Crew {
 export interface AttendanceInfo {
   sent: boolean;
   responsibleId: string | null;
+  sentAt: string | null;
 }
 
 export type AttendanceData = Record<string, Record<string, AttendanceInfo>>;

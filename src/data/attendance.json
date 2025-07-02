@@ -1,12 +1,31 @@
-
 {
   "2025-07-02": {
-    "crew-1": { "sent": false, "responsibleId": "emp-002" },
-    "crew-2": { "sent": true, "responsibleId": "emp-002" },
-    "crew-3": { "sent": false, "responsibleId": null }
+    "crew-1": {
+      "sent": false,
+      "responsibleId": "emp-002",
+      "sentAt": null
+    },
+    "crew-2": {
+      "sent": true,
+      "responsibleId": "emp-002",
+      "sentAt": "2025-07-02T14:30:00.000Z"
+    },
+    "crew-3": {
+      "sent": false,
+      "responsibleId": null,
+      "sentAt": null
+    }
   },
-   "2025-07-03": {
-    "crew-1": { "sent": true, "responsibleId": "emp-002" },
-    "crew-2": { "sent": true, "responsibleId": "emp-001" }
+  "2025-07-03": {
+    "crew-1": {
+      "sent": true,
+      "responsibleId": "emp-002",
+      "sentAt": "2025-07-03T09:00:00.000Z"
+    },
+    "crew-2": {
+      "sent": true,
+      "responsibleId": "emp-001",
+      "sentAt": "2025-07-03T09:05:00.000Z"
+    }
   }
 }

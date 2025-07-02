@@ -155,14 +155,17 @@ export async function deleteObra(obraId: string): Promise<void> {
     await writeData(obrasFilePath, updatedObras);
 }
 
-export async function updateAttendanceSentStatus(dateKey: string, crewId: string, sent: boolean): Promise<boolean> {
+export async function updateAttendanceSentStatus(dateKey: string, crewId: string, sent: boolean): Promise<AttendanceInfo> {
   const attendance = await getAttendance();
   const dailyAttendance = attendance[dateKey] || {};
   
+  const sentAt = sent ? new Date().toISOString() : null;
+
   if (!dailyAttendance[crewId]) {
-    dailyAttendance[crewId] = { sent: sent, responsibleId: null };
+    dailyAttendance[crewId] = { sent, responsibleId: null, sentAt };
   } else {
     dailyAttendance[crewId].sent = sent;
+    dailyAttendance[crewId].sentAt = sentAt;
   }
   
   const newAttendanceData = {
@@ -170,7 +173,7 @@ export async function updateAttendanceSentStatus(dateKey: string, crewId: string
     [dateKey]: dailyAttendance,
   };
   await writeData(attendanceFilePath, newAttendanceData);
-  return sent;
+  return dailyAttendance[crewId];
 }
 
 export async function addAttendanceRequest(dateKey: string, crewId: string, responsibleId: string): Promise<void> {
@@ -183,7 +186,7 @@ export async function addAttendanceRequest(dateKey: string, crewId: string, resp
 
   const newDailyAttendance = {
     ...dailyAttendance,
-    [crewId]: { sent: false, responsibleId: responsibleId },
+    [crewId]: { sent: false, responsibleId: responsibleId, sentAt: null },
   };
 
   const newAttendanceData = {
@@ -199,7 +202,7 @@ export async function setDailyCrews(dateKey: string, crewIds: string[]): Promise
     const newDailyData: Record<string, AttendanceInfo> = {};
 
     crewIds.forEach(id => {
-        newDailyData[id] = existingDailyData[id] || { sent: false, responsibleId: null };
+        newDailyData[id] = existingDailyData[id] || { sent: false, responsibleId: null, sentAt: null };
     });
 
     const newAttendanceData = {
@@ -220,7 +223,7 @@ export async function clonePreviousDayAttendance(dateKey: string): Promise<Atten
     
     const newDailyData: Record<string, AttendanceInfo> = {};
     Object.keys(previousDayData).forEach(crewId => {
-        newDailyData[crewId] = { sent: false, responsibleId: previousDayData[crewId]?.responsibleId || null };
+        newDailyData[crewId] = { sent: false, responsibleId: previousDayData[crewId]?.responsibleId || null, sentAt: null };
     });
     
     const newAttendanceData = {
