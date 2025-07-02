@@ -52,8 +52,9 @@ import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide } from 
 import type { Employee, Obra, EmployeeCondition, EmployeeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addEmployee, deleteEmployee } from "@/app/actions";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Separator } from "@/components/ui/separator";
 
 interface EmployeesManagerProps {
   initialEmployees: Employee[];
@@ -245,77 +246,112 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
               Complete los campos obligatorios (*) para registrar un nuevo empleado.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid md:grid-cols-2 gap-x-6 gap-y-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="legajo" className="text-right">Legajo *</Label>
-                <Input id="legajo" value={formState.legajo} onChange={(e) => handleInputChange('legajo', e.target.value)} className="col-span-3" placeholder="Ej. 12345" disabled={isPending}/>
+          <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-6">
+            <div>
+              <h3 className="mb-4 text-lg font-medium leading-none">Información Personal</h3>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="legajo" className="text-right">Legajo *</Label>
+                  <Input 
+                    id="legajo" 
+                    value={formState.legajo} 
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (/^\d*$/.test(value)) {
+                        handleInputChange('legajo', value);
+                      }
+                    }} 
+                    className="col-span-3" 
+                    placeholder="Ej. 12345" 
+                    disabled={isPending}
+                    pattern="[0-9]*"
+                    inputMode="numeric"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="cuil" className="text-right">CUIL</Label>
+                  <Input id="cuil" value={formState.cuil} onChange={(e) => handleInputChange('cuil', e.target.value)} className="col-span-3" placeholder="Ej. 20-12345678-9" disabled={isPending}/>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="apellido" className="text-right">Apellido *</Label>
+                  <Input id="apellido" value={formState.apellido} onChange={(e) => handleInputChange('apellido', e.target.value)} className="col-span-3" placeholder="Pérez" disabled={isPending}/>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="nombre" className="text-right">Nombre *</Label>
+                  <Input id="nombre" value={formState.nombre} onChange={(e) => handleInputChange('nombre', e.target.value)} className="col-span-3" placeholder="Juan" disabled={isPending}/>
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="cuil" className="text-right">CUIL</Label>
-                <Input id="cuil" value={formState.cuil} onChange={(e) => handleInputChange('cuil', e.target.value)} className="col-span-3" placeholder="Ej. 20-12345678-9" disabled={isPending}/>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className="mb-4 text-lg font-medium leading-none">Información Laboral</h3>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="fechaIngreso" className="text-right">F. Ingreso *</Label>
+                  <Popover>
+                      <PopoverTrigger asChild>
+                          <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
+                              <CalendarIconLucide className="mr-2 h-4 w-4" />
+                              {formState.fechaIngreso ? format(formState.fechaIngreso, 'PPP', { locale: es }) : <span>Seleccione fecha</span>}
+                          </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                          <Calendar mode="single" selected={formState.fechaIngreso} onSelect={(date) => handleInputChange('fechaIngreso', date)} initialFocus />
+                      </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="obraId" className="text-right">Obra *</Label>
+                   <Select onValueChange={(value) => handleInputChange('obraId', value)} value={formState.obraId} disabled={isPending}>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
+                    <SelectContent>{initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="denominacionPosicion" className="text-right">Posición *</Label>
+                  <Input id="denominacionPosicion" value={formState.denominacionPosicion} onChange={(e) => handleInputChange('denominacionPosicion', e.target.value)} className="col-span-3" placeholder="Ej. Oficial" disabled={isPending}/>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="condicion" className="text-right">Condición *</Label>
+                   <Select onValueChange={(value: EmployeeCondition) => handleInputChange('condicion', value)} value={formState.condicion} disabled={isPending}>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione condición" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="jornal">Jornal</SelectItem>
+                      <SelectItem value="mensual">Mensual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="estado" className="text-right">Estado *</Label>
+                   <Select onValueChange={(value: EmployeeStatus) => handleInputChange('estado', value)} value={formState.estado} disabled={isPending}>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione estado" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="activo">Activo</SelectItem>
+                      <SelectItem value="suspendido">Suspendido</SelectItem>
+                      <SelectItem value="baja">Baja</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="apellido" className="text-right">Apellido *</Label>
-                <Input id="apellido" value={formState.apellido} onChange={(e) => handleInputChange('apellido', e.target.value)} className="col-span-3" placeholder="Pérez" disabled={isPending}/>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="nombre" className="text-right">Nombre *</Label>
-                <Input id="nombre" value={formState.nombre} onChange={(e) => handleInputChange('nombre', e.target.value)} className="col-span-3" placeholder="Juan" disabled={isPending}/>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="fechaIngreso" className="text-right">F. Ingreso *</Label>
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
-                            <CalendarIconLucide className="mr-2 h-4 w-4" />
-                            {formState.fechaIngreso ? format(formState.fechaIngreso, 'PPP', { locale: es }) : <span>Seleccione fecha</span>}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={formState.fechaIngreso} onSelect={(date) => handleInputChange('fechaIngreso', date)} initialFocus />
-                    </PopoverContent>
-                </Popover>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="obraId" className="text-right">Obra *</Label>
-                 <Select onValueChange={(value) => handleInputChange('obraId', value)} value={formState.obraId} disabled={isPending}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-                  <SelectContent>{initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="denominacionPosicion" className="text-right">Posición *</Label>
-                <Input id="denominacionPosicion" value={formState.denominacionPosicion} onChange={(e) => handleInputChange('denominacionPosicion', e.target.value)} className="col-span-3" placeholder="Ej. Oficial" disabled={isPending}/>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="condicion" className="text-right">Condición *</Label>
-                 <Select onValueChange={(value: EmployeeCondition) => handleInputChange('condicion', value)} value={formState.condicion} disabled={isPending}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione condición" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="jornal">Jornal</SelectItem>
-                    <SelectItem value="mensual">Mensual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="estado" className="text-right">Estado *</Label>
-                 <Select onValueChange={(value: EmployeeStatus) => handleInputChange('estado', value)} value={formState.estado} disabled={isPending}>
-                  <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione estado" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="activo">Activo</SelectItem>
-                    <SelectItem value="suspendido">Suspendido</SelectItem>
-                    <SelectItem value="baja">Baja</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="celular" className="text-right">Celular</Label>
-                <Input id="celular" value={formState.celular} onChange={(e) => handleInputChange('celular', e.target.value)} className="col-span-3" placeholder="Ej. 1122334455" disabled={isPending}/>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4 md:col-span-2">
-                <Label htmlFor="correo" className="text-right md:col-span-1">Correo</Label>
-                <Input id="correo" type="email" value={formState.correo} onChange={(e) => handleInputChange('correo', e.target.value)} className="col-span-3" placeholder="empleado@sacde.com" disabled={isPending}/>
-              </div>
+            </div>
+
+            <Separator />
+
+            <div>
+                <h3 className="mb-4 text-lg font-medium leading-none">Información de Contacto</h3>
+                <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="celular" className="text-right">Celular</Label>
+                        <Input id="celular" value={formState.celular} onChange={(e) => handleInputChange('celular', e.target.value)} className="col-span-3" placeholder="Ej. 1122334455" disabled={isPending}/>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="correo" className="text-right">Correo</Label>
+                        <Input id="correo" type="email" value={formState.correo} onChange={(e) => handleInputChange('correo', e.target.value)} className="col-span-3" placeholder="empleado@sacde.com" disabled={isPending}/>
+                    </div>
+                </div>
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
