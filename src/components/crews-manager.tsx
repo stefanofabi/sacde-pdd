@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useTransition, useMemo, useEffect } from "react";
@@ -47,7 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, PlusCircle, Trash2, Pencil, Users, Plus, X } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Pencil, Plus, X } from "lucide-react";
 import type { Crew, Obra, Employee } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addCrew, deleteCrew, updateCrew } from "@/app/actions";
@@ -77,6 +76,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   const [isCrewDialogOpen, setIsCrewDialogOpen] = useState(false);
   const [crewToDelete, setCrewToDelete] = useState<Crew | null>(null);
   const [editingCrew, setEditingCrew] = useState<Crew | null>(null);
+  const [selectedObraId, setSelectedObraId] = useState<string>("all");
   
   const [newCrewState, setNewCrewState] = useState(emptyForm);
   
@@ -87,14 +87,11 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
       if (editingCrew) {
         setNewCrewState({ ...editingCrew, employeeIds: editingCrew.employeeIds || [] });
       } else {
-        setNewCrewState(emptyForm);
+        const initialObraId = selectedObraId !== 'all' ? selectedObraId : "";
+        setNewCrewState({...emptyForm, obraId: initialObraId});
       }
     }
-  }, [editingCrew, isCrewDialogOpen]);
-
-  const obraNameMap = useMemo(() => {
-    return Object.fromEntries(initialObras.map(obra => [obra.id, obra.name]));
-  }, [initialObras]);
+  }, [editingCrew, isCrewDialogOpen, selectedObraId]);
 
   const employeeNameMap = useMemo(() => {
     return Object.fromEntries(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido}`]));
@@ -110,6 +107,13 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   const jornalEmployees = useMemo(() => {
     return initialEmployees.filter(emp => emp.condicion === 'jornal' && emp.estado === 'activo');
   }, [initialEmployees]);
+
+  const filteredCrews = useMemo(() => {
+    if (selectedObraId === "all") {
+        return allCrews;
+    }
+    return allCrews.filter(crew => crew.obraId === selectedObraId);
+  }, [allCrews, selectedObraId]);
   
   const handleInputChange = (field: keyof typeof emptyForm, value: string | string[]) => {
     setNewCrewState(prev => ({ ...prev, [field]: value }));
@@ -190,17 +194,34 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle>Lista de Cuadrillas</CardTitle>
-                <CardDescription>
-                    Aquí puede ver, crear, editar y gestionar todas las cuadrillas.
-                </CardDescription>
+        <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <CardTitle>Lista de Cuadrillas</CardTitle>
+                    <CardDescription>
+                        Filtre por obra o gestione las cuadrillas existentes.
+                    </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Select onValueChange={setSelectedObraId} defaultValue="all">
+                        <SelectTrigger className="w-full sm:w-[250px]">
+                            <SelectValue placeholder="Filtrar por obra..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas las Obras</SelectItem>
+                            {initialObras.map((obra) => (
+                                <SelectItem key={obra.id} value={obra.id}>
+                                    {obra.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button onClick={handleOpenAddDialog}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Agregar Cuadrilla
+                    </Button>
+                </div>
             </div>
-            <Button onClick={handleOpenAddDialog}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Agregar Cuadrilla
-            </Button>
         </CardHeader>
         <CardContent>
             <div className="rounded-lg border">
@@ -208,7 +229,6 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                     <TableHeader>
                         <TableRow>
                             <TableHead>Nombre</TableHead>
-                            <TableHead>Obra</TableHead>
                             <TableHead>Capataz</TableHead>
                             <TableHead>Apuntador</TableHead>
                             <TableHead>Jefe de Obra</TableHead>
@@ -218,11 +238,10 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {allCrews.length > 0 ? (
-                            allCrews.map((crew) => (
+                        {filteredCrews.length > 0 ? (
+                            filteredCrews.map((crew) => (
                                 <TableRow key={crew.id}>
                                     <TableCell className="font-medium">{crew.name}</TableCell>
-                                    <TableCell>{obraNameMap[crew.obraId] || 'N/A'}</TableCell>
                                     <TableCell>{employeeNameMap[crew.capatazId] || 'N/A'}</TableCell>
                                     <TableCell>{employeeNameMap[crew.apuntadorId] || 'N/A'}</TableCell>
                                     <TableCell>{employeeNameMap[crew.jefeDeObraId] || 'N/A'}</TableCell>
@@ -255,8 +274,11 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={8} className="h-24 text-center">
-                                    No hay cuadrillas creadas.
+                                <TableCell colSpan={7} className="h-24 text-center">
+                                    {allCrews.length === 0 
+                                        ? "No hay cuadrillas creadas." 
+                                        : "No se encontraron cuadrillas para la obra seleccionada."
+                                    }
                                 </TableCell>
                             </TableRow>
                         )}
