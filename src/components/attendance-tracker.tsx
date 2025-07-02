@@ -52,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -116,6 +117,13 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
 
   const employeeNameMap = useMemo(() => {
     return Object.fromEntries(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido}`]));
+  }, [initialEmployees]);
+
+  const employeeOptions = useMemo(() => {
+    return initialEmployees.map(emp => ({
+        value: emp.id,
+        label: `${emp.nombre} ${emp.apellido} (${emp.legajo})`
+    }));
   }, [initialEmployees]);
 
   const dailyCrewIds = useMemo(() => {
@@ -386,39 +394,55 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-capataz" className="text-right">Capataz</Label>
-               <Select onValueChange={(value) => handleCrewFormChange('capatazId', value)} value={newCrewState.capatazId} disabled={isPending}>
-                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
-                <SelectContent>
-                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
-                </SelectContent>
-              </Select>
+               <Combobox
+                  options={employeeOptions}
+                  value={newCrewState.capatazId}
+                  onValueChange={(value) => handleCrewFormChange('capatazId', value)}
+                  placeholder="Seleccione un empleado"
+                  searchPlaceholder="Buscar empleado..."
+                  emptyMessage="No se encontró el empleado."
+                  disabled={isPending}
+                  className="col-span-3"
+                />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-apuntador" className="text-right">Apuntador</Label>
-               <Select onValueChange={(value) => handleCrewFormChange('apuntadorId', value)} value={newCrewState.apuntadorId} disabled={isPending}>
-                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
-                <SelectContent>
-                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
-                </SelectContent>
-              </Select>
+               <Combobox
+                  options={employeeOptions}
+                  value={newCrewState.apuntadorId}
+                  onValueChange={(value) => handleCrewFormChange('apuntadorId', value)}
+                  placeholder="Seleccione un empleado"
+                  searchPlaceholder="Buscar empleado..."
+                  emptyMessage="No se encontró el empleado."
+                  disabled={isPending}
+                  className="col-span-3"
+                />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-jefe" className="text-right">Jefe de Obra</Label>
-               <Select onValueChange={(value) => handleCrewFormChange('jefeDeObraId', value)} value={newCrewState.jefeDeObraId} disabled={isPending}>
-                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
-                <SelectContent>
-                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
-                </SelectContent>
-              </Select>
+               <Combobox
+                  options={employeeOptions}
+                  value={newCrewState.jefeDeObraId}
+                  onValueChange={(value) => handleCrewFormChange('jefeDeObraId', value)}
+                  placeholder="Seleccione un empleado"
+                  searchPlaceholder="Buscar empleado..."
+                  emptyMessage="No se encontró el empleado."
+                  disabled={isPending}
+                  className="col-span-3"
+                />
             </div>
              <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-control" className="text-right whitespace-nowrap">Control y Gestión</Label>
-               <Select onValueChange={(value) => handleCrewFormChange('controlGestionId', value)} value={newCrewState.controlGestionId} disabled={isPending}>
-                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
-                <SelectContent>
-                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
-                </SelectContent>
-              </Select>
+               <Combobox
+                  options={employeeOptions}
+                  value={newCrewState.controlGestionId}
+                  onValueChange={(value) => handleCrewFormChange('controlGestionId', value)}
+                  placeholder="Seleccione un empleado"
+                  searchPlaceholder="Buscar empleado..."
+                  emptyMessage="No se encontró el empleado."
+                  disabled={isPending}
+                  className="col-span-3"
+                />
             </div>
           </div>
           <DialogFooter>
