@@ -153,7 +153,9 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
             const legajo = emp.legajo;
             
-            return fullName.includes(lowerCaseSearch) || legajo.includes(lowerCaseSearch);
+            return fullName.includes(lowerCaseSearch) || 
+                   legajo.includes(lowerCaseSearch) ||
+                   (emp.cuil && emp.cuil.includes(lowerCaseSearch));
         });
   }, [jornalEmployees, newCrewState.employeeIds, personnelSearchTerm]);
 
@@ -490,7 +492,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 id="personnel-search-tracker"
-                                placeholder="Buscar por nombre o legajo..."
+                                placeholder="Buscar por nombre, apellido, legajo o CUIL..."
                                 value={personnelSearchTerm}
                                 onChange={(e) => setPersonnelSearchTerm(e.target.value)}
                                 className="pl-10 h-9"
