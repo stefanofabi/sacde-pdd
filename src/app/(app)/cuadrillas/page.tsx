@@ -1,10 +1,12 @@
+
 import CrewsManager from "@/components/crews-manager";
 import { Toaster } from "@/components/ui/toaster";
-import { getCrews, getObras } from "@/app/actions";
+import { getCrews, getObras, getEmployees } from "@/app/actions";
 
 export default async function CuadrillasPage() {
   const initialCrews = await getCrews();
   const initialObras = await getObras();
+  const initialEmployees = await getEmployees();
 
   return (
     <>
@@ -18,7 +20,11 @@ export default async function CuadrillasPage() {
               Añada, vea y gestione las cuadrillas de Sacde.
             </p>
           </header>
-          <CrewsManager initialCrews={initialCrews} initialObras={initialObras} />
+          <CrewsManager 
+            initialCrews={initialCrews} 
+            initialObras={initialObras}
+            initialEmployees={initialEmployees} 
+          />
         </div>
       </main>
       <Toaster />

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
@@ -46,25 +47,32 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, PlusCircle, Trash2 } from "lucide-react";
-import type { Crew, Obra } from "@/types";
+import type { Crew, Obra, Employee } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addCrew, deleteCrew } from "@/app/actions";
 
 interface CrewsManagerProps {
   initialCrews: Crew[];
   initialObras: Obra[];
+  initialEmployees: Employee[];
 }
 
-export default function CrewsManager({ initialCrews, initialObras }: CrewsManagerProps) {
+const emptyForm = {
+    name: "",
+    obraId: "",
+    capatazId: "",
+    apuntadorId: "",
+    jefeDeObraId: "",
+    controlGestionId: ""
+};
+
+export default function CrewsManager({ initialCrews, initialObras, initialEmployees }: CrewsManagerProps) {
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [crewToDelete, setCrewToDelete] = useState<Crew | null>(null);
   
-  const [newCrewName, setNewCrewName] = useState("");
-  const [newCrewCapataz, setNewCrewCapataz] = useState("");
-  const [newCrewApuntador, setNewCrewApuntador] = useState("");
-  const [newCrewObraId, setNewCrewObraId] = useState("");
+  const [newCrewState, setNewCrewState] = useState(emptyForm);
   
   const [isPending, startTransition] = useTransition();
 
@@ -72,8 +80,17 @@ export default function CrewsManager({ initialCrews, initialObras }: CrewsManage
     return Object.fromEntries(initialObras.map(obra => [obra.id, obra.name]));
   }, [initialObras]);
 
+  const employeeNameMap = useMemo(() => {
+    return Object.fromEntries(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido}`]));
+  }, [initialEmployees]);
+  
+  const handleInputChange = (field: keyof typeof emptyForm, value: string) => {
+    setNewCrewState(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleAddCrew = () => {
-    if (!newCrewName.trim() || !newCrewCapataz.trim() || !newCrewApuntador.trim() || !newCrewObraId) {
+    const { name, obraId, capatazId, apuntadorId, jefeDeObraId, controlGestionId } = newCrewState;
+    if (!name.trim() || !obraId || !capatazId || !apuntadorId || !jefeDeObraId || !controlGestionId) {
       toast({
         title: "Error de validación",
         description: "Debe completar todos los campos para crear una cuadrilla.",
@@ -83,17 +100,9 @@ export default function CrewsManager({ initialCrews, initialObras }: CrewsManage
     }
     startTransition(async () => {
       try {
-        const newCrew = await addCrew({ 
-          name: newCrewName,
-          capataz: newCrewCapataz,
-          apuntador: newCrewApuntador,
-          obraId: newCrewObraId
-        });
+        const newCrew = await addCrew(newCrewState);
         setAllCrews((prev) => [...prev, newCrew]);
-        setNewCrewName("");
-        setNewCrewCapataz("");
-        setNewCrewApuntador("");
-        setNewCrewObraId("");
+        setNewCrewState(emptyForm);
         setIsAddDialogOpen(false);
         toast({
           title: "Cuadrilla agregada",
@@ -156,6 +165,8 @@ export default function CrewsManager({ initialCrews, initialObras }: CrewsManage
                             <TableHead>Obra</TableHead>
                             <TableHead>Capataz</TableHead>
                             <TableHead>Apuntador</TableHead>
+                            <TableHead>Jefe de Obra</TableHead>
+                            <TableHead>Control y Gestión</TableHead>
                             <TableHead className="text-right w-[100px]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -165,8 +176,10 @@ export default function CrewsManager({ initialCrews, initialObras }: CrewsManage
                                 <TableRow key={crew.id}>
                                     <TableCell className="font-medium">{crew.name}</TableCell>
                                     <TableCell>{obraNameMap[crew.obraId] || 'N/A'}</TableCell>
-                                    <TableCell>{crew.capataz}</TableCell>
-                                    <TableCell>{crew.apuntador}</TableCell>
+                                    <TableCell>{employeeNameMap[crew.capatazId] || 'N/A'}</TableCell>
+                                    <TableCell>{employeeNameMap[crew.apuntadorId] || 'N/A'}</TableCell>
+                                    <TableCell>{employeeNameMap[crew.jefeDeObraId] || 'N/A'}</TableCell>
+                                    <TableCell>{employeeNameMap[crew.controlGestionId] || 'N/A'}</TableCell>
                                     <TableCell className="text-right">
                                         <Button
                                             variant="ghost"
@@ -183,7 +196,7 @@ export default function CrewsManager({ initialCrews, initialObras }: CrewsManage
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
+                                <TableCell colSpan={7} className="h-24 text-center">
                                     No hay cuadrillas creadas.
                                 </TableCell>
                             </TableRow>
@@ -195,7 +208,7 @@ export default function CrewsManager({ initialCrews, initialObras }: CrewsManage
       </Card>
       
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Agregar Nueva Cuadrilla</DialogTitle>
             <DialogDescription>
@@ -205,26 +218,50 @@ export default function CrewsManager({ initialCrews, initialObras }: CrewsManage
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-name" className="text-right">Nombre</Label>
-              <Input id="crew-name" value={newCrewName} onChange={(e) => setNewCrewName(e.target.value)} className="col-span-3" placeholder="Ej. Equipo de Montaje" disabled={isPending}/>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-capataz" className="text-right">Capataz</Label>
-              <Input id="crew-capataz" value={newCrewCapataz} onChange={(e) => setNewCrewCapataz(e.target.value)} className="col-span-3" placeholder="Ej. Juan Pérez" disabled={isPending}/>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-apuntador" className="text-right">Apuntador</Label>
-              <Input id="crew-apuntador" value={newCrewApuntador} onChange={(e) => setNewCrewApuntador(e.target.value)} className="col-span-3" placeholder="Ej. Pedro Gómez" disabled={isPending}/>
+              <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleInputChange('name', e.target.value)} className="col-span-3" placeholder="Ej. Equipo de Montaje" disabled={isPending}/>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-obra" className="text-right">Obra</Label>
-               <Select onValueChange={setNewCrewObraId} value={newCrewObraId} disabled={isPending}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Seleccione una obra" />
-                </SelectTrigger>
+               <Select onValueChange={(value) => handleInputChange('obraId', value)} value={newCrewState.obraId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
                 <SelectContent>
-                  {initialObras.map((obra) => (
-                    <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>
-                  ))}
+                  {initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-capataz" className="text-right">Capataz</Label>
+               <Select onValueChange={(value) => handleInputChange('capatazId', value)} value={newCrewState.capatazId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
+                <SelectContent>
+                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-apuntador" className="text-right">Apuntador</Label>
+               <Select onValueChange={(value) => handleInputChange('apuntadorId', value)} value={newCrewState.apuntadorId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
+                <SelectContent>
+                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-jefe" className="text-right">Jefe de Obra</Label>
+               <Select onValueChange={(value) => handleInputChange('jefeDeObraId', value)} value={newCrewState.jefeDeObraId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
+                <SelectContent>
+                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-control" className="text-right whitespace-nowrap">Control y Gestión</Label>
+               <Select onValueChange={(value) => handleInputChange('controlGestionId', value)} value={newCrewState.controlGestionId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
+                <SelectContent>
+                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

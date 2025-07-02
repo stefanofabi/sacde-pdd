@@ -1,9 +1,10 @@
+
 [
   {
     "legajo": "11319",
     "cuil": "20 39881919 -6",
-    "apellido": "FABI",
-    "nombre": "STefano",
+    "apellido": "Fabi",
+    "nombre": "Stefano",
     "fechaIngreso": "2025-07-01",
     "obraId": "b2dc6f78-c20f-40b1-803c-006dd471424b",
     "denominacionPosicion": "Oficial",
@@ -12,5 +13,61 @@
     "celular": "5492995302372",
     "correo": "sfabi@sacde.com.ar",
     "id": "6d9f287b-ee8d-4318-becc-11dca83f0102"
+  },
+  {
+    "id": "emp-001",
+    "legajo": "12345",
+    "apellido": "Pérez",
+    "nombre": "Juan",
+    "fechaIngreso": "2023-01-15",
+    "obraId": "obra-1",
+    "denominacionPosicion": "Capataz",
+    "condicion": "mensual",
+    "estado": "activo",
+    "cuil": "",
+    "celular": "",
+    "correo": ""
+  },
+  {
+    "id": "emp-002",
+    "legajo": "67890",
+    "apellido": "García",
+    "nombre": "Maria",
+    "fechaIngreso": "2022-05-20",
+    "obraId": "obra-2",
+    "denominacionPosicion": "Apuntador",
+    "condicion": "jornal",
+    "estado": "activo",
+    "cuil": "",
+    "celular": "",
+    "correo": ""
+  },
+  {
+    "id": "emp-003",
+    "legajo": "11111",
+    "apellido": "Rodriguez",
+    "nombre": "Carlos",
+    "fechaIngreso": "2021-03-10",
+    "obraId": "obra-1",
+    "denominacionPosicion": "Jefe de Obra",
+    "condicion": "mensual",
+    "estado": "activo",
+    "cuil": "",
+    "celular": "",
+    "correo": ""
+  },
+  {
+    "id": "emp-004",
+    "legajo": "22222",
+    "apellido": "Lopez",
+    "nombre": "Ana",
+    "fechaIngreso": "2024-02-01",
+    "obraId": "obra-3",
+    "denominacionPosicion": "Control y Gestion",
+    "condicion": "mensual",
+    "estado": "activo",
+    "cuil": "",
+    "celular": "",
+    "correo": ""
   }
 ]

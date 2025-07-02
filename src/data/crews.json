@@ -1,52 +1,30 @@
 
 [
   {
-    "id": "1",
+    "id": "crew-1",
     "name": "Cuadrilla Alpha",
-    "capataz": "Juan Pérez",
-    "apuntador": "Luis Gómez",
-    "obraId": "obra-1"
+    "obraId": "obra-1",
+    "capatazId": "emp-001",
+    "apuntadorId": "emp-002",
+    "jefeDeObraId": "emp-003",
+    "controlGestionId": "emp-004"
   },
   {
-    "id": "2",
+    "id": "crew-2",
     "name": "Equipo Bravo",
-    "capataz": "Maria García",
-    "apuntador": "Ana Torres",
-    "obraId": "obra-2"
+    "obraId": "obra-2",
+    "capatazId": "emp-001",
+    "apuntadorId": "emp-002",
+    "jefeDeObraId": "emp-003",
+    "controlGestionId": "emp-004"
   },
   {
-    "id": "3",
+    "id": "crew-3",
     "name": "Delta Force",
-    "capataz": "Carlos Rodriguez",
-    "apuntador": "David Fernandez",
-    "obraId": "obra-1"
-  },
-  {
-    "id": "4",
-    "name": "Constructores del Sur",
-    "capataz": "Ana Martinez",
-    "apuntador": "Sofia Diaz",
-    "obraId": "obra-2"
-  },
-  {
-    "id": "b4505931-1c98-40b0-a77a-f046608c230f",
-    "name": "electricidad",
-    "capataz": "ascui",
-    "apuntador": "martin",
-    "obraId": "obra-3"
-  },
-  {
-    "id": "8ad47156-64e4-43a6-b77b-d522c0ace8bb",
-    "name": "Piping",
-    "capataz": "Stefano",
-    "apuntador": "romero",
-    "obraId": "obra-3"
-  },
-  {
-    "id": "7231c6db-cad1-462a-9560-36747cb5bfeb",
-    "name": "BITUBO",
-    "capataz": "MENENDEZ",
-    "apuntador": "lopez",
-    "obraId": "obra-1"
+    "obraId": "obra-1",
+    "capatazId": "emp-001",
+    "apuntadorId": "emp-002",
+    "jefeDeObraId": "emp-003",
+    "controlGestionId": "emp-004"
   }
 ]

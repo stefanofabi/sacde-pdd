@@ -1,12 +1,13 @@
 
 import AttendanceTracker from "@/components/attendance-tracker";
 import { Toaster } from "@/components/ui/toaster";
-import { getCrews, getAttendance, getObras } from "@/app/actions";
+import { getCrews, getAttendance, getObras, getEmployees } from "@/app/actions";
 
 export default async function AsistenciasPage() {
   const initialCrews = await getCrews();
   const initialAttendance = await getAttendance();
   const initialObras = await getObras();
+  const initialEmployees = await getEmployees();
 
   return (
     <>
@@ -24,6 +25,7 @@ export default async function AsistenciasPage() {
             initialCrews={initialCrews}
             initialAttendance={initialAttendance}
             initialObras={initialObras}
+            initialEmployees={initialEmployees}
           />
         </div>
       </main>

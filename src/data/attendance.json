@@ -1,17 +1,12 @@
+
 {
-  "2025-07-01": {
-    "b4505931-1c98-40b0-a77a-f046608c230f": true,
-    "8ad47156-64e4-43a6-b77b-d522c0ace8bb": false,
-    "7231c6db-cad1-462a-9560-36747cb5bfeb": false
-  },
   "2025-07-02": {
-    "b4505931-1c98-40b0-a77a-f046608c230f": true,
-    "8ad47156-64e4-43a6-b77b-d522c0ace8bb": false,
-    "7231c6db-cad1-462a-9560-36747cb5bfeb": false
+    "crew-1": false,
+    "crew-2": true,
+    "crew-3": false
   },
-  "2025-06-30": {
-    "1": false,
-    "2": false,
-    "3": false
+   "2025-07-03": {
+    "crew-1": true,
+    "crew-2": true
   }
 }

@@ -66,7 +66,7 @@ import {
 } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, AttendanceData, AttendanceStatus, Obra } from "@/types";
+import type { Crew, AttendanceData, AttendanceStatus, Obra, Employee } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addCrew, updateAttendanceStatus, setDailyCrews, clonePreviousDayAttendance } from "@/app/actions";
 
@@ -74,9 +74,19 @@ interface AttendanceTrackerProps {
   initialCrews: Crew[];
   initialAttendance: AttendanceData;
   initialObras: Obra[];
+  initialEmployees: Employee[];
 }
 
-export default function AttendanceTracker({ initialCrews, initialAttendance, initialObras }: AttendanceTrackerProps) {
+const emptyCrewForm = {
+    name: "",
+    obraId: "",
+    capatazId: "",
+    apuntadorId: "",
+    jefeDeObraId: "",
+    controlGestionId: ""
+};
+
+export default function AttendanceTracker({ initialCrews, initialAttendance, initialObras, initialEmployees }: AttendanceTrackerProps) {
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
@@ -85,10 +95,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const [isAddCrewDialogOpen, setIsAddCrewDialogOpen] = useState(false);
   const [isManageCrewsDialogOpen, setIsManageCrewsDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
-  const [newCrewName, setNewCrewName] = useState("");
-  const [newCrewCapataz, setNewCrewCapataz] = useState("");
-  const [newCrewApuntador, setNewCrewApuntador] = useState("");
-  const [newCrewObraId, setNewCrewObraId] = useState("");
+  
+  const [newCrewState, setNewCrewState] = useState(emptyCrewForm);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -105,6 +113,10 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const obraNameMap = useMemo(() => {
     return Object.fromEntries(initialObras.map(obra => [obra.id, obra.name]));
   }, [initialObras]);
+
+  const employeeNameMap = useMemo(() => {
+    return Object.fromEntries(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido}`]));
+  }, [initialEmployees]);
 
   const dailyCrewIds = useMemo(() => {
     return formattedDate ? Object.keys(attendance[formattedDate] || {}) : [];
@@ -125,13 +137,16 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   }, [dailyCrewIds, isManageCrewsDialogOpen]);
 
   const filteredCrewsForTable = useMemo(() => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase();
     return crewsForDay.filter((crew) =>
-        crew.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        crew.capataz.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        crew.apuntador.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (obraNameMap[crew.obraId] || '').toLowerCase().includes(searchTerm.toLowerCase())
+        crew.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap[crew.capatazId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap[crew.apuntadorId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap[crew.jefeDeObraId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap[crew.controlGestionId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (obraNameMap[crew.obraId] || '').toLowerCase().includes(lowerCaseSearchTerm)
     );
-  }, [crewsForDay, searchTerm, obraNameMap]);
+  }, [crewsForDay, searchTerm, obraNameMap, employeeNameMap]);
   
   const handleUpdateAttendance = (crewId: string, status: AttendanceStatus) => {
     if (!selectedDate) return;
@@ -157,11 +172,16 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     });
   };
 
+  const handleCrewFormChange = (field: keyof typeof emptyCrewForm, value: string) => {
+    setNewCrewState(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleAddCrew = () => {
-    if (!newCrewName.trim() || !newCrewCapataz.trim() || !newCrewApuntador.trim() || !newCrewObraId) {
+    const { name, obraId, capatazId, apuntadorId, jefeDeObraId, controlGestionId } = newCrewState;
+    if (!name.trim() || !obraId || !capatazId || !apuntadorId || !jefeDeObraId || !controlGestionId) {
       toast({
         title: "Error de validación",
-        description: "Debe completar todos los campos, incluyendo la obra.",
+        description: "Debe completar todos los campos.",
         variant: "destructive",
       });
       return;
@@ -169,17 +189,9 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     
     startTransition(async () => {
         try {
-            const newCrew = await addCrew({
-                name: newCrewName,
-                capataz: newCrewCapataz,
-                apuntador: newCrewApuntador,
-                obraId: newCrewObraId,
-            });
+            const newCrew = await addCrew(newCrewState);
             setAllCrews((prevCrews) => [...prevCrews, newCrew]);
-            setNewCrewName("");
-            setNewCrewCapataz("");
-            setNewCrewApuntador("");
-            setNewCrewObraId("");
+            setNewCrewState(emptyCrewForm);
             setIsAddCrewDialogOpen(false);
             toast({
               title: "Cuadrilla agregada",
@@ -309,6 +321,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   <TableHead>Obra</TableHead>
                   <TableHead>Capataz</TableHead>
                   <TableHead>Apuntador</TableHead>
+                  <TableHead>Jefe de Obra</TableHead>
+                  <TableHead>Control y Gestión</TableHead>
                   <TableHead className="text-center w-[150px]">Enviado</TableHead>
                 </TableRow>
               </TableHeader>
@@ -318,8 +332,10 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                       <TableRow key={crew.id}>
                         <TableCell className="font-medium">{crew.name}</TableCell>
                         <TableCell>{obraNameMap[crew.obraId] || 'N/A'}</TableCell>
-                        <TableCell>{crew.capataz}</TableCell>
-                        <TableCell>{crew.apuntador}</TableCell>
+                        <TableCell>{employeeNameMap[crew.capatazId] || 'N/A'}</TableCell>
+                        <TableCell>{employeeNameMap[crew.apuntadorId] || 'N/A'}</TableCell>
+                        <TableCell>{employeeNameMap[crew.jefeDeObraId] || 'N/A'}</TableCell>
+                        <TableCell>{employeeNameMap[crew.controlGestionId] || 'N/A'}</TableCell>
                         <TableCell className="text-center">
                           <Switch
                             checked={attendance[formattedDate]?.[crew.id] || false}
@@ -332,7 +348,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                     ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={7} className="h-24 text-center">
                       {dailyCrewIds.length === 0 
                         ? "No hay cuadrillas asignadas para este día."
                         : "No se encontraron cuadrillas con el filtro aplicado."
@@ -347,7 +363,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       </Card>
 
       <Dialog open={isAddCrewDialogOpen} onOpenChange={setIsAddCrewDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Crear Nueva Cuadrilla</DialogTitle>
             <DialogDescription>
@@ -357,26 +373,50 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-name" className="text-right">Nombre</Label>
-              <Input id="crew-name" value={newCrewName} onChange={(e) => setNewCrewName(e.target.value)} className="col-span-3" placeholder="Ej. Equipo de Instalación" disabled={isPending}/>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-capataz" className="text-right">Capataz</Label>
-              <Input id="crew-capataz" value={newCrewCapataz} onChange={(e) => setNewCrewCapataz(e.target.value)} className="col-span-3" placeholder="Ej. Juan Pérez" disabled={isPending}/>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="crew-apuntador" className="text-right">Apuntador</Label>
-              <Input id="crew-apuntador" value={newCrewApuntador} onChange={(e) => setNewCrewApuntador(e.target.value)} className="col-span-3" placeholder="Ej. Pedro Gómez" disabled={isPending}/>
+              <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleCrewFormChange('name', e.target.value)} className="col-span-3" placeholder="Ej. Equipo de Instalación" disabled={isPending}/>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="crew-obra" className="text-right">Obra</Label>
-               <Select onValueChange={setNewCrewObraId} value={newCrewObraId} disabled={isPending}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Seleccione una obra" />
-                </SelectTrigger>
+               <Select onValueChange={(value) => handleCrewFormChange('obraId', value)} value={newCrewState.obraId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
                 <SelectContent>
-                  {initialObras.map((obra) => (
-                    <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>
-                  ))}
+                  {initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-capataz" className="text-right">Capataz</Label>
+               <Select onValueChange={(value) => handleCrewFormChange('capatazId', value)} value={newCrewState.capatazId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
+                <SelectContent>
+                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-apuntador" className="text-right">Apuntador</Label>
+               <Select onValueChange={(value) => handleCrewFormChange('apuntadorId', value)} value={newCrewState.apuntadorId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
+                <SelectContent>
+                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-jefe" className="text-right">Jefe de Obra</Label>
+               <Select onValueChange={(value) => handleCrewFormChange('jefeDeObraId', value)} value={newCrewState.jefeDeObraId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
+                <SelectContent>
+                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+             <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="crew-control" className="text-right whitespace-nowrap">Control y Gestión</Label>
+               <Select onValueChange={(value) => handleCrewFormChange('controlGestionId', value)} value={newCrewState.controlGestionId} disabled={isPending}>
+                <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
+                <SelectContent>
+                  {initialEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{`${emp.nombre} ${emp.apellido}`}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

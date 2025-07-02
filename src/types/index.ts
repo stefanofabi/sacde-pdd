@@ -7,9 +7,11 @@ export interface Obra {
 export interface Crew {
   id: string;
   name: string;
-  capataz: string;
-  apuntador: string;
   obraId: string;
+  capatazId: string;
+  apuntadorId: string;
+  jefeDeObraId: string;
+  controlGestionId: string;
 }
 
 export type AttendanceStatus = boolean;
