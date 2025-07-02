@@ -55,6 +55,9 @@ import { es } from "date-fns/locale";
 import type { Crew } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 
+const CREWS_STORAGE_KEY = "attendance-tracker-crews";
+const ATTENDANCE_STORAGE_KEY = "attendance-tracker-attendance";
+
 const initialCrews: Crew[] = [
   { id: "1", name: "Cuadrilla Alpha", responsible: "Juan Pérez" },
   { id: "2", name: "Equipo Bravo", responsible: "Maria García" },
@@ -64,7 +67,7 @@ const initialCrews: Crew[] = [
 
 export default function AttendanceTracker() {
   const { toast } = useToast();
-  const [crews, setCrews] = useState<Crew[]>(initialCrews);
+  const [crews, setCrews] = useState<Crew[]>([]);
   const [attendance, setAttendance] = useState<Record<string, Record<string, boolean>>>({});
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,14 +75,57 @@ export default function AttendanceTracker() {
   const [isAddCrewDialogOpen, setIsAddCrewDialogOpen] = useState(false);
   const [newCrewName, setNewCrewName] = useState("");
   const [newCrewResponsible, setNewCrewResponsible] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const today = startOfToday();
-    setSelectedDate(today);
-    setAttendance({
-      [format(today, "yyyy-MM-dd")]: { "1": true, "3": false, "2": true },
-    });
-  }, []);
+    try {
+      const storedCrews = localStorage.getItem(CREWS_STORAGE_KEY);
+      if (storedCrews) {
+        setCrews(JSON.parse(storedCrews));
+      } else {
+        setCrews(initialCrews);
+      }
+
+      const storedAttendance = localStorage.getItem(ATTENDANCE_STORAGE_KEY);
+      const today = startOfToday();
+      if (storedAttendance) {
+        setAttendance(JSON.parse(storedAttendance));
+      } else {
+        const initialAttendance = {
+          [format(today, "yyyy-MM-dd")]: { "1": true, "3": false, "2": true },
+        };
+        setAttendance(initialAttendance);
+      }
+      setSelectedDate(today);
+    } catch (error) {
+      console.error("Failed to parse data from localStorage", error);
+      toast({
+        title: "Error al cargar datos",
+        description: "Restableciendo a los valores predeterminados.",
+        variant: "destructive",
+      });
+      setCrews(initialCrews);
+      const today = startOfToday();
+      setAttendance({
+        [format(today, "yyyy-MM-dd")]: { "1": true, "3": false, "2": true },
+      });
+      setSelectedDate(today);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(CREWS_STORAGE_KEY, JSON.stringify(crews));
+    }
+  }, [crews, isLoading]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem(ATTENDANCE_STORAGE_KEY, JSON.stringify(attendance));
+    }
+  }, [attendance, isLoading]);
 
   const formattedDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
   const displayDate = selectedDate
@@ -144,12 +190,12 @@ export default function AttendanceTracker() {
     });
   };
 
-  if (!selectedDate) {
+  if (isLoading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Cargando registros...</CardTitle>
-          <CardDescription>Inicializando la fecha de hoy.</CardDescription>
+          <CardDescription>Por favor espere.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -192,7 +238,15 @@ export default function AttendanceTracker() {
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={setSelectedDate}
+                  onSelect={(date) => {
+                    setSelectedDate(date);
+                    if (date) {
+                      const dateKey = format(date, "yyyy-MM-dd");
+                      if (!attendance[dateKey]) {
+                        setAttendance(prev => ({...prev, [dateKey]: {}}));
+                      }
+                    }
+                  }}
                   initialFocus
                   locale={es}
                 />
