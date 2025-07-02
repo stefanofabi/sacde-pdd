@@ -2,7 +2,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, AttendanceStatus, Obra, Employee } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceInfo } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -155,28 +155,51 @@ export async function deleteObra(obraId: string): Promise<void> {
     await writeData(obrasFilePath, updatedObras);
 }
 
-export async function updateAttendanceStatus(dateKey: string, crewId: string, status: AttendanceStatus): Promise<AttendanceStatus> {
+export async function updateAttendanceSentStatus(dateKey: string, crewId: string, sent: boolean): Promise<boolean> {
   const attendance = await getAttendance();
   const dailyAttendance = attendance[dateKey] || {};
+  
+  if (!dailyAttendance[crewId]) {
+    dailyAttendance[crewId] = { sent: sent, responsibleId: null };
+  } else {
+    dailyAttendance[crewId].sent = sent;
+  }
+  
+  const newAttendanceData = {
+    ...attendance,
+    [dateKey]: dailyAttendance,
+  };
+  await writeData(attendanceFilePath, newAttendanceData);
+  return sent;
+}
+
+export async function addAttendanceRequest(dateKey: string, crewId: string, responsibleId: string): Promise<void> {
+  const attendance = await getAttendance();
+  const dailyAttendance = attendance[dateKey] || {};
+
+  if (dailyAttendance[crewId]) {
+    throw new Error('La cuadrilla ya está en el parte de hoy.');
+  }
+
   const newDailyAttendance = {
     ...dailyAttendance,
-    [crewId]: status,
+    [crewId]: { sent: false, responsibleId: responsibleId },
   };
+
   const newAttendanceData = {
     ...attendance,
     [dateKey]: newDailyAttendance,
   };
   await writeData(attendanceFilePath, newAttendanceData);
-  return status;
 }
 
 export async function setDailyCrews(dateKey: string, crewIds: string[]): Promise<AttendanceData> {
     const attendance = await getAttendance();
     const existingDailyData = attendance[dateKey] || {};
-    const newDailyData: Record<string, AttendanceStatus> = {};
+    const newDailyData: Record<string, AttendanceInfo> = {};
 
     crewIds.forEach(id => {
-        newDailyData[id] = existingDailyData[id] || false;
+        newDailyData[id] = existingDailyData[id] || { sent: false, responsibleId: null };
     });
 
     const newAttendanceData = {
@@ -195,9 +218,9 @@ export async function clonePreviousDayAttendance(dateKey: string): Promise<Atten
 
     const previousDayData = attendance[previousDateKey] || {};
     
-    const newDailyData: Record<string, AttendanceStatus> = {};
+    const newDailyData: Record<string, AttendanceInfo> = {};
     Object.keys(previousDayData).forEach(crewId => {
-        newDailyData[crewId] = false; // Reset status to not sent
+        newDailyData[crewId] = { sent: false, responsibleId: previousDayData[crewId]?.responsibleId || null };
     });
     
     const newAttendanceData = {

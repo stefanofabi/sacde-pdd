@@ -45,33 +45,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Calendar as CalendarIcon,
-  PlusCircle,
   Search,
   Loader2,
   Copy,
   Users,
   X,
   Plus,
+  UserPlus,
 } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, AttendanceData, AttendanceStatus, Obra, Employee } from "@/types";
+import type { Crew, AttendanceData, Obra, Employee, AttendanceInfo } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addCrew, updateAttendanceStatus, setDailyCrews, clonePreviousDayAttendance } from "@/app/actions";
-import { Separator } from "./ui/separator";
-import { Badge } from "./ui/badge";
+import { addAttendanceRequest, updateAttendanceSentStatus, setDailyCrews, clonePreviousDayAttendance } from "@/app/actions";
+import { ScrollArea } from "./ui/scroll-area";
 
 interface AttendanceTrackerProps {
   initialCrews: Crew[];
@@ -80,28 +71,17 @@ interface AttendanceTrackerProps {
   initialEmployees: Employee[];
 }
 
-const emptyCrewForm = {
-    name: "",
-    obraId: "",
-    capatazId: "",
-    apuntadorId: "",
-    jefeDeObraId: "",
-    controlGestionId: "",
-    employeeIds: [] as string[],
-};
-
 export default function AttendanceTracker({ initialCrews, initialAttendance, initialObras, initialEmployees }: AttendanceTrackerProps) {
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
-  const [isAddCrewDialogOpen, setIsAddCrewDialogOpen] = useState(false);
   const [isManageCrewsDialogOpen, setIsManageCrewsDialogOpen] = useState(false);
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
+  const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   
-  const [newCrewState, setNewCrewState] = useState(emptyCrewForm);
-  const [personnelSearchTerm, setPersonnelSearchTerm] = useState("");
+  const [newRequestState, setNewRequestState] = useState({ crewId: "", responsibleId: "" });
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -109,12 +89,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       setSelectedDate(startOfToday());
     }
   }, []);
-
-  useEffect(() => {
-    if (!isAddCrewDialogOpen) {
-        setPersonnelSearchTerm("");
-    }
-  }, [isAddCrewDialogOpen]);
 
   const formattedDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
   const displayDate = selectedDate
@@ -135,33 +109,6 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo}${emp.cuil ? `, C: ${emp.cuil}` : ''})`
     }));
   }, [initialEmployees]);
-  
-  const jornalEmployees = useMemo(() => {
-    return initialEmployees.filter(emp => emp.condicion === 'jornal' && emp.estado === 'activo');
-  }, [initialEmployees]);
-  
-  const availablePersonnel = useMemo(() => {
-    const lowerCaseSearch = personnelSearchTerm.toLowerCase().trim();
-    if (!lowerCaseSearch) {
-        return [];
-    }
-    return jornalEmployees
-        .filter(emp => {
-            const isNotAssigned = !newCrewState.employeeIds.includes(emp.id);
-            if (!isNotAssigned) return false;
-
-            const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
-            const legajo = emp.legajo;
-            
-            return fullName.includes(lowerCaseSearch) || 
-                   legajo.includes(lowerCaseSearch) ||
-                   (emp.cuil && emp.cuil.includes(lowerCaseSearch));
-        });
-  }, [jornalEmployees, newCrewState.employeeIds, personnelSearchTerm]);
-
-  const assignedPersonnel = useMemo(() => {
-    return jornalEmployees.filter(emp => newCrewState.employeeIds.includes(emp.id));
-  }, [jornalEmployees, newCrewState.employeeIds]);
 
   const dailyCrewIds = useMemo(() => {
     return formattedDate ? Object.keys(attendance[formattedDate] || {}) : [];
@@ -175,6 +122,13 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       return allCrews.filter(crew => !dailyCrewIds.includes(crew.id));
   }, [allCrews, dailyCrewIds]);
   
+  const availableCrewOptions = useMemo(() => {
+    return availableCrews.map(crew => ({
+        value: crew.id,
+        label: `${crew.name} (${obraNameMap[crew.obraId]})`
+    }));
+  }, [availableCrews, obraNameMap]);
+  
   const [tempDailyCrewIds, setTempDailyCrewIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -183,30 +137,33 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
 
   const filteredCrewsForTable = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    return crewsForDay.filter((crew) =>
-        crew.name.toLowerCase().includes(lowerCaseSearchTerm) ||
+    return crewsForDay.filter((crew) => {
+        const responsibleId = attendance[formattedDate]?.[crew.id]?.responsibleId;
+        const responsibleName = responsibleId ? (employeeNameMap[responsibleId] || '') : '';
+        return crew.name.toLowerCase().includes(lowerCaseSearchTerm) ||
         (employeeNameMap[crew.capatazId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
         (employeeNameMap[crew.apuntadorId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
         (employeeNameMap[crew.jefeDeObraId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
         (employeeNameMap[crew.controlGestionId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-        (obraNameMap[crew.obraId] || '').toLowerCase().includes(lowerCaseSearchTerm)
-    );
-  }, [crewsForDay, searchTerm, obraNameMap, employeeNameMap]);
+        (obraNameMap[crew.obraId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (responsibleName).toLowerCase().includes(lowerCaseSearchTerm)
+    });
+  }, [crewsForDay, searchTerm, obraNameMap, employeeNameMap, attendance, formattedDate]);
   
-  const handleUpdateAttendance = (crewId: string, status: AttendanceStatus) => {
+  const handleUpdateSentStatus = (crewId: string, sent: boolean) => {
     if (!selectedDate) return;
     const dateKey = format(selectedDate, "yyyy-MM-dd");
 
     startTransition(async () => {
       try {
-        await updateAttendanceStatus(dateKey, crewId, status);
-        setAttendance((prev) => ({
-          ...prev,
-          [dateKey]: {
-            ...prev[dateKey],
-            [crewId]: status,
-          },
-        }));
+        await updateAttendanceSentStatus(dateKey, crewId, sent);
+        setAttendance((prev) => {
+           const newDailyData = { ...prev[dateKey] };
+           if(newDailyData[crewId]) {
+             newDailyData[crewId] = { ...newDailyData[crewId], sent: sent };
+           }
+           return { ...prev, [dateKey]: newDailyData };
+        });
       } catch (error) {
         toast({
           title: "Error",
@@ -217,38 +174,40 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     });
   };
 
-  const handleCrewFormChange = (field: keyof typeof emptyCrewForm, value: string | string[]) => {
-    setNewCrewState(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleAddCrew = () => {
-    const { name, obraId, capatazId, apuntadorId, jefeDeObraId, controlGestionId } = newCrewState;
-    if (!name.trim() || !obraId || !capatazId || !apuntadorId || !jefeDeObraId || !controlGestionId) {
+  const handleAddRequest = () => {
+    if (!selectedDate || !newRequestState.crewId || !newRequestState.responsibleId) {
       toast({
         title: "Error de validación",
-        description: "Debe completar todos los campos.",
+        description: "Debe seleccionar una cuadrilla y un responsable.",
         variant: "destructive",
       });
       return;
     }
+    const dateKey = format(selectedDate, "yyyy-MM-dd");
     
     startTransition(async () => {
-        try {
-            const newCrew = await addCrew(newCrewState);
-            setAllCrews((prevCrews) => [...prevCrews, newCrew]);
-            setNewCrewState(emptyCrewForm);
-            setIsAddCrewDialogOpen(false);
-            toast({
-              title: "Cuadrilla agregada",
-              description: `La cuadrilla "${newCrew.name}" ha sido creada. Ahora puede gestionarla desde la sección 'Cuadrillas'.`,
-            });
-        } catch (error) {
-            toast({
-              title: "Error",
-              description: "No se pudo agregar la cuadrilla.",
-              variant: "destructive",
-            });
-        }
+      try {
+        await addAttendanceRequest(dateKey, newRequestState.crewId, newRequestState.responsibleId);
+        setAttendance(prev => {
+            const newDailyData = {
+                ...(prev[dateKey] || {}),
+                [newRequestState.crewId]: { sent: false, responsibleId: newRequestState.responsibleId }
+            };
+            return { ...prev, [dateKey]: newDailyData };
+        });
+        setNewRequestState({ crewId: "", responsibleId: "" });
+        setIsRequestDialogOpen(false);
+        toast({
+          title: "Solicitud creada",
+          description: `La cuadrilla ha sido añadida al parte del día.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "No se pudo agregar la solicitud.",
+          variant: "destructive",
+        });
+      }
     });
   };
 
@@ -284,7 +243,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             setIsCloneDialogOpen(false);
             toast({
                 title: "Día clonado",
-                description: `Se clonó la lista de cuadrillas del día anterior. Todos los estados se reiniciaron a 'no enviado'.`,
+                description: `Se clonó la lista de cuadrillas y responsables del día anterior. Todos los estados se reiniciaron a 'no enviado'.`,
             });
         } catch (error) {
              toast({
@@ -331,7 +290,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por cuadrilla, obra..."
+                placeholder="Buscar por cuadrilla, obra, responsable..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -340,15 +299,15 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             <div className="flex flex-wrap gap-2">
                 <Button onClick={() => setIsManageCrewsDialogOpen(true)} variant="outline">
                     <Users className="mr-2 h-4 w-4" />
-                    Gestionar Cuadrillas del Día
+                    Gestionar Parte Diario
                 </Button>
                 <Button onClick={() => setIsCloneDialogOpen(true)} variant="outline">
                     <Copy className="mr-2 h-4 w-4" />
                     Clonar Día Anterior
                 </Button>
-                <Button onClick={() => { setNewCrewState(emptyCrewForm); setIsAddCrewDialogOpen(true); }}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Crear Cuadrilla Nueva
+                <Button onClick={() => { setNewRequestState({ crewId: "", responsibleId: "" }); setIsRequestDialogOpen(true); }}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Crear Solicitud de Asistencia
                 </Button>
             </div>
           </div>
@@ -368,6 +327,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   <TableHead>Apuntador</TableHead>
                   <TableHead>Jefe de Obra</TableHead>
                   <TableHead>Control y Gestión</TableHead>
+                  <TableHead>Responsable</TableHead>
                   <TableHead className="text-center w-[150px]">Enviado</TableHead>
                 </TableRow>
               </TableHeader>
@@ -381,10 +341,11 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                         <TableCell>{employeeNameMap[crew.apuntadorId] || 'N/A'}</TableCell>
                         <TableCell>{employeeNameMap[crew.jefeDeObraId] || 'N/A'}</TableCell>
                         <TableCell>{employeeNameMap[crew.controlGestionId] || 'N/A'}</TableCell>
+                        <TableCell>{employeeNameMap[attendance[formattedDate]?.[crew.id]?.responsibleId ?? ''] || 'N/A'}</TableCell>
                         <TableCell className="text-center">
                           <Switch
-                            checked={attendance[formattedDate]?.[crew.id] || false}
-                            onCheckedChange={(checked) => handleUpdateAttendance(crew.id, checked)}
+                            checked={attendance[formattedDate]?.[crew.id]?.sent || false}
+                            onCheckedChange={(checked) => handleUpdateSentStatus(crew.id, checked)}
                             disabled={isPending}
                             aria-label={`Marcar asistencia para ${crew.name}`}
                           />
@@ -393,7 +354,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                     ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
+                    <TableCell colSpan={8} className="h-24 text-center">
                       {dailyCrewIds.length === 0 
                         ? "No hay cuadrillas asignadas para este día."
                         : "No se encontraron cuadrillas con el filtro aplicado."
@@ -407,145 +368,45 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         </CardContent>
       </Card>
 
-      <Dialog open={isAddCrewDialogOpen} onOpenChange={(open) => { setIsAddCrewDialogOpen(open); if (!open) setPersonnelSearchTerm(""); }}>
-        <DialogContent className="sm:max-w-4xl">
+      <Dialog open={isRequestDialogOpen} onOpenChange={setIsRequestDialogOpen}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Crear Nueva Cuadrilla</DialogTitle>
+            <DialogTitle>Nueva Solicitud de Asistencia</DialogTitle>
             <DialogDescription>
-              Complete los detalles para registrar una nueva cuadrilla.
+              Seleccione una cuadrilla y asigne un responsable para enviar el parte.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="crew-name">Nombre</Label>
-                <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleCrewFormChange('name', e.target.value)} placeholder="Ej. Equipo de Montaje" disabled={isPending}/>
-              </div>
-              <div>
-                <Label htmlFor="crew-obra">Obra</Label>
-                 <Select onValueChange={(value) => handleCrewFormChange('obraId', value)} value={newCrewState.obraId} disabled={isPending}>
-                  <SelectTrigger><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-                  <SelectContent>
-                    {initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="crew-capataz">Capataz</Label>
-                 <Combobox
-                    options={employeeOptions}
-                    value={newCrewState.capatazId}
-                    onValueChange={(value) => handleCrewFormChange('capatazId', value)}
-                    placeholder="Seleccione un empleado"
-                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                    emptyMessage="No se encontró el empleado."
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="request-crew">Cuadrilla</Label>
+              <Combobox
+                    options={availableCrewOptions}
+                    value={newRequestState.crewId}
+                    onValueChange={(value) => setNewRequestState(prev => ({ ...prev, crewId: value }))}
+                    placeholder="Seleccione una cuadrilla"
+                    searchPlaceholder="Buscar cuadrilla..."
+                    emptyMessage="No se encontró la cuadrilla."
                     disabled={isPending}
-                  />
-              </div>
-              <div>
-                <Label htmlFor="crew-apuntador">Apuntador</Label>
-                 <Combobox
-                    options={employeeOptions}
-                    value={newCrewState.apuntadorId}
-                    onValueChange={(value) => handleCrewFormChange('apuntadorId', value)}
-                    placeholder="Seleccione un empleado"
-                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                    emptyMessage="No se encontró el empleado."
-                    disabled={isPending}
-                  />
-              </div>
-              <div>
-                <Label htmlFor="crew-jefe">Jefe de Obra</Label>
-                 <Combobox
-                    options={employeeOptions}
-                    value={newCrewState.jefeDeObraId}
-                    onValueChange={(value) => handleCrewFormChange('jefeDeObraId', value)}
-                    placeholder="Seleccione un empleado"
-                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                    emptyMessage="No se encontró el empleado."
-                    disabled={isPending}
-                  />
-              </div>
-               <div>
-                <Label htmlFor="crew-control" className="whitespace-nowrap">Control y Gestión</Label>
-                 <Combobox
-                    options={employeeOptions}
-                    value={newCrewState.controlGestionId}
-                    onValueChange={(value) => handleCrewFormChange('controlGestionId', value)}
-                    placeholder="Seleccione un empleado"
-                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                    emptyMessage="No se encontró el empleado."
-                    disabled={isPending}
-                  />
-              </div>
+              />
             </div>
-            <Separator className="my-4" />
-             <div>
-                <h3 className="mb-4 text-lg font-medium leading-none">Asignar Personal <Badge variant="outline">Jornal Activo</Badge></h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-72">
-                    <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-center">
-                            <h4 className="font-semibold text-sm">Personal Disponible</h4>
-                            {personnelSearchTerm && <Badge variant="secondary">{availablePersonnel.length} encontrados</Badge>}
-                        </div>
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                id="personnel-search-tracker"
-                                placeholder="Buscar por nombre, apellido, legajo o CUIL..."
-                                value={personnelSearchTerm}
-                                onChange={(e) => setPersonnelSearchTerm(e.target.value)}
-                                className="pl-10 h-9"
-                                disabled={isPending}
-                            />
-                        </div>
-                        <ScrollArea className="flex-1 rounded-md border p-2">
-                           {availablePersonnel.length > 0 ? availablePersonnel.map(emp => (
-                                <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                    <div>
-                                        <p className="font-medium">{employeeNameMap[emp.id]}</p>
-                                        <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
-                                    </div>
-                                    <Button size="icon" variant="outline" onClick={() => handleCrewFormChange('employeeIds', [...newCrewState.employeeIds, emp.id])} disabled={isPending}>
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            )) : (
-                                <div className="text-center text-sm text-muted-foreground py-4">
-                                    {personnelSearchTerm ? "No se encontraron empleados." : "Escriba para buscar personal."}
-                                </div>
-                            )}
-                        </ScrollArea>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                         <h4 className="font-semibold text-sm">Personal Asignado ({assignedPersonnel.length})</h4>
-                         <div className="h-9" />
-                        <ScrollArea className="flex-1 rounded-md border p-2">
-                             {assignedPersonnel.length > 0 ? assignedPersonnel.map(emp => (
-                                   <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                    <div>
-                                        <p className="font-medium">{employeeNameMap[emp.id]}</p>
-                                        <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
-                                    </div>
-                                    <Button size="icon" variant="destructive" onClick={() => handleCrewFormChange('employeeIds', newCrewState.employeeIds.filter(id => id !== emp.id))} disabled={isPending}>
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            )) : (
-                                <div className="text-center text-sm text-muted-foreground py-4">
-                                    No hay personal asignado.
-                                </div>
-                            )}
-                        </ScrollArea>
-                    </div>
-                </div>
+            <div className="space-y-2">
+              <Label htmlFor="request-responsible">Responsable del Envío</Label>
+              <Combobox
+                options={employeeOptions}
+                value={newRequestState.responsibleId}
+                onValueChange={(value) => setNewRequestState(prev => ({ ...prev, responsibleId: value }))}
+                placeholder="Seleccione un empleado"
+                searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                emptyMessage="No se encontró el empleado."
+                disabled={isPending}
+              />
             </div>
           </div>
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
-            <Button type="submit" onClick={handleAddCrew} disabled={isPending}>
+            <Button type="submit" onClick={handleAddRequest} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Guardar Cuadrilla
+              Crear Solicitud
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -554,9 +415,9 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
        <Dialog open={isManageCrewsDialogOpen} onOpenChange={setIsManageCrewsDialogOpen}>
         <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
             <DialogHeader>
-                <DialogTitle>Gestionar Cuadrillas para el {displayDate}</DialogTitle>
+                <DialogTitle>Gestionar Parte Diario para el {displayDate}</DialogTitle>
                 <DialogDescription>
-                    Añada o quite cuadrillas de la lista de asistencia para este día.
+                    Añada o quite cuadrillas de la lista de asistencia para este día. Las cuadrillas añadidas aquí no tendrán un responsable asignado por defecto.
                 </DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0">
@@ -612,7 +473,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Clonar lista del día anterior?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción reemplazará la lista de cuadrillas de hoy ({displayDate}) con la lista del día anterior. Todos los estados de asistencia se reiniciarán a "no enviado". ¿Desea continuar?
+                    Esta acción reemplazará la lista de cuadrillas de hoy ({displayDate}) con la lista de cuadrillas y responsables del día anterior. Todos los estados de asistencia se reiniciarán a "no enviado". ¿Desea continuar?
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

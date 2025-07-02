@@ -15,9 +15,13 @@ export interface Crew {
   employeeIds: string[];
 }
 
-export type AttendanceStatus = boolean;
+export interface AttendanceInfo {
+  sent: boolean;
+  responsibleId: string | null;
+}
 
-export type AttendanceData = Record<string, Record<string, AttendanceStatus>>;
+export type AttendanceData = Record<string, Record<string, AttendanceInfo>>;
+
 
 export type EmployeeCondition = "jornal" | "mensual";
 export type EmployeeStatus = "activo" | "suspendido" | "baja";

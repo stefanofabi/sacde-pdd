@@ -1,12 +1,12 @@
 
 {
   "2025-07-02": {
-    "crew-1": false,
-    "crew-2": true,
-    "crew-3": false
+    "crew-1": { "sent": false, "responsibleId": "emp-002" },
+    "crew-2": { "sent": true, "responsibleId": "emp-002" },
+    "crew-3": { "sent": false, "responsibleId": null }
   },
    "2025-07-03": {
-    "crew-1": true,
-    "crew-2": true
+    "crew-1": { "sent": true, "responsibleId": "emp-002" },
+    "crew-2": { "sent": true, "responsibleId": "emp-001" }
   }
 }
