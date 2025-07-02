@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -66,13 +66,17 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
   const { toast } = useToast();
   const [crews, setCrews] = useState<Crew[]>(initialCrews);
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(startOfToday());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "sent" | "not-sent">("all");
   const [isAddCrewDialogOpen, setIsAddCrewDialogOpen] = useState(false);
   const [newCrewName, setNewCrewName] = useState("");
   const [newCrewResponsible, setNewCrewResponsible] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setSelectedDate(startOfToday());
+  }, []);
 
   const formattedDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
   const displayDate = selectedDate
