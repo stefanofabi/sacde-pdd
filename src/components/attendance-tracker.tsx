@@ -101,6 +101,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   
   const [newCrewState, setNewCrewState] = useState(emptyCrewForm);
+  const [personnelSearchTerm, setPersonnelSearchTerm] = useState("");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -108,6 +109,12 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       setSelectedDate(startOfToday());
     }
   }, []);
+
+  useEffect(() => {
+    if (!isAddCrewDialogOpen) {
+        setPersonnelSearchTerm("");
+    }
+  }, [isAddCrewDialogOpen]);
 
   const formattedDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
   const displayDate = selectedDate
@@ -132,6 +139,27 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const jornalEmployees = useMemo(() => {
     return initialEmployees.filter(emp => emp.condicion === 'jornal' && emp.estado === 'activo');
   }, [initialEmployees]);
+  
+  const availablePersonnel = useMemo(() => {
+    const lowerCaseSearch = personnelSearchTerm.toLowerCase().trim();
+    if (!lowerCaseSearch) {
+        return [];
+    }
+    return jornalEmployees
+        .filter(emp => {
+            const isNotAssigned = !newCrewState.employeeIds.includes(emp.id);
+            if (!isNotAssigned) return false;
+
+            const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
+            const legajo = emp.legajo;
+            
+            return fullName.includes(lowerCaseSearch) || legajo.includes(lowerCaseSearch);
+        });
+  }, [jornalEmployees, newCrewState.employeeIds, personnelSearchTerm]);
+
+  const assignedPersonnel = useMemo(() => {
+    return jornalEmployees.filter(emp => newCrewState.employeeIds.includes(emp.id));
+  }, [jornalEmployees, newCrewState.employeeIds]);
 
   const dailyCrewIds = useMemo(() => {
     return formattedDate ? Object.keys(attendance[formattedDate] || {}) : [];
@@ -377,7 +405,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         </CardContent>
       </Card>
 
-      <Dialog open={isAddCrewDialogOpen} onOpenChange={setIsAddCrewDialogOpen}>
+      <Dialog open={isAddCrewDialogOpen} onOpenChange={(open) => { setIsAddCrewDialogOpen(open); if (!open) setPersonnelSearchTerm(""); }}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Crear Nueva Cuadrilla</DialogTitle>
@@ -454,11 +482,23 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                 <h3 className="mb-4 text-lg font-medium leading-none">Asignar Personal <Badge variant="outline">Jornal Activo</Badge></h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-72">
                     <div className="flex flex-col gap-2">
-                        <h4 className="font-semibold text-sm">Personal Disponible</h4>
+                        <div className="flex justify-between items-center">
+                            <h4 className="font-semibold text-sm">Personal Disponible</h4>
+                            {personnelSearchTerm && <Badge variant="secondary">{availablePersonnel.length} encontrados</Badge>}
+                        </div>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                id="personnel-search-tracker"
+                                placeholder="Buscar por nombre o legajo..."
+                                value={personnelSearchTerm}
+                                onChange={(e) => setPersonnelSearchTerm(e.target.value)}
+                                className="pl-10 h-9"
+                                disabled={isPending}
+                            />
+                        </div>
                         <ScrollArea className="flex-1 rounded-md border p-2">
-                            {jornalEmployees
-                                .filter(emp => !newCrewState.employeeIds.includes(emp.id))
-                                .map(emp => (
+                           {availablePersonnel.length > 0 ? availablePersonnel.map(emp => (
                                 <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                     <div>
                                         <p className="font-medium">{employeeNameMap[emp.id]}</p>
@@ -468,15 +508,18 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center text-sm text-muted-foreground py-4">
+                                    {personnelSearchTerm ? "No se encontraron empleados." : "Escriba para buscar personal."}
+                                </div>
+                            )}
                         </ScrollArea>
                     </div>
                     <div className="flex flex-col gap-2">
-                         <h4 className="font-semibold text-sm">Personal Asignado ({newCrewState.employeeIds.length})</h4>
+                         <h4 className="font-semibold text-sm">Personal Asignado ({assignedPersonnel.length})</h4>
+                         <div className="h-9" />
                         <ScrollArea className="flex-1 rounded-md border p-2">
-                             {jornalEmployees
-                                .filter(emp => newCrewState.employeeIds.includes(emp.id))
-                                .map(emp => (
+                             {assignedPersonnel.length > 0 ? assignedPersonnel.map(emp => (
                                    <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                     <div>
                                         <p className="font-medium">{employeeNameMap[emp.id]}</p>
@@ -486,7 +529,11 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                                         <X className="h-4 w-4" />
                                     </Button>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center text-sm text-muted-foreground py-4">
+                                    No hay personal asignado.
+                                </div>
+                            )}
                         </ScrollArea>
                     </div>
                 </div>

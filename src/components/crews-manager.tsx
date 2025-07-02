@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition, useMemo, useEffect } from "react";
@@ -80,6 +81,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   const [searchTerm, setSearchTerm] = useState("");
   
   const [newCrewState, setNewCrewState] = useState(emptyForm);
+  const [personnelSearchTerm, setPersonnelSearchTerm] = useState("");
   
   const [isPending, startTransition] = useTransition();
 
@@ -91,6 +93,8 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
         const initialObraId = selectedObraId !== 'all' ? selectedObraId : "";
         setNewCrewState({...emptyForm, obraId: initialObraId});
       }
+    } else {
+      setPersonnelSearchTerm(""); // Reset on close
     }
   }, [editingCrew, isCrewDialogOpen, selectedObraId]);
 
@@ -108,6 +112,27 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   const jornalEmployees = useMemo(() => {
     return initialEmployees.filter(emp => emp.condicion === 'jornal' && emp.estado === 'activo');
   }, [initialEmployees]);
+
+  const availablePersonnel = useMemo(() => {
+    const lowerCaseSearch = personnelSearchTerm.toLowerCase().trim();
+    if (!lowerCaseSearch) {
+        return [];
+    }
+    return jornalEmployees
+        .filter(emp => {
+            const isNotAssigned = !newCrewState.employeeIds.includes(emp.id);
+            if (!isNotAssigned) return false;
+
+            const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
+            const legajo = emp.legajo;
+            
+            return fullName.includes(lowerCaseSearch) || legajo.includes(lowerCaseSearch);
+        });
+  }, [jornalEmployees, newCrewState.employeeIds, personnelSearchTerm]);
+
+  const assignedPersonnel = useMemo(() => {
+    return jornalEmployees.filter(emp => newCrewState.employeeIds.includes(emp.id));
+  }, [jornalEmployees, newCrewState.employeeIds]);
 
   const filteredCrews = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -312,7 +337,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
         </CardContent>
       </Card>
       
-      <Dialog open={isCrewDialogOpen} onOpenChange={setIsCrewDialogOpen}>
+      <Dialog open={isCrewDialogOpen} onOpenChange={(open) => { setIsCrewDialogOpen(open); if (!open) setEditingCrew(null); }}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{editingCrew ? 'Editar Cuadrilla' : 'Agregar Nueva Cuadrilla'}</DialogTitle>
@@ -389,11 +414,23 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                 <h3 className="mb-4 text-lg font-medium leading-none">Asignar Personal <Badge variant="outline">Jornal Activo</Badge></h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-72">
                     <div className="flex flex-col gap-2">
-                        <h4 className="font-semibold text-sm">Personal Disponible</h4>
+                        <div className="flex justify-between items-center">
+                            <h4 className="font-semibold text-sm">Personal Disponible</h4>
+                            {personnelSearchTerm && <Badge variant="secondary">{availablePersonnel.length} encontrados</Badge>}
+                        </div>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                id="personnel-search"
+                                placeholder="Buscar por nombre o legajo..."
+                                value={personnelSearchTerm}
+                                onChange={(e) => setPersonnelSearchTerm(e.target.value)}
+                                className="pl-10 h-9"
+                                disabled={isPending}
+                            />
+                        </div>
                         <ScrollArea className="flex-1 rounded-md border p-2">
-                            {jornalEmployees
-                                .filter(emp => !newCrewState.employeeIds.includes(emp.id))
-                                .map(emp => (
+                            {availablePersonnel.length > 0 ? availablePersonnel.map(emp => (
                                 <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                     <div>
                                         <p className="font-medium">{employeeNameMap[emp.id]}</p>
@@ -403,15 +440,18 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center text-sm text-muted-foreground py-4">
+                                    {personnelSearchTerm ? "No se encontraron empleados." : "Escriba para buscar personal."}
+                                </div>
+                            )}
                         </ScrollArea>
                     </div>
                     <div className="flex flex-col gap-2">
-                         <h4 className="font-semibold text-sm">Personal Asignado ({newCrewState.employeeIds.length})</h4>
+                        <h4 className="font-semibold text-sm">Personal Asignado ({assignedPersonnel.length})</h4>
+                        <div className="h-9" /> {/* Spacer to align */}
                         <ScrollArea className="flex-1 rounded-md border p-2">
-                             {jornalEmployees
-                                .filter(emp => newCrewState.employeeIds.includes(emp.id))
-                                .map(emp => (
+                             {assignedPersonnel.length > 0 ? assignedPersonnel.map(emp => (
                                    <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                     <div>
                                         <p className="font-medium">{employeeNameMap[emp.id]}</p>
@@ -421,7 +461,11 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                                         <X className="h-4 w-4" />
                                     </Button>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center text-sm text-muted-foreground py-4">
+                                    No hay personal asignado.
+                                </div>
+                            )}
                         </ScrollArea>
                     </div>
                 </div>

@@ -1,4 +1,3 @@
-
 [
   {
     "id": "crew-1",
@@ -7,7 +6,7 @@
     "capatazId": "emp-001",
     "apuntadorId": "emp-002",
     "jefeDeObraId": "emp-003",
-    "controlGestionId": "emp-004",
+    "controlGestionId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
     "employeeIds": [
       "emp-002"
     ]
