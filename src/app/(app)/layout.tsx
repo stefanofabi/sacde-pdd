@@ -1,9 +1,10 @@
+
 'use client';
 
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Briefcase, CalendarClock, PanelLeft } from 'lucide-react';
+import { Briefcase, CalendarClock } from 'lucide-react';
 
 import {
   SidebarProvider,
@@ -13,8 +14,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarFooter,
-  SidebarTrigger,
   SidebarInset,
 } from '@/components/ui/sidebar';
 
@@ -58,11 +57,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
-        <SidebarFooter>
-          <SidebarTrigger>
-            <PanelLeft />
-          </SidebarTrigger>
-        </SidebarFooter>
       </Sidebar>
       <SidebarInset>{children}</SidebarInset>
     </SidebarProvider>
