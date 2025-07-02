@@ -124,6 +124,9 @@ export async function deleteEmployee(employeeId: string): Promise<void> {
 
 export async function addObra(newObra: Omit<Obra, 'id'>): Promise<Obra> {
     const obras = await getObras();
+    if (obras.some(obra => obra.identifier.toLowerCase() === newObra.identifier.toLowerCase())) {
+        throw new Error('Ya existe una obra con el mismo identificador.');
+    }
     const obraWithId = { ...newObra, id: crypto.randomUUID() };
     const updatedObras = [...obras, obraWithId];
     await writeData(obrasFilePath, updatedObras);

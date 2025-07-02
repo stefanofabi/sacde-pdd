@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useTransition } from "react";
@@ -25,6 +26,8 @@ import {
 import type { Obra } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addObra, deleteObra } from "@/app/actions";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 interface ObrasManagerProps {
   initialObras: Obra[];
@@ -32,33 +35,33 @@ interface ObrasManagerProps {
 
 export default function ObrasManager({ initialObras }: ObrasManagerProps) {
   const { toast } = useToast();
-  const [allObras, setAllObras] = useState<Obra[]>(initialObras);
-  const [newObraName, setNewObraName] = useState("");
+  const [allObras, setAllObras] = useState<Obra[]>(initialObras.sort((a, b) => a.name.localeCompare(b.name)));
+  const [newObra, setNewObra] = useState({ name: "", identifier: "" });
   const [obraToDelete, setObraToDelete] = useState<Obra | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const handleAddObra = () => {
-    if (!newObraName.trim()) {
+    if (!newObra.name.trim() || !newObra.identifier.trim()) {
       toast({
         title: "Error de validación",
-        description: "El nombre de la obra no puede estar vacío.",
+        description: "El nombre y el identificador de la obra no pueden estar vacíos.",
         variant: "destructive",
       });
       return;
     }
     startTransition(async () => {
       try {
-        const newObra = await addObra({ name: newObraName });
-        setAllObras((prev) => [...prev, newObra].sort((a, b) => a.name.localeCompare(b.name)));
-        setNewObraName("");
+        const addedObra = await addObra({ name: newObra.name, identifier: newObra.identifier.toUpperCase() });
+        setAllObras((prev) => [...prev, addedObra].sort((a, b) => a.name.localeCompare(b.name)));
+        setNewObra({ name: "", identifier: "" });
         toast({
           title: "Obra agregada",
-          description: `La obra "${newObra.name}" ha sido creada.`,
+          description: `La obra "${addedObra.name}" ha sido creada.`,
         });
       } catch (error) {
         toast({
           title: "Error",
-          description: "No se pudo agregar la obra.",
+          description: error instanceof Error ? error.message : "No se pudo agregar la obra.",
           variant: "destructive",
         });
       }
@@ -101,20 +104,33 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <h3 className="font-semibold">Agregar Nueva Obra</h3>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="new-obra-name"
-                  placeholder="Nombre de la nueva obra"
-                  value={newObraName}
-                  onChange={(e) => setNewObraName(e.target.value)}
-                  disabled={isPending}
-                  onKeyDown={(e) => {
+              <div className="flex flex-col sm:flex-row items-end gap-2">
+                <div className="w-full sm:w-auto flex-1">
+                  <Label htmlFor="new-obra-identifier" className="text-xs font-semibold">Identificador</Label>
+                  <Input
+                    id="new-obra-identifier"
+                    placeholder="Ej. PC01"
+                    value={newObra.identifier}
+                    onChange={(e) => setNewObra(prev => ({ ...prev, identifier: e.target.value }))}
+                    disabled={isPending}
+                  />
+                </div>
+                <div className="w-full sm:w-auto flex-[2]">
+                  <Label htmlFor="new-obra-name" className="text-xs font-semibold">Nombre de la Obra</Label>
+                  <Input
+                    id="new-obra-name"
+                    placeholder="Nombre de la nueva obra"
+                    value={newObra.name}
+                    onChange={(e) => setNewObra(prev => ({ ...prev, name: e.target.value }))}
+                    disabled={isPending}
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                           handleAddObra();
                       }
-                  }}
-                />
-                <Button onClick={handleAddObra} disabled={isPending || !newObraName.trim()}>
+                    }}
+                  />
+                </div>
+                <Button onClick={handleAddObra} disabled={isPending || !newObra.name.trim() || !newObra.identifier.trim()}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Agregar
                 </Button>
@@ -128,7 +144,10 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
                     <ul className="space-y-2">
                       {allObras.map((obra) => (
                         <li key={obra.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                          <p className="font-medium">{obra.name}</p>
+                          <div className="flex items-center gap-3">
+                              <Badge variant="secondary" className="font-mono">{obra.identifier.toUpperCase()}</Badge>
+                              <p className="font-medium">{obra.name}</p>
+                          </div>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -160,7 +179,7 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
                 <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
                     Esta acción no se puede deshacer. Se eliminará permanentemente la obra "{obraToDelete?.name}". 
-                    Esta acción fallará si la obra tiene cuadrillas asignadas.
+                    Esta acción fallará si la obra tiene cuadrillas o empleados asignados.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

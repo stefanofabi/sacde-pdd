@@ -1,6 +1,7 @@
 
 export interface Obra {
   id: string;
+  identifier: string;
   name: string;
 }
 
