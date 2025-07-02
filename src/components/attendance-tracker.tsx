@@ -108,13 +108,15 @@ export default function AttendanceTracker() {
     const dateKey = format(selectedDate, "yyyy-MM-dd");
 
     setAttendance((prev) => {
-      const newAttendance = { ...prev };
-      if (!newAttendance[dateKey]) {
-        newAttendance[dateKey] = {};
-      }
-      const currentStatus = newAttendance[dateKey][crewId] ?? false;
-      newAttendance[dateKey][crewId] = !currentStatus;
-      return newAttendance;
+      const dailyAttendance = prev[dateKey] || {};
+      const newDailyAttendance = {
+        ...dailyAttendance,
+        [crewId]: !dailyAttendance[crewId],
+      };
+      return {
+        ...prev,
+        [dateKey]: newDailyAttendance,
+      };
     });
   };
 
@@ -251,9 +253,9 @@ export default function AttendanceTracker() {
                               aria-label={`Marcar asistencia para ${crew.name}`}
                             />
                              {hasSent ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-500 transition-all" />
+                              <CheckCircle2 className="h-5 w-5 text-primary transition-all" />
                             ) : (
-                              <XCircle className="h-5 w-5 text-red-500 transition-all" />
+                              <XCircle className="h-5 w-5 text-destructive transition-all" />
                             )}
                           </div>
                         </TableCell>
