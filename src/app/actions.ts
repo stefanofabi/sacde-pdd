@@ -180,6 +180,16 @@ export async function addAttendanceRequest(dateKey: string, crewId: string, resp
   const attendance = await getAttendance();
   const dailyAttendance = attendance[dateKey] || [];
 
+  const alreadyExists = dailyAttendance.some(
+    (entry) => entry.crewId === crewId && entry.responsibleId === responsibleId
+  );
+
+  if (alreadyExists) {
+    throw new Error(
+      "Ya existe una solicitud de asistencia para esta cuadrilla con el mismo responsable en esta fecha."
+    );
+  }
+
   const newEntry: AttendanceEntry = {
       id: crypto.randomUUID(),
       crewId,
