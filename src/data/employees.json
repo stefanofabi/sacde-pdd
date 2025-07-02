@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "legajo": "11319",
+    "cuil": "20 39881919 -6",
+    "apellido": "FABI",
+    "nombre": "STefano",
+    "fechaIngreso": "2025-07-01",
+    "obraId": "b2dc6f78-c20f-40b1-803c-006dd471424b",
+    "denominacionPosicion": "Oficial",
+    "condicion": "mensual",
+    "estado": "activo",
+    "celular": "5492995302372",
+    "correo": "sfabi@sacde.com.ar",
+    "id": "6d9f287b-ee8d-4318-becc-11dca83f0102"
+  },
+  {
+    "legajo": "11319",
+    "cuil": "1111",
+    "apellido": "perez",
+    "nombre": "rafael",
+    "fechaIngreso": "2025-07-01",
+    "obraId": "b2dc6f78-c20f-40b1-803c-006dd471424b",
+    "denominacionPosicion": "Supervisor",
+    "condicion": "jornal",
+    "estado": "activo",
+    "celular": "1133",
+    "correo": "rperez",
+    "id": "bff77cdf-60f0-4f3c-a6db-901a39f4977e"
+  }
+]

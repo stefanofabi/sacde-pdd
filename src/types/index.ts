@@ -22,7 +22,7 @@ export type EmployeeStatus = "activo" | "suspendido" | "baja";
 export interface Employee {
   id: string;
   legajo: string;
-  cuil: string;
+  cuil?: string;
   apellido: string;
   nombre: string;
   fechaIngreso: string; // ISO date string e.g. "2023-10-27"
@@ -30,6 +30,6 @@ export interface Employee {
   denominacionPosicion: string;
   condicion: EmployeeCondition;
   estado: EmployeeStatus;
-  celular: string;
-  correo: string;
+  celular?: string;
+  correo?: string;
 }

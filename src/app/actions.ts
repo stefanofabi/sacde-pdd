@@ -61,6 +61,9 @@ export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
 
 export async function addEmployee(newEmployee: Omit<Employee, 'id'>): Promise<Employee> {
     const employees = await getEmployees();
+    if (employees.some(emp => emp.legajo === newEmployee.legajo)) {
+        throw new Error('Ya existe un empleado con el mismo legajo.');
+    }
     const employeeWithId = { ...newEmployee, id: crypto.randomUUID() };
     const updatedEmployees = [...employees, employeeWithId];
     await writeData(employeesFilePath, updatedEmployees);

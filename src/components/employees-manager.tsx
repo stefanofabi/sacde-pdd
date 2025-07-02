@@ -93,23 +93,34 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
   };
 
   const handleAddEmployee = () => {
-    const { fechaIngreso, ...rest } = formState;
-    const allFieldsFilled = Object.values(rest).every(field => field !== "" && field !== null && field !== undefined) && fechaIngreso;
+    const { legajo, apellido, nombre, obraId, denominacionPosicion, condicion, estado, fechaIngreso } = formState;
 
-    if (!allFieldsFilled) {
+    const requiredFields: (keyof typeof formState)[] = ['legajo', 'apellido', 'nombre', 'obraId', 'denominacionPosicion', 'condicion', 'estado'];
+    const missingField = requiredFields.some(field => !formState[field]);
+
+    if (missingField || !fechaIngreso) {
       toast({
         title: "Error de validación",
-        description: "Debe completar todos los campos para crear un empleado.",
+        description: "Debe completar todos los campos obligatorios (*).",
         variant: "destructive",
       });
       return;
     }
+
+    if (!/^\d+$/.test(legajo)) {
+        toast({
+            title: "Error de validación",
+            description: "El legajo solo debe contener números.",
+            variant: "destructive",
+        });
+        return;
+    }
     
     const newEmployeeData = {
         ...formState,
-        fechaIngreso: format(fechaIngreso!, "yyyy-MM-dd"),
+        fechaIngreso: format(fechaIngreso, "yyyy-MM-dd"),
         condicion: formState.condicion as EmployeeCondition,
-        estado: formState.estado as EmployeeStatus
+        estado: formState.estado as EmployeeStatus,
     };
 
     startTransition(async () => {
@@ -124,8 +135,8 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
         });
       } catch (error) {
         toast({
-          title: "Error",
-          description: "No se pudo agregar el empleado.",
+          title: "Error al agregar",
+          description: error instanceof Error ? error.message : "No se pudo agregar el empleado.",
           variant: "destructive",
         });
       }
@@ -231,12 +242,12 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
           <DialogHeader>
             <DialogTitle>Agregar Nuevo Empleado</DialogTitle>
             <DialogDescription>
-              Complete todos los campos para registrar un nuevo empleado.
+              Complete los campos obligatorios (*) para registrar un nuevo empleado.
             </DialogDescription>
           </DialogHeader>
           <div className="grid md:grid-cols-2 gap-x-6 gap-y-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="legajo" className="text-right">Legajo</Label>
+                <Label htmlFor="legajo" className="text-right">Legajo *</Label>
                 <Input id="legajo" value={formState.legajo} onChange={(e) => handleInputChange('legajo', e.target.value)} className="col-span-3" placeholder="Ej. 12345" disabled={isPending}/>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -244,15 +255,15 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                 <Input id="cuil" value={formState.cuil} onChange={(e) => handleInputChange('cuil', e.target.value)} className="col-span-3" placeholder="Ej. 20-12345678-9" disabled={isPending}/>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="apellido" className="text-right">Apellido</Label>
+                <Label htmlFor="apellido" className="text-right">Apellido *</Label>
                 <Input id="apellido" value={formState.apellido} onChange={(e) => handleInputChange('apellido', e.target.value)} className="col-span-3" placeholder="Pérez" disabled={isPending}/>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="nombre" className="text-right">Nombre</Label>
+                <Label htmlFor="nombre" className="text-right">Nombre *</Label>
                 <Input id="nombre" value={formState.nombre} onChange={(e) => handleInputChange('nombre', e.target.value)} className="col-span-3" placeholder="Juan" disabled={isPending}/>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="fechaIngreso" className="text-right">F. Ingreso</Label>
+                <Label htmlFor="fechaIngreso" className="text-right">F. Ingreso *</Label>
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
@@ -266,18 +277,18 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                 </Popover>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="obraId" className="text-right">Obra</Label>
+                <Label htmlFor="obraId" className="text-right">Obra *</Label>
                  <Select onValueChange={(value) => handleInputChange('obraId', value)} value={formState.obraId} disabled={isPending}>
                   <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
                   <SelectContent>{initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="denominacionPosicion" className="text-right">Posición</Label>
+                <Label htmlFor="denominacionPosicion" className="text-right">Posición *</Label>
                 <Input id="denominacionPosicion" value={formState.denominacionPosicion} onChange={(e) => handleInputChange('denominacionPosicion', e.target.value)} className="col-span-3" placeholder="Ej. Oficial" disabled={isPending}/>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="condicion" className="text-right">Condición</Label>
+                <Label htmlFor="condicion" className="text-right">Condición *</Label>
                  <Select onValueChange={(value: EmployeeCondition) => handleInputChange('condicion', value)} value={formState.condicion} disabled={isPending}>
                   <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione condición" /></SelectTrigger>
                   <SelectContent>
@@ -287,7 +298,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="estado" className="text-right">Estado</Label>
+                <Label htmlFor="estado" className="text-right">Estado *</Label>
                  <Select onValueChange={(value: EmployeeStatus) => handleInputChange('estado', value)} value={formState.estado} disabled={isPending}>
                   <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione estado" /></SelectTrigger>
                   <SelectContent>
