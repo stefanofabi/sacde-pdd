@@ -41,26 +41,41 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Calendar as CalendarIcon,
   PlusCircle,
-  CheckCircle2,
-  XCircle,
   Search,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, AttendanceData } from "@/types";
+import type { Crew, AttendanceData, AttendanceStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addCrew, toggleAttendance } from "@/app/actions";
+import { addCrew, updateAttendanceStatus, removeAttendance, deleteCrew } from "@/app/actions";
 
 interface AttendanceTrackerProps {
   initialCrews: Crew[];
   initialAttendance: AttendanceData;
 }
+
+const attendanceStatusOptions: { value: AttendanceStatus; label: string }[] = [
+    { value: "presente", label: "Presente" },
+    { value: "ausente", label: "Ausente" },
+    { value: "franco", label: "Franco" },
+    { value: "permiso", label: "Permiso" },
+];
 
 export default function AttendanceTracker({ initialCrews, initialAttendance }: AttendanceTrackerProps) {
   const { toast } = useToast();
@@ -68,8 +83,9 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "sent" | "not-sent">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | AttendanceStatus | "undefined">("all");
   const [isAddCrewDialogOpen, setIsAddCrewDialogOpen] = useState(false);
+  const [crewToDelete, setCrewToDelete] = useState<Crew | null>(null);
   const [newCrewName, setNewCrewName] = useState("");
   const [newCrewResponsible, setNewCrewResponsible] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -88,36 +104,38 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
     const dailyAttendance = attendance[formattedDate] || {};
 
     return crews.filter((crew) => {
-      const hasSent = dailyAttendance[crew.id] ?? false;
+      const status = dailyAttendance[crew.id];
       const matchesSearch =
         crew.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         crew.responsible.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "sent" && hasSent) ||
-        (statusFilter === "not-sent" && !hasSent);
-      return matchesSearch && matchesStatus;
+      
+      if (!matchesSearch) return false;
+
+      switch (statusFilter) {
+        case "all":
+          return true;
+        case "undefined":
+          return !status;
+        default:
+          return status === statusFilter;
+      }
     });
   }, [crews, attendance, selectedDate, searchTerm, statusFilter, formattedDate]);
-
-  const handleToggleAttendance = (crewId: string) => {
+  
+  const handleUpdateAttendance = (crewId: string, status: AttendanceStatus) => {
     if (!selectedDate) return;
     const dateKey = format(selectedDate, "yyyy-MM-dd");
 
     startTransition(async () => {
       try {
-        const newStatus = await toggleAttendance(dateKey, crewId);
-        setAttendance((prev) => {
-          const dailyAttendance = prev[dateKey] || {};
-          const newDailyAttendance = {
-            ...dailyAttendance,
-            [crewId]: newStatus,
-          };
-          return {
-            ...prev,
-            [dateKey]: newDailyAttendance,
-          };
-        });
+        await updateAttendanceStatus(dateKey, crewId, status);
+        setAttendance((prev) => ({
+          ...prev,
+          [dateKey]: {
+            ...prev[dateKey],
+            [crewId]: status,
+          },
+        }));
       } catch (error) {
         toast({
           title: "Error",
@@ -127,7 +145,58 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
       }
     });
   };
+  
+  const handleRemoveAttendance = (crewId: string) => {
+    if (!selectedDate) return;
+    const dateKey = format(selectedDate, "yyyy-MM-dd");
 
+    startTransition(async () => {
+        try {
+            await removeAttendance(dateKey, crewId);
+            setAttendance((prev) => {
+                const newDailyAttendance = { ...(prev[dateKey] || {}) };
+                delete newDailyAttendance[crewId];
+                return {
+                    ...prev,
+                    [dateKey]: newDailyAttendance,
+                };
+            });
+            toast({
+              title: "Asistencia reiniciada",
+              description: "El estado de la cuadrilla se ha marcado como no definido para esta fecha.",
+            });
+        } catch (error) {
+            toast({
+              title: "Error",
+              description: "No se pudo reiniciar la asistencia.",
+              variant: "destructive",
+            });
+        }
+    });
+  };
+
+  const handleDeleteCrew = () => {
+    if (!crewToDelete) return;
+
+    startTransition(async () => {
+      try {
+        await deleteCrew(crewToDelete.id);
+        setCrews((prev) => prev.filter((c) => c.id !== crewToDelete.id));
+        setCrewToDelete(null);
+        toast({
+          title: "Cuadrilla eliminada",
+          description: `La cuadrilla "${crewToDelete.name}" ha sido eliminada.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar la cuadrilla.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
+  
   const handleAddCrew = () => {
     if (!newCrewName.trim() || !newCrewResponsible.trim()) {
       toast({
@@ -168,7 +237,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
         <CardHeader>
           <CardTitle>Registro de Asistencia</CardTitle>
           <CardDescription>
-            Seleccione una fecha y filtre para ver el estado de asistencia de las
+            Seleccione una fecha y filtre para ver y modificar el estado de las
             cuadrillas.
           </CardDescription>
         </CardHeader>
@@ -188,15 +257,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={(date) => {
-                    setSelectedDate(date);
-                    if (date) {
-                      const dateKey = format(date, "yyyy-MM-dd");
-                      if (!attendance[dateKey]) {
-                        setAttendance(prev => ({...prev, [dateKey]: {}}));
-                      }
-                    }
-                  }}
+                  onSelect={setSelectedDate}
                   initialFocus
                   locale={es}
                 />
@@ -213,17 +274,18 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
             </div>
             <Select
               value={statusFilter}
-              onValueChange={(value: "all" | "sent" | "not-sent") =>
-                setStatusFilter(value)
-              }
+              onValueChange={(value: any) => setStatusFilter(value)}
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filtrar por estado" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="sent">Enviado</SelectItem>
-                <SelectItem value="not-sent">No Enviado</SelectItem>
+                <SelectItem value="presente">Presente</SelectItem>
+                <SelectItem value="ausente">Ausente</SelectItem>
+                <SelectItem value="franco">Franco</SelectItem>
+                <SelectItem value="permiso">Permiso</SelectItem>
+                <SelectItem value="undefined">No Definido</SelectItem>
               </SelectContent>
             </Select>
             <Button onClick={() => setIsAddCrewDialogOpen(true)} className="gap-2">
@@ -243,35 +305,53 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
                 <TableRow>
                   <TableHead>Cuadrilla</TableHead>
                   <TableHead>Responsable</TableHead>
-                  <TableHead className="text-center">Envió Asistencia</TableHead>
+                  <TableHead className="text-center">Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCrews.length > 0 ? (
-                  filteredCrews.map((crew) => {
-                    const hasSent = attendance[formattedDate]?.[crew.id] ?? false;
-                    return (
+                  filteredCrews.map((crew) => (
                       <TableRow key={crew.id}>
-                        <TableCell className="font-medium">{crew.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <span>{crew.name}</span>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setCrewToDelete(crew)} disabled={isPending}>
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Eliminar cuadrilla</span>
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell>{crew.responsible}</TableCell>
                         <TableCell>
-                          <div className="flex items-center justify-center gap-3">
-                            <Switch
-                              checked={hasSent}
-                              onCheckedChange={() => handleToggleAttendance(crew.id)}
-                              aria-label={`Marcar asistencia para ${crew.name}`}
+                          <div className="flex items-center justify-center">
+                          <Select
+                              value={attendance[formattedDate]?.[crew.id] || 'undefined'}
+                              onValueChange={(value: AttendanceStatus | 'undefined') => {
+                                if (value === 'undefined') {
+                                    handleRemoveAttendance(crew.id);
+                                } else {
+                                    handleUpdateAttendance(crew.id, value);
+                                }
+                              }}
                               disabled={isPending}
-                            />
-                             {hasSent ? (
-                              <CheckCircle2 className="h-5 w-5 text-primary transition-all" />
-                            ) : (
-                              <XCircle className="h-5 w-5 text-destructive transition-all" />
-                            )}
+                          >
+                              <SelectTrigger className="w-[180px]">
+                                  <SelectValue placeholder="Definir estado..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="undefined">
+                                      <span className="text-muted-foreground">No Definido</span>
+                                  </SelectItem>
+                                  <SelectItem value="presente">Presente</SelectItem>
+                                  <SelectItem value="ausente">Ausente</SelectItem>
+                                  <SelectItem value="franco">Franco</SelectItem>
+                                  <SelectItem value="permiso">Permiso</SelectItem>
+                              </SelectContent>
+                          </Select>
                           </div>
                         </TableCell>
                       </TableRow>
-                    );
-                  })
+                    ))
                 ) : (
                   <TableRow>
                     <TableCell colSpan={3} className="h-24 text-center">
@@ -334,6 +414,23 @@ export default function AttendanceTracker({ initialCrews, initialAttendance }: A
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={!!crewToDelete} onOpenChange={(open) => !open && setCrewToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la cuadrilla "{crewToDelete?.name}" y todos sus registros de asistencia asociados.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setCrewToDelete(null)} disabled={isPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteCrew} disabled={isPending} className="bg-destructive hover:bg-destructive/90">
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Eliminar"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

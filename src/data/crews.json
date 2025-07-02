@@ -1,7 +1,27 @@
-
 [
-  { "id": "1", "name": "Cuadrilla Alpha", "responsible": "Juan Pérez" },
-  { "id": "2", "name": "Equipo Bravo", "responsible": "Maria García" },
-  { "id": "3", "name": "Delta Force", "responsible": "Carlos Rodriguez" },
-  { "id": "4", "name": "Constructores del Sur", "responsible": "Ana Martinez" }
+  {
+    "id": "1",
+    "name": "Cuadrilla Alpha",
+    "responsible": "Juan Pérez"
+  },
+  {
+    "id": "2",
+    "name": "Equipo Bravo",
+    "responsible": "Maria García"
+  },
+  {
+    "id": "3",
+    "name": "Delta Force",
+    "responsible": "Carlos Rodriguez"
+  },
+  {
+    "id": "4",
+    "name": "Constructores del Sur",
+    "responsible": "Ana Martinez"
+  },
+  {
+    "name": "electricidad",
+    "responsible": "ascui",
+    "id": "b4505931-1c98-40b0-a77a-f046608c230f"
+  }
 ]

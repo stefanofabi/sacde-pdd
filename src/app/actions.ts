@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData } from '@/types';
+import type { Crew, AttendanceData, AttendanceStatus } from '@/types';
 
 const crewsFilePath = path.join(process.cwd(), 'src', 'data', 'crews.json');
 const attendanceFilePath = path.join(process.cwd(), 'src', 'data', 'attendance.json');
@@ -47,18 +47,39 @@ export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
   return crewWithId;
 }
 
-export async function toggleAttendance(dateKey: string, crewId: string): Promise<boolean> {
+export async function deleteCrew(crewId: string): Promise<void> {
+  const crews = await getCrews();
+  const updatedCrews = crews.filter((crew) => crew.id !== crewId);
+  await writeData(crewsFilePath, updatedCrews);
+
+  const attendance = await getAttendance();
+  Object.keys(attendance).forEach((dateKey) => {
+    if (attendance[dateKey]?.[crewId]) {
+      delete attendance[dateKey][crewId];
+    }
+  });
+  await writeData(attendanceFilePath, attendance);
+}
+
+export async function updateAttendanceStatus(dateKey: string, crewId: string, status: AttendanceStatus): Promise<AttendanceStatus> {
   const attendance = await getAttendance();
   const dailyAttendance = attendance[dateKey] || {};
-  const newStatus = !dailyAttendance[crewId];
   const newDailyAttendance = {
     ...dailyAttendance,
-    [crewId]: newStatus,
+    [crewId]: status,
   };
   const newAttendanceData = {
     ...attendance,
     [dateKey]: newDailyAttendance,
   };
   await writeData(attendanceFilePath, newAttendanceData);
-  return newStatus;
+  return status;
+}
+
+export async function removeAttendance(dateKey: string, crewId: string): Promise<void> {
+  const attendance = await getAttendance();
+  if (attendance[dateKey]?.[crewId]) {
+    delete attendance[dateKey][crewId];
+    await writeData(attendanceFilePath, attendance);
+  }
 }
