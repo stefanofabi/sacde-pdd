@@ -3,6 +3,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Briefcase, CalendarClock } from 'lucide-react';
 
@@ -15,6 +16,8 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarInset,
+  SidebarFooter,
+  SidebarTrigger,
 } from '@/components/ui/sidebar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -28,13 +31,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <div className="flex items-center gap-3">
-             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary-foreground"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+          <div className="flex h-16 items-center justify-center">
+             {/* Logo for expanded sidebar */}
+             <div className="w-full rounded-md bg-white p-2 mx-2 group-data-[collapsible=icon]:hidden">
+                <Image 
+                    src="/logo.png" 
+                    alt="Sacde Logo" 
+                    width={180} 
+                    height={45} 
+                    className="h-auto w-full"
+                    priority
+                />
              </div>
-            <h2 className="text-xl font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
-              Parte Digital
-            </h2>
+             {/* Icon for collapsed sidebar */}
+             <div className="hidden h-10 w-10 items-center justify-center rounded-lg bg-white p-1 group-data-[collapsible=icon]:flex">
+                 <Image 
+                    src="/logo.png" 
+                    alt="Sacde Icon" 
+                    width={32} 
+                    height={32}
+                    style={{ objectFit: 'contain' }}
+                />
+            </div>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -57,6 +75,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
+        <SidebarFooter>
+          <div className="flex w-full justify-center">
+            <SidebarTrigger />
+          </div>
+        </SidebarFooter>
       </Sidebar>
       <SidebarInset>{children}</SidebarInset>
     </SidebarProvider>
