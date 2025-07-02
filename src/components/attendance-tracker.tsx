@@ -63,7 +63,7 @@ import {
 } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, AttendanceData, Obra, Employee, AttendanceInfo } from "@/types";
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addAttendanceRequest, updateAttendanceSentStatus, clonePreviousDayAttendance } from "@/app/actions";
 
@@ -112,23 +112,15 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo}${emp.cuil ? `, C: ${emp.cuil}` : ''})`
     }));
   }, [initialEmployees]);
-
-  const dailyCrewIds = useMemo(() => {
-    return formattedDate ? Object.keys(attendance[formattedDate] || {}) : [];
-  }, [attendance, formattedDate]);
-
-  const crewsForDay = useMemo(() => {
-    return allCrews.filter(crew => dailyCrewIds.includes(crew.id));
-  }, [allCrews, dailyCrewIds]);
-
-  const availableCrews = useMemo(() => {
-      return allCrews.filter(crew => !dailyCrewIds.includes(crew.id));
-  }, [allCrews, dailyCrewIds]);
   
+  const crewMap = useMemo(() => {
+    return new Map(allCrews.map(crew => [crew.id, crew]));
+  }, [allCrews]);
+
   const availableCrewsForRequest = useMemo(() => {
     if (!newRequestState.obraId) return [];
-    return availableCrews.filter(crew => crew.obraId === newRequestState.obraId);
-  }, [availableCrews, newRequestState.obraId]);
+    return allCrews.filter(crew => crew.obraId === newRequestState.obraId);
+  }, [allCrews, newRequestState.obraId]);
   
   const availableCrewOptionsForRequest = useMemo(() => {
     return availableCrewsForRequest.map(crew => ({
@@ -137,38 +129,38 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     }));
   }, [availableCrewsForRequest]);
   
-  const filteredCrewsForTable = useMemo(() => {
+  const filteredEntriesForTable = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
+    const dailyEntries = attendance[formattedDate] || [];
     
-    return crewsForDay
-      .filter((crew) => {
+    return dailyEntries
+      .filter((entry) => {
         if (sentStatusFilter === 'all') {
           return true;
         }
-        const isSent = !!attendance[formattedDate]?.[crew.id]?.sent;
-        return sentStatusFilter === 'sent' ? isSent : !isSent;
+        return sentStatusFilter === 'sent' ? entry.sent : !entry.sent;
       })
-      .filter((crew) => {
-        const responsibleId = attendance[formattedDate]?.[crew.id]?.responsibleId;
-        const responsibleName = responsibleId ? (employeeNameMap[responsibleId] || '') : '';
+      .filter((entry) => {
+        const crew = crewMap.get(entry.crewId);
+        if (!crew) return false;
+
+        const responsibleName = entry.responsibleId ? (employeeNameMap[entry.responsibleId] || '') : '';
+        
         return crew.name.toLowerCase().includes(lowerCaseSearchTerm) ||
         (obraNameMap[crew.obraId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
         (responsibleName).toLowerCase().includes(lowerCaseSearchTerm)
     });
-  }, [crewsForDay, searchTerm, sentStatusFilter, obraNameMap, employeeNameMap, attendance, formattedDate]);
+  }, [attendance, formattedDate, searchTerm, sentStatusFilter, crewMap, obraNameMap, employeeNameMap]);
   
-  const handleUpdateSentStatus = (crewId: string, sent: boolean) => {
+  const handleUpdateSentStatus = (entryId: string, sent: boolean) => {
     if (!selectedDate) return;
     const dateKey = format(selectedDate, "yyyy-MM-dd");
 
     startTransition(async () => {
       try {
-        const updatedInfo = await updateAttendanceSentStatus(dateKey, crewId, sent);
+        const updatedEntry = await updateAttendanceSentStatus(dateKey, entryId, sent);
         setAttendance((prev) => {
-           const newDailyData = { ...prev[dateKey] };
-           if(newDailyData[crewId]) {
-             newDailyData[crewId] = updatedInfo;
-           }
+           const newDailyData = (prev[dateKey] || []).map(e => e.id === entryId ? updatedEntry : e);
            return { ...prev, [dateKey]: newDailyData };
         });
       } catch (error) {
@@ -194,13 +186,13 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     
     startTransition(async () => {
       try {
-        await addAttendanceRequest(dateKey, newRequestState.crewId, newRequestState.responsibleId);
+        const newEntry = await addAttendanceRequest(dateKey, newRequestState.crewId, newRequestState.responsibleId);
         setAttendance(prev => {
-            const newDailyData = {
-                ...(prev[dateKey] || {}),
-                [newRequestState.crewId]: { sent: false, responsibleId: newRequestState.responsibleId, sentAt: null }
+            const currentEntries = prev[dateKey] || [];
+            return {
+                ...prev,
+                [dateKey]: [...currentEntries, newEntry]
             };
-            return { ...prev, [dateKey]: newDailyData };
         });
         setNewRequestState({ obraId: "", crewId: "", responsibleId: "" });
         setIsRequestDialogOpen(false);
@@ -320,22 +312,23 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCrewsForTable.length > 0 ? (
-                  filteredCrewsForTable.map((crew) => {
-                    const dailyInfo = attendance[formattedDate]?.[crew.id];
-                    const sentAt = dailyInfo?.sentAt;
+                {filteredEntriesForTable.length > 0 ? (
+                  filteredEntriesForTable.map((entry) => {
+                    const crew = crewMap.get(entry.crewId);
+                     if (!crew) return null;
+
                     return (
-                      <TableRow key={crew.id}>
+                      <TableRow key={entry.id}>
                         <TableCell className="font-medium">{crew.name}</TableCell>
                         <TableCell>{obraNameMap[crew.obraId] || 'N/A'}</TableCell>
-                        <TableCell>{employeeNameMap[dailyInfo?.responsibleId ?? ''] || 'N/A'}</TableCell>
+                        <TableCell>{employeeNameMap[entry.responsibleId ?? ''] || 'N/A'}</TableCell>
                         <TableCell>
-                          {sentAt ? format(new Date(sentAt), 'Pp', { locale: es }) : 'Pendiente'}
+                          {entry.sentAt ? format(new Date(entry.sentAt), 'Pp', { locale: es }) : 'Pendiente'}
                         </TableCell>
                         <TableCell className="text-center">
                           <Switch
-                            checked={dailyInfo?.sent || false}
-                            onCheckedChange={(checked) => handleUpdateSentStatus(crew.id, checked)}
+                            checked={entry.sent}
+                            onCheckedChange={(checked) => handleUpdateSentStatus(entry.id, checked)}
                             disabled={isPending}
                             aria-label={`Marcar asistencia para ${crew.name}`}
                           />
@@ -346,7 +339,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center">
-                      {dailyCrewIds.length === 0 
+                      {(attendance[formattedDate] || []).length === 0 
                         ? "No hay cuadrillas asignadas para este día."
                         : "No se encontraron cuadrillas con el filtro aplicado."
                       }

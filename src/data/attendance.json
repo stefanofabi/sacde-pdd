@@ -1,31 +1,42 @@
+
 {
-  "2025-07-02": {
-    "crew-1": {
+  "2025-07-02": [
+    {
+      "id": "att-20250702-1",
+      "crewId": "crew-1",
       "sent": true,
       "responsibleId": "emp-002",
       "sentAt": "2025-07-02T04:47:12.820Z"
     },
-    "crew-2": {
+    {
+      "id": "att-20250702-2",
+      "crewId": "crew-2",
       "sent": true,
       "responsibleId": "emp-002",
       "sentAt": "2025-07-02T14:30:00.000Z"
     },
-    "crew-3": {
+    {
+      "id": "att-20250702-3",
+      "crewId": "crew-3",
       "sent": false,
       "responsibleId": null,
       "sentAt": null
     }
-  },
-  "2025-07-03": {
-    "crew-1": {
+  ],
+  "2025-07-03": [
+    {
+      "id": "att-20250703-1",
+      "crewId": "crew-1",
       "sent": true,
       "responsibleId": "emp-002",
       "sentAt": "2025-07-03T09:00:00.000Z"
     },
-    "crew-2": {
+    {
+      "id": "att-20250703-2",
+      "crewId": "crew-2",
       "sent": true,
       "responsibleId": "emp-001",
       "sentAt": "2025-07-03T09:05:00.000Z"
     }
-  }
+  ]
 }

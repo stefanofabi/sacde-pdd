@@ -1,8 +1,9 @@
+
 'use server';
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceInfo } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -94,9 +95,7 @@ export async function deleteCrew(crewId: string): Promise<void> {
     const crews = await getCrews();
     const attendance = await getAttendance();
 
-    const isCrewInUse = Object.values(attendance).some(dailyAttendance => 
-        Object.keys(dailyAttendance).includes(crewId)
-    );
+    const isCrewInUse = Object.values(attendance).flat().some(entry => entry.crewId === crewId);
 
     if (isCrewInUse) {
         throw new Error('No se puede eliminar la cuadrilla porque tiene registros de asistencia.');
@@ -155,45 +154,48 @@ export async function deleteObra(obraId: string): Promise<void> {
     await writeData(obrasFilePath, updatedObras);
 }
 
-export async function updateAttendanceSentStatus(dateKey: string, crewId: string, sent: boolean): Promise<AttendanceInfo> {
+export async function updateAttendanceSentStatus(dateKey: string, attendanceId: string, sent: boolean): Promise<AttendanceEntry> {
   const attendance = await getAttendance();
-  const dailyAttendance = attendance[dateKey] || {};
-  
-  const sentAt = sent ? new Date().toISOString() : null;
+  const dailyAttendance = attendance[dateKey] || [];
+  const entryIndex = dailyAttendance.findIndex(entry => entry.id === attendanceId);
 
-  if (!dailyAttendance[crewId]) {
-    dailyAttendance[crewId] = { sent, responsibleId: null, sentAt };
-  } else {
-    dailyAttendance[crewId].sent = sent;
-    dailyAttendance[crewId].sentAt = sentAt;
+  if (entryIndex === -1) {
+    throw new Error('Attendance entry not found.');
   }
   
+  const sentAt = sent ? new Date().toISOString() : null;
+  
+  const updatedEntry = { ...dailyAttendance[entryIndex], sent, sentAt };
+  dailyAttendance[entryIndex] = updatedEntry;
+
   const newAttendanceData = {
     ...attendance,
     [dateKey]: dailyAttendance,
   };
   await writeData(attendanceFilePath, newAttendanceData);
-  return dailyAttendance[crewId];
+  return updatedEntry;
 }
 
-export async function addAttendanceRequest(dateKey: string, crewId: string, responsibleId: string): Promise<void> {
+export async function addAttendanceRequest(dateKey: string, crewId: string, responsibleId: string): Promise<AttendanceEntry> {
   const attendance = await getAttendance();
-  const dailyAttendance = attendance[dateKey] || {};
+  const dailyAttendance = attendance[dateKey] || [];
 
-  if (dailyAttendance[crewId]) {
-    throw new Error('La cuadrilla ya está en el parte de hoy.');
-  }
-
-  const newDailyAttendance = {
-    ...dailyAttendance,
-    [crewId]: { sent: false, responsibleId: responsibleId, sentAt: null },
+  const newEntry: AttendanceEntry = {
+      id: crypto.randomUUID(),
+      crewId,
+      responsibleId,
+      sent: false,
+      sentAt: null,
   };
+
+  const newDailyAttendance = [...dailyAttendance, newEntry];
 
   const newAttendanceData = {
     ...attendance,
     [dateKey]: newDailyAttendance,
   };
   await writeData(attendanceFilePath, newAttendanceData);
+  return newEntry;
 }
 
 export async function clonePreviousDayAttendance(dateKey: string): Promise<AttendanceData> {
@@ -202,16 +204,19 @@ export async function clonePreviousDayAttendance(dateKey: string): Promise<Atten
     const previousDate = subDays(targetDate, 1);
     const previousDateKey = format(previousDate, "yyyy-MM-dd");
 
-    const previousDayData = attendance[previousDateKey] || {};
+    const previousDayEntries = attendance[previousDateKey] || [];
     
-    const newDailyData: Record<string, AttendanceInfo> = {};
-    Object.keys(previousDayData).forEach(crewId => {
-        newDailyData[crewId] = { sent: false, responsibleId: previousDayData[crewId]?.responsibleId || null, sentAt: null };
-    });
+    const newDailyEntries: AttendanceEntry[] = previousDayEntries.map(entry => ({
+        id: crypto.randomUUID(),
+        crewId: entry.crewId,
+        responsibleId: entry.responsibleId,
+        sent: false,
+        sentAt: null,
+    }));
     
     const newAttendanceData = {
         ...attendance,
-        [dateKey]: newDailyData
+        [dateKey]: newDailyEntries
     };
 
     await writeData(attendanceFilePath, newAttendanceData);

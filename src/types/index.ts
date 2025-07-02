@@ -15,13 +15,18 @@ export interface Crew {
   employeeIds: string[];
 }
 
-export interface AttendanceInfo {
-  sent: boolean;
+export interface AttendanceEntry {
+  id: string; // Unique ID for each attendance request
+  crewId: string;
   responsibleId: string | null;
+  sent: boolean;
   sentAt: string | null;
 }
 
-export type AttendanceData = Record<string, Record<string, AttendanceInfo>>;
+export type DailyAttendance = AttendanceEntry[];
+
+// Maps a date string (e.g., "2023-10-27") to an array of attendance entries for that day.
+export type AttendanceData = Record<string, DailyAttendance>;
 
 
 export type EmployeeCondition = "jornal" | "mensual";
