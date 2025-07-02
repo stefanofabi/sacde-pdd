@@ -208,6 +208,28 @@ export async function addAttendanceRequest(dateKey: string, crewId: string, resp
   return newEntry;
 }
 
+export async function deleteAttendanceRequest(dateKey: string, attendanceId: string): Promise<void> {
+  const attendance = await getAttendance();
+  const dailyAttendance = attendance[dateKey];
+
+  if (!dailyAttendance) {
+    throw new Error('No hay asistencias para la fecha seleccionada.');
+  }
+
+  const updatedDailyAttendance = dailyAttendance.filter(entry => entry.id !== attendanceId);
+
+  if (updatedDailyAttendance.length === dailyAttendance.length) {
+    throw new Error('La solicitud de asistencia a eliminar no fue encontrada.');
+  }
+
+  const newAttendanceData = {
+    ...attendance,
+    [dateKey]: updatedDailyAttendance,
+  };
+
+  await writeData(attendanceFilePath, newAttendanceData);
+}
+
 export async function clonePreviousDayAttendance(dateKey: string): Promise<AttendanceData> {
     const attendance = await getAttendance();
     const targetDate = new Date(dateKey);

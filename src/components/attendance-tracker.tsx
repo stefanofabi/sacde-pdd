@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useMemo, useTransition, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -60,12 +60,13 @@ import {
   Loader2,
   Copy,
   UserPlus,
+  Trash2,
 } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addAttendanceRequest, updateAttendanceSentStatus, clonePreviousDayAttendance } from "@/app/actions";
+import { addAttendanceRequest, updateAttendanceSentStatus, clonePreviousDayAttendance, deleteAttendanceRequest } from "@/app/actions";
 
 interface AttendanceTrackerProps {
   initialCrews: Crew[];
@@ -83,6 +84,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const [sentStatusFilter, setSentStatusFilter] = useState<"all" | "sent" | "not-sent">("all");
   const [isCloneDialogOpen, setIsCloneDialogOpen] = useState(false);
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<AttendanceEntry | null>(null);
   
   const [newRequestState, setNewRequestState] = useState({ obraId: "", crewId: "", responsibleId: "" });
   const [isPending, startTransition] = useTransition();
@@ -210,6 +212,33 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     });
   };
 
+  const handleDeleteRequest = () => {
+    if (!requestToDelete || !selectedDate) return;
+    const dateKey = format(selectedDate, "yyyy-MM-dd");
+
+    startTransition(async () => {
+      try {
+        await deleteAttendanceRequest(dateKey, requestToDelete.id);
+        setAttendance((prev) => {
+          const updatedDailyData = (prev[dateKey] || []).filter(e => e.id !== requestToDelete.id);
+          return { ...prev, [dateKey]: updatedDailyData };
+        });
+        toast({
+          title: "Solicitud eliminada",
+          description: "La solicitud de asistencia ha sido eliminada con éxito.",
+        });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "No se pudo eliminar la solicitud.",
+          variant: "destructive",
+        });
+      } finally {
+        setRequestToDelete(null);
+      }
+    });
+  };
+
   const handleCloneDay = () => {
       if (!selectedDate) return;
       const dateKey = format(selectedDate, "yyyy-MM-dd");
@@ -309,6 +338,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   <TableHead>Responsable</TableHead>
                   <TableHead>Fecha de Envío</TableHead>
                   <TableHead className="text-center w-[150px]">Enviado</TableHead>
+                  <TableHead className="text-right w-[100px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -333,12 +363,24 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                             aria-label={`Marcar asistencia para ${crew.name}`}
                           />
                         </TableCell>
+                         <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => setRequestToDelete(entry)}
+                            disabled={isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Eliminar solicitud</span>
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     )
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
+                    <TableCell colSpan={6} className="h-24 text-center">
                       {(attendance[formattedDate] || []).length === 0 
                         ? "No hay cuadrillas asignadas para este día."
                         : "No se encontraron cuadrillas con el filtro aplicado."
@@ -427,6 +469,27 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                 <AlertDialogCancel onClick={() => setIsCloneDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction onClick={handleCloneDay} disabled={isPending}>
                     {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, clonar"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!requestToDelete} onOpenChange={(open) => !open && setRequestToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar solicitud de asistencia?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la solicitud para la cuadrilla "{requestToDelete && crewMap.get(requestToDelete.crewId)?.name}" a cargo de "{requestToDelete && employeeNameMap[requestToDelete.responsibleId || '']}".
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRequestToDelete(null)} disabled={isPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleDeleteRequest} 
+                  disabled={isPending}
+                  className={buttonVariants({ variant: "destructive" })}
+                >
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
