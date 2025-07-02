@@ -1,4 +1,3 @@
-
 'use server';
 
 import { promises as fs } from 'fs';
@@ -61,6 +60,25 @@ export async function addObra(newObra: Omit<Obra, 'id'>): Promise<Obra> {
     const updatedObras = [...obras, obraWithId];
     await writeData(obrasFilePath, updatedObras);
     return obraWithId;
+}
+
+export async function deleteObra(obraId: string): Promise<void> {
+    const obras = await getObras();
+    const crews = await getCrews();
+
+    const isObraInUse = crews.some(crew => crew.obraId === obraId);
+
+    if (isObraInUse) {
+        throw new Error('No se puede eliminar la obra porque tiene cuadrillas asignadas.');
+    }
+
+    const updatedObras = obras.filter(obra => obra.id !== obraId);
+    
+    if (updatedObras.length === obras.length) {
+        throw new Error('La obra a eliminar no fue encontrada.');
+    }
+
+    await writeData(obrasFilePath, updatedObras);
 }
 
 export async function updateAttendanceStatus(dateKey: string, crewId: string, status: AttendanceStatus): Promise<AttendanceStatus> {
