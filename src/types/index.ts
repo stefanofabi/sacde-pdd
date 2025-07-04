@@ -96,9 +96,9 @@ export interface DailyLaborEntry {
   crewId: string;
   hours: number | null;
   absenceReason: AbsenceReason | null;
-  isAltura?: boolean;
-  isHormigon?: boolean;
-  isNocturna?: boolean;
+  horasAltura?: number | null;
+  horasHormigon?: number | null;
+  horasNocturnas?: number | null;
 }
 
 export type DailyLaborData = Record<string, DailyLaborEntry[]>;

@@ -69,9 +69,9 @@ export async function saveDailyLabor(
     employeeId: string; 
     hours: number | null; 
     absenceReason: AbsenceReason | null;
-    isAltura?: boolean;
-    isHormigon?: boolean;
-    isNocturna?: boolean;
+    horasAltura?: number | null;
+    horasHormigon?: number | null;
+    horasNocturnas?: number | null;
   }[]
 ): Promise<void> {
   const dailyLabor = await getDailyLabor();
@@ -89,9 +89,9 @@ export async function saveDailyLabor(
       crewId: crewId,
       hours: data.hours,
       absenceReason: data.absenceReason,
-      isAltura: data.isAltura ?? false,
-      isHormigon: data.isHormigon ?? false,
-      isNocturna: data.isNocturna ?? false,
+      horasAltura: data.horasAltura ?? null,
+      horasHormigon: data.horasHormigon ?? null,
+      horasNocturnas: data.horasNocturnas ?? null,
     }));
 
   const updatedDailyEntries = [...otherCrewEntries, ...newCrewEntries];

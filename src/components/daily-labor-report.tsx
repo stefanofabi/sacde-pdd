@@ -40,8 +40,6 @@ import type { Crew, Employee, DailyLaborData, Obra, AbsenceReason } from "@/type
 import { absenceReasons } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor } from "@/app/actions";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 
 interface DailyLaborReportProps {
   initialCrews: Crew[];
@@ -53,9 +51,9 @@ interface DailyLaborReportProps {
 interface LaborEntryState {
     hours: number | null;
     absenceReason: AbsenceReason | null;
-    isAltura: boolean;
-    isHormigon: boolean;
-    isNocturna: boolean;
+    horasAltura: number | null;
+    horasHormigon: number | null;
+    horasNocturnas: number | null;
 }
 
 export default function DailyLaborReport({ initialCrews, initialEmployees, initialLaborData, initialObras }: DailyLaborReportProps) {
@@ -111,9 +109,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
         initialEntries[emp.id] = {
             hours: entry?.hours ?? null,
             absenceReason: entry?.absenceReason ?? null,
-            isAltura: entry?.isAltura ?? false,
-            isHormigon: entry?.isHormigon ?? false,
-            isNocturna: entry?.isNocturna ?? false,
+            horasAltura: entry?.horasAltura ?? null,
+            horasHormigon: entry?.horasHormigon ?? null,
+            horasNocturnas: entry?.horasNocturnas ?? null,
         }
       });
       setLaborEntries(initialEntries);
@@ -125,35 +123,47 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   const handleEntryChange = (
       employeeId: string, 
       field: keyof LaborEntryState, 
-      value: string | null | boolean
+      value: string | null
     ) => {
     setLaborEntries(prev => {
-        const currentEntry = prev[employeeId] || { hours: null, absenceReason: null, isAltura: false, isHormigon: false, isNocturna: false };
+        const currentEntry = prev[employeeId] || { hours: null, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
         let newEntry = { ...currentEntry };
 
+        const parseNumericValue = (val: string | null) => {
+            if (val === "" || val === null) return null;
+            const num = parseFloat(val);
+            return isNaN(num) ? null : num;
+        }
+
         if (field === 'hours') {
-            const newHours = value === "" || value === null ? null : parseFloat(value as string);
-            if (value === "" || value === null || !isNaN(newHours as number)) {
-                newEntry.hours = newHours !== null && newHours > 0 ? newHours : null;
-                if (newHours !== null && newHours > 0) {
-                    newEntry.absenceReason = null;
-                } else {
-                    newEntry.hours = null;
-                    newEntry.isAltura = false;
-                    newEntry.isHormigon = false;
-                    newEntry.isNocturna = false;
-                }
+            const newHours = parseNumericValue(value);
+            newEntry.hours = newHours !== null && newHours > 0 ? newHours : null;
+            if (newHours !== null && newHours > 0) {
+                newEntry.absenceReason = null;
+            } else {
+                newEntry.hours = null;
+                newEntry.horasAltura = null;
+                newEntry.horasHormigon = null;
+                newEntry.horasNocturnas = null;
             }
         } else if (field === 'absenceReason') {
-            newEntry.absenceReason = value as AbsenceReason | null;
-            if (value) {
+            newEntry.absenceReason = value === 'NONE' ? null : value as AbsenceReason | null;
+            if (value !== 'NONE') {
                 newEntry.hours = null;
-                newEntry.isAltura = false;
-                newEntry.isHormigon = false;
-                newEntry.isNocturna = false;
+                newEntry.horasAltura = null;
+                newEntry.horasHormigon = null;
+                newEntry.horasNocturnas = null;
             }
-        } else if (field === 'isAltura' || field === 'isHormigon' || field === 'isNocturna') {
-            newEntry[field] = value as boolean;
+        } else if (field === 'horasAltura' || field === 'horasHormigon' || field === 'horasNocturnas') {
+            let newSpecialHours = parseNumericValue(value);
+            if (newSpecialHours !== null && newSpecialHours > 0) {
+                if (newEntry.hours !== null && newSpecialHours > newEntry.hours) {
+                    newSpecialHours = newEntry.hours;
+                }
+            } else {
+                newSpecialHours = null;
+            }
+            newEntry[field] = newSpecialHours;
         }
         
         return { ...prev, [employeeId]: newEntry };
@@ -174,9 +184,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       employeeId,
       hours: entry.hours,
       absenceReason: entry.absenceReason,
-      isAltura: entry.isAltura,
-      isHormigon: entry.isHormigon,
-      isNocturna: entry.isNocturna,
+      horasAltura: entry.horasAltura,
+      horasHormigon: entry.horasHormigon,
+      horasNocturnas: entry.horasNocturnas,
     }));
 
     startTransition(async () => {
@@ -193,9 +203,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                 crewId: selectedCrewId,
                 hours: d.hours,
                 absenceReason: d.absenceReason,
-                isAltura: d.isAltura,
-                isHormigon: d.isHormigon,
-                isNocturna: d.isNocturna,
+                horasAltura: d.horasAltura,
+                horasHormigon: d.horasHormigon,
+                horasNocturnas: d.horasNocturnas,
             }));
         
         setLaborData(prev => ({
@@ -277,16 +287,16 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                     <TableHead>Apellido y Nombre</TableHead>
                     <TableHead>Posición</TableHead>
                     <TableHead className="w-[120px] text-center">Horas</TableHead>
-                    <TableHead className="w-[100px] text-center">Altura</TableHead>
-                    <TableHead className="w-[100px] text-center">Hormigón</TableHead>
-                    <TableHead className="w-[100px] text-center">Nocturnas</TableHead>
+                    <TableHead className="w-[110px] text-center">H. Altura</TableHead>
+                    <TableHead className="w-[110px] text-center">H. Hormigón</TableHead>
+                    <TableHead className="w-[110px] text-center">H. Nocturnas</TableHead>
                     <TableHead className="w-[220px]">Ausencia</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {personnelForSelectedCrew.length > 0 ? (
                     personnelForSelectedCrew.map(emp => {
-                      const entry = laborEntries[emp.id] || { hours: null, absenceReason: null, isAltura: false, isHormigon: false, isNocturna: false };
+                      const entry = laborEntries[emp.id] || { hours: null, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
                       const hasHours = entry.hours !== null && entry.hours > 0;
                       return (
                       <TableRow key={emp.id}>
@@ -305,34 +315,49 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                             min="0"
                           />
                         </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            id={`altura-${emp.id}`}
-                            checked={entry.isAltura}
-                            onCheckedChange={(checked) => handleEntryChange(emp.id, 'isAltura', checked as boolean)}
+                        <TableCell>
+                           <Input
+                            type="number"
+                            className="text-center"
+                            placeholder="-"
+                            value={entry.horasAltura ?? ""}
+                            onChange={(e) => handleEntryChange(emp.id, 'horasAltura', e.target.value)}
                             disabled={isPending || !hasHours}
+                            step="0.5"
+                            min="0"
+                            max={entry.hours || 0}
                           />
                         </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            id={`hormigon-${emp.id}`}
-                            checked={entry.isHormigon}
-                            onCheckedChange={(checked) => handleEntryChange(emp.id, 'isHormigon', checked as boolean)}
+                        <TableCell>
+                           <Input
+                            type="number"
+                            className="text-center"
+                            placeholder="-"
+                            value={entry.horasHormigon ?? ""}
+                            onChange={(e) => handleEntryChange(emp.id, 'horasHormigon', e.target.value)}
                             disabled={isPending || !hasHours}
+                            step="0.5"
+                            min="0"
+                            max={entry.hours || 0}
                           />
                         </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            id={`nocturna-${emp.id}`}
-                            checked={entry.isNocturna}
-                            onCheckedChange={(checked) => handleEntryChange(emp.id, 'isNocturna', checked as boolean)}
+                        <TableCell>
+                           <Input
+                            type="number"
+                            className="text-center"
+                            placeholder="-"
+                            value={entry.horasNocturnas ?? ""}
+                            onChange={(e) => handleEntryChange(emp.id, 'horasNocturnas', e.target.value)}
                             disabled={isPending || !hasHours}
+                            step="0.5"
+                            min="0"
+                            max={entry.hours || 0}
                           />
                         </TableCell>
                         <TableCell>
                            <Select
                                 value={entry.absenceReason ?? "NONE"}
-                                onValueChange={(value) => handleEntryChange(emp.id, 'absenceReason', value === 'NONE' ? null : value as AbsenceReason)}
+                                onValueChange={(value) => handleEntryChange(emp.id, 'absenceReason', value)}
                                 disabled={isPending || hasHours}
                             >
                                 <SelectTrigger>
