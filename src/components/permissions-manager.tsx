@@ -44,12 +44,13 @@ import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PlusCircle, CalendarIcon } from "lucide-react";
+import { Loader2, PlusCircle, CalendarIcon, Search } from "lucide-react";
 import type { Permission, Employee, PermissionStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addPermission } from "@/app/actions";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Input } from "@/components/ui/input";
 
 interface PermissionsManagerProps {
   initialPermissions: Permission[];
@@ -69,6 +70,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     const [permissions, setPermissions] = useState<Permission[]>(initialPermissions);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [formState, setFormState] = useState(emptyForm);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [activityFilter, setActivityFilter] = useState<"all" | "active" | "inactive">("all");
     const [isPending, startTransition] = useTransition();
 
     const employeeMap = useMemo(() => {
@@ -81,6 +84,29 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
             label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo})`
         }));
     }, [initialEmployees]);
+
+    const filteredPermissions = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        return permissions
+            .filter((perm) => {
+                const employeeName = employeeMap.get(perm.employeeId) || '';
+                return employeeName.toLowerCase().includes(searchTerm.toLowerCase());
+            })
+            .filter((perm) => {
+                if (activityFilter === 'all') {
+                    return true;
+                }
+                const startDate = new Date(perm.startDate + 'T00:00:00');
+                const endDate = new Date(perm.endDate + 'T00:00:00');
+                
+                const isActive = today >= startDate && today <= endDate;
+
+                return activityFilter === 'active' ? isActive : !isActive;
+            })
+            .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+    }, [permissions, searchTerm, activityFilter, employeeMap]);
 
     const handleInputChange = (field: keyof typeof emptyForm, value: any) => {
         setFormState(prev => ({ ...prev, [field]: value }));
@@ -142,13 +168,34 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                         <div>
                             <CardTitle>Listado de Permisos</CardTitle>
                             <CardDescription>
-                                Vea y agregue nuevos permisos para los empleados.
+                                Filtre, vea y agregue nuevos permisos para los empleados.
                             </CardDescription>
                         </div>
-                        <Button onClick={() => { setFormState(emptyForm); setIsFormOpen(true); }}>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Cargar Permiso
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                             <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="Buscar por empleado..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10 w-full sm:w-[200px]"
+                                />
+                            </div>
+                            <Select value={activityFilter} onValueChange={(value: "all" | "active" | "inactive") => setActivityFilter(value)}>
+                                <SelectTrigger className="w-full sm:w-[180px]">
+                                    <SelectValue placeholder="Filtrar por actividad" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="active">Activos</SelectItem>
+                                    <SelectItem value="inactive">Inactivos</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button onClick={() => { setFormState(emptyForm); setIsFormOpen(true); }}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Cargar Permiso
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -164,15 +211,15 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {permissions.length > 0 ? (
-                                    permissions.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()).map((perm) => (
+                                {filteredPermissions.length > 0 ? (
+                                    filteredPermissions.map((perm) => (
                                         <TableRow key={perm.id}>
                                             <TableCell className="font-medium">{employeeMap.get(perm.employeeId) || 'Empleado no encontrado'}</TableCell>
                                             <TableCell>{format(new Date(perm.startDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}</TableCell>
                                             <TableCell>{format(new Date(perm.endDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}</TableCell>
                                             <TableCell>
                                                 <Badge variant={perm.status.startsWith('APROBADO') ? 'default' : 'destructive'}
-                                                    className={perm.status.startsWith('APROBADO') ? 'bg-green-600' : ''}>
+                                                    className={perm.status.startsWith('APROBado') ? 'bg-green-600' : ''}>
                                                     {perm.status}
                                                 </Badge>
                                             </TableCell>
@@ -182,7 +229,10 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                 ) : (
                                     <TableRow>
                                         <TableCell colSpan={5} className="h-24 text-center">
-                                            No hay permisos cargados.
+                                            {permissions.length === 0 
+                                                ? "No hay permisos cargados." 
+                                                : "No se encontraron permisos con los filtros aplicados."
+                                            }
                                         </TableCell>
                                     </TableRow>
                                 )}
