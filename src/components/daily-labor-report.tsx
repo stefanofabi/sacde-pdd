@@ -376,6 +376,39 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     });
   };
 
+  const handleOpenNotifyDialog = () => {
+    if (!selectedCrewId || !allPersonnelForTable) {
+        toast({
+            title: "Error",
+            description: "Debe seleccionar una cuadrilla con personal para notificar.",
+            variant: "destructive"
+        });
+        return;
+    }
+
+    const personnelWithoutNovelty = allPersonnelForTable.filter(emp => {
+        const entry = laborEntries[emp.id];
+        const hasHours = entry && entry.hours && entry.hours > 0;
+        const hasAbsence = entry && entry.absenceReason;
+        return !hasHours && !hasAbsence;
+    });
+
+    if (personnelWithoutNovelty.length > 0) {
+        const employeeNames = personnelWithoutNovelty
+            .map(emp => `${emp.apellido}, ${emp.nombre}`)
+            .join('; ');
+        toast({
+            title: "Faltan Novedades para Notificar",
+            description: `Los siguientes empleados no tienen horas ni ausencias registradas: ${employeeNames}.`,
+            variant: "destructive",
+            duration: 8000
+        });
+        return;
+    }
+
+    setIsNotifyDialogOpen(true);
+  };
+
   const handleAddManualEmployee = () => {
     if (employeeToAdd) {
         setManualEmployeeIds(prev => [...prev, employeeToAdd]);
@@ -655,7 +688,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                         {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                         Guardar Parte
                     </Button>
-                    <Button onClick={() => setIsNotifyDialogOpen(true)} disabled={isPending || !selectedCrewId}>
+                    <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId}>
                         <Send className="mr-2 h-4 w-4" />
                         Notificar Parte
                     </Button>
