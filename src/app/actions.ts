@@ -67,6 +67,55 @@ export async function getDailyLaborNotifications(): Promise<DailyLaborNotificati
   return readData<DailyLaborNotificationData>(dailyLaborNotificationsFilePath);
 }
 
+export async function moveEmployeeBetweenCrews(
+  dateKey: string,
+  employeeId: string,
+  sourceCrewId: string,
+  destinationCrewId: string
+): Promise<void> {
+  const dailyLabor = await getDailyLabor();
+  const notifications = await getDailyLaborNotifications();
+
+  const sourceNotified = notifications[dateKey]?.[sourceCrewId]?.notified;
+  if (sourceNotified) {
+    throw new Error('El parte de origen ya ha sido notificado y no se puede modificar.');
+  }
+  const destinationNotified = notifications[dateKey]?.[destinationCrewId]?.notified;
+  if (destinationNotified) {
+    throw new Error('El parte de destino ya ha sido notificado y no puede recibir empleados.');
+  }
+
+  const dailyEntries = dailyLabor[dateKey] || [];
+  
+  const isEmployeeInDestination = dailyEntries.some(e => e.crewId === destinationCrewId && e.employeeId === employeeId);
+  if (isEmployeeInDestination) {
+    throw new Error('El empleado ya tiene un parte cargado en la cuadrilla de destino para este día.');
+  }
+  
+  const updatedDailyEntriesWithoutSource = dailyEntries.filter(e => !(e.crewId === sourceCrewId && e.employeeId === employeeId));
+
+  const newDestinationEntry: DailyLaborEntry = {
+    id: crypto.randomUUID(),
+    employeeId: employeeId,
+    crewId: destinationCrewId,
+    hours: null,
+    absenceReason: null,
+    horasAltura: null,
+    horasHormigon: null,
+    horasNocturnas: null,
+    manual: true,
+  };
+  
+  const finalDailyEntries = [...updatedDailyEntriesWithoutSource, newDestinationEntry];
+
+  const newDailyLaborData = {
+    ...dailyLabor,
+    [dateKey]: finalDailyEntries,
+  };
+
+  await writeData(dailyLaborFilePath, newDailyLaborData);
+}
+
 export async function notifyDailyLabor(dateKey: string, crewId: string): Promise<void> {
   const notifications = await getDailyLaborNotifications();
   
@@ -100,10 +149,8 @@ export async function saveDailyLabor(
   const dailyLabor = await getDailyLabor();
   const dailyEntries = dailyLabor[dateKey] || [];
 
-  // Filter out old entries for the current crew on the given date
   const otherCrewEntries = dailyEntries.filter(entry => entry.crewId !== crewId);
 
-  // Create new entries for the current crew, only for those with hours, absence reason, or if manually added
   const newCrewEntries: DailyLaborEntry[] = laborData
     .filter(data => (data.hours !== null && data.hours > 0) || data.absenceReason || data.manual)
     .map(data => ({

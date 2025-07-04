@@ -60,13 +60,13 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, Employee, DailyLaborData, Obra, AbsenceReason, DailyLaborNotificationData } from "@/types";
+import type { Crew, Employee, DailyLaborData, Obra, AbsenceReason, DailyLaborNotificationData, DailyLaborEntry } from "@/types";
 import { absenceReasons } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { saveDailyLabor, notifyDailyLabor } from "@/app/actions";
+import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
 
 interface DailyLaborReportProps {
@@ -100,6 +100,8 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   const [isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [employeeToAdd, setEmployeeToAdd] = useState("");
+  const [employeeToMove, setEmployeeToMove] = useState<Employee | null>(null);
+  const [destinationCrewId, setDestinationCrewId] = useState<string>("");
 
 
   useEffect(() => {
@@ -125,6 +127,16 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     return initialCrews.filter(c => c.obraId === selectedObraId);
   }, [initialCrews, selectedObraId]);
 
+  const availableCrewsForMove = useMemo(() => {
+    if (!selectedObraId) return [];
+    return crewsForSelectedObra
+        .filter(c => 
+            c.id !== selectedCrewId && 
+            !notificationData[formattedDate]?.[c.id]?.notified
+        )
+        .map(c => ({ value: c.id, label: c.name }));
+  }, [crewsForSelectedObra, selectedCrewId, notificationData, formattedDate]);
+
   const selectedCrew = useMemo(() => {
     return initialCrews.find(c => c.id === selectedCrewId);
   }, [initialCrews, selectedCrewId]);
@@ -135,8 +147,12 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   }, [selectedCrew, employeeMap]);
 
   const manuallyAddedPersonnel = useMemo(() => {
-    return manualEmployeeIds.map(id => employeeMap.get(id)).filter(Boolean) as Employee[];
-  }, [manualEmployeeIds, employeeMap]);
+    const dailyEntries = laborData[formattedDate] || [];
+    const manualIdsForCrew = dailyEntries
+      .filter(e => e.crewId === selectedCrewId && e.manual)
+      .map(e => e.employeeId);
+    return manualIdsForCrew.map(id => employeeMap.get(id)).filter(Boolean) as Employee[];
+  }, [laborData, formattedDate, selectedCrewId, employeeMap]);
 
   const allPersonnelForTable = useMemo(() => {
     const combined = [...personnelForSelectedCrew, ...manuallyAddedPersonnel];
@@ -152,15 +168,17 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
 
   const availableEmployeesForManualAdd = useMemo(() => {
     const crewMemberIds = new Set(selectedCrew?.employeeIds || []);
+    const manuallyAddedIds = new Set(manuallyAddedPersonnel.map(e => e.id));
+
     return initialEmployees
       .filter(emp => 
         emp.condicion === 'jornal' && 
         emp.estado === 'activo' &&
         !crewMemberIds.has(emp.id) && 
-        !manualEmployeeIds.includes(emp.id)
+        !manuallyAddedIds.has(emp.id)
       )
       .map(emp => ({ value: emp.id, label: `${emp.apellido}, ${emp.nombre} (L: ${emp.legajo})` }));
-  }, [initialEmployees, selectedCrew, manualEmployeeIds]);
+  }, [initialEmployees, selectedCrew, manuallyAddedPersonnel]);
 
   const { isNotified, notifiedAt } = useMemo(() => {
     const status = notificationData[formattedDate]?.[selectedCrewId];
@@ -173,20 +191,16 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   const employeeAssignmentStatus = useMemo(() => {
     const allEntriesForDate = laborData[formattedDate] || [];
     
-    // 1. Get all saved entries for the day EXCEPT for the currently selected crew
     const otherCrewsEntries = allEntriesForDate.filter(entry => entry.crewId !== selectedCrewId);
 
-    // 2. Get the current, unsaved entries for the selected crew from the component's state
     const currentCrewUnsavedEntries = allPersonnelForTable.map(emp => ({
         employeeId: emp.id,
         crewId: selectedCrewId,
-        ...(laborEntries[emp.id] || {}), // this has { hours, absenceReason, ... }
+        ...(laborEntries[emp.id] || {}),
     }));
 
-    // 3. Combine them
     const mergedEntries = [...otherCrewsEntries, ...currentCrewUnsavedEntries];
 
-    // 4. Calculate status from the merged view
     const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean; totalHours: number }>();
     for (const entry of mergedEntries) {
         if (!entry.employeeId) continue;
@@ -208,11 +222,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       const dailyEntries = laborData[formattedDate] || [];
       const crewEntries = dailyEntries.filter(entry => entry.crewId === selectedCrewId);
       
-      const initialManualIds = crewEntries.filter(e => e.manual).map(e => e.employeeId);
-      setManualEmployeeIds(initialManualIds);
-
       const crewMemberIds = selectedCrew?.employeeIds || [];
-      const allIdsForCrew = new Set([...crewMemberIds, ...initialManualIds]);
+      const manualIds = crewEntries.filter(e => e.manual).map(e => e.employeeId);
+      const allIdsForCrew = new Set([...crewMemberIds, ...manualIds]);
       
       const initialEntries: Record<string, LaborEntryState> = {};
       
@@ -229,7 +241,6 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       setLaborEntries(initialEntries);
     } else {
       setLaborEntries({});
-      setManualEmployeeIds([]);
     }
   }, [formattedDate, selectedCrewId, laborData, selectedCrew]);
 
@@ -293,8 +304,11 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       return;
     }
 
+    const manualIds = (laborData[formattedDate] || []).filter(e => e.crewId === selectedCrewId && e.manual).map(e => e.employeeId);
+
     const laborDataToSave = allPersonnelForTable.map(emp => {
       const entry = laborEntries[emp.id] || {};
+      const isManual = !selectedCrew?.employeeIds.includes(emp.id) || manualIds.includes(emp.id);
       return {
         employeeId: emp.id,
         hours: entry.hours ?? null,
@@ -302,7 +316,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
         horasAltura: entry.horasAltura ?? null,
         horasHormigon: entry.horasHormigon ?? null,
         horasNocturnas: entry.horasNocturnas ?? null,
-        manual: manualEmployeeIds.includes(emp.id),
+        manual: isManual,
       };
     });
 
@@ -408,33 +422,102 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
 
     setIsNotifyDialogOpen(true);
   };
+  
+  const handleOpenMoveDialog = (employee: Employee) => {
+    setEmployeeToMove(employee);
+    setDestinationCrewId(""); 
+  };
+
+  const handleMoveEmployee = () => {
+    if (!employeeToMove || !destinationCrewId || !selectedCrewId || !formattedDate) return;
+    
+    startTransition(async () => {
+        try {
+            await moveEmployeeBetweenCrews(formattedDate, employeeToMove.id, selectedCrewId, destinationCrewId);
+
+            setLaborData(prev => {
+                const dateEntries = prev[formattedDate] || [];
+                const updatedEntries = dateEntries.filter(e => !(e.crewId === selectedCrewId && e.employeeId === employeeToMove.id));
+                const newEntry: DailyLaborEntry = {
+                    id: crypto.randomUUID(),
+                    employeeId: employeeToMove.id,
+                    crewId: destinationCrewId,
+                    hours: null,
+                    absenceReason: null,
+                    horasAltura: null,
+                    horasHormigon: null,
+                    horasNocturnas: null,
+                    manual: true
+                };
+                return {
+                    ...prev,
+                    [formattedDate]: [...updatedEntries, newEntry]
+                };
+            });
+            
+            toast({
+                title: "Empleado Movido",
+                description: `${employeeToMove.apellido}, ${employeeToMove.nombre} ha sido movido con éxito.`,
+            });
+            
+            setEmployeeToMove(null);
+            setDestinationCrewId("");
+        } catch (error) {
+            toast({
+                title: "Error al mover",
+                description: error instanceof Error ? error.message : "No se pudo mover el empleado.",
+                variant: "destructive",
+            });
+        }
+    });
+};
 
   const handleAddManualEmployee = () => {
     if (employeeToAdd) {
-        setManualEmployeeIds(prev => [...prev, employeeToAdd]);
-        setLaborEntries(prev => ({
-            ...prev,
-            [employeeToAdd]: { hours: null, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null }
-        }));
-        setEmployeeToAdd("");
-        setIsAddEmployeeDialogOpen(false);
+        startTransition(async () => {
+            const laborDataToSave = [{
+                employeeId: employeeToAdd,
+                hours: null,
+                absenceReason: null,
+                manual: true,
+            }];
+            await saveDailyLabor(formattedDate, selectedCrewId, laborDataToSave);
+            
+            const newEntry: DailyLaborEntry = {
+                id: crypto.randomUUID(),
+                employeeId: employeeToAdd,
+                crewId: selectedCrewId,
+                hours: null,
+                absenceReason: null,
+                horasAltura: null,
+                horasHormigon: null,
+                horasNocturnas: null,
+                manual: true
+            };
+            setLaborData(prev => ({
+                ...prev,
+                [formattedDate]: [...(prev[formattedDate] || []), newEntry]
+            }));
+
+            setEmployeeToAdd("");
+            setIsAddEmployeeDialogOpen(false);
+        });
     }
   };
 
   const handleRemoveManualEmployee = (employeeId: string) => {
-    setManualEmployeeIds(prev => prev.filter(id => id !== employeeId));
-    setLaborEntries(prev => {
-        const newEntries = { ...prev };
-        delete newEntries[employeeId];
-        return newEntries;
+    startTransition(async () => {
+       await saveDailyLabor(formattedDate, selectedCrewId, [{ employeeId, hours: null, absenceReason: null, manual: false }]); // This will remove it
+       setLaborData(prev => {
+         const updatedEntries = (prev[formattedDate] || []).filter(e => !(e.crewId === selectedCrewId && e.employeeId === employeeId));
+         return { ...prev, [formattedDate]: updatedEntries };
+       });
     });
   };
-
 
   useEffect(() => {
     setSelectedCrewId("");
     setLaborEntries({});
-    setManualEmployeeIds([]);
   }, [selectedObraId]);
 
   return (
@@ -507,7 +590,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                         <TableHead className="w-[110px] text-center">H. Hormigón</TableHead>
                         <TableHead className="w-[110px] text-center">H. Nocturnas</TableHead>
                         <TableHead className="w-[220px]">Ausencia</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
+                        <TableHead className="w-[100px] text-right">Acciones</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -515,8 +598,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                         allPersonnelForTable.map(emp => {
                         const entry = laborEntries[emp.id] || { hours: null, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
                         const hasHours = entry.hours !== null && entry.hours > 0;
-                        const isManual = manualEmployeeIds.includes(emp.id);
-
+                        const dailyEntries = laborData[formattedDate] || [];
+                        const isManual = dailyEntries.some(e => e.crewId === selectedCrewId && e.employeeId === emp.id && e.manual);
+                        
                         const assignmentStatus = employeeAssignmentStatus.get(emp.id);
                         const hasAbsenceConflict = assignmentStatus && assignmentStatus.hasHours && assignmentStatus.hasAbsence;
                         const totalHours = assignmentStatus?.totalHours || 0;
@@ -654,17 +738,42 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                                 </Select>
                             </TableCell>
                             <TableCell className="text-right">
-                            {isManual && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleRemoveManualEmployee(emp.id)}
-                                    disabled={isPending}
-                                >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                    <span className="sr-only">Quitar empleado</span>
-                                </Button>
-                            )}
+                              <div className="flex justify-end items-center">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleOpenMoveDialog(emp)}
+                                        disabled={isPending}
+                                    >
+                                        <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+                                        <span className="sr-only">Mover empleado</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                      <p>Mover a otra cuadrilla</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                {isManual && (
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => handleRemoveManualEmployee(emp.id)}
+                                                disabled={isPending}
+                                            >
+                                                <Trash2 className="h-4 w-4 text-destructive" />
+                                                <span className="sr-only">Quitar empleado</span>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Quitar de este parte</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                )}
+                              </div>
                             </TableCell>
                         </TableRow>
                         )})
@@ -709,7 +818,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
         <DialogHeader>
           <DialogTitle>Agregar Empleado Manualmente</DialogTitle>
           <DialogDescription>
-            Seleccione un empleado para agregarlo a este parte diario.
+            Seleccione un empleado para agregarlo a este parte diario. Solo se guardará cuando presione "Guardar Parte".
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
@@ -725,9 +834,49 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
         </div>
         <DialogFooter>
           <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
-          <Button onClick={handleAddManualEmployee} disabled={!employeeToAdd}>Agregar</Button>
+          <Button onClick={handleAddManualEmployee} disabled={!employeeToAdd || isPending}>
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Agregar"}
+          </Button>
         </DialogFooter>
       </DialogContent>
+    </Dialog>
+    
+    <Dialog open={!!employeeToMove} onOpenChange={(open) => !open && setEmployeeToMove(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Mover Empleado</DialogTitle>
+                <DialogDescription>
+                    Mover a <strong>{employeeToMove?.apellido}, {employeeToMove?.nombre}</strong> a otra cuadrilla para la fecha <strong>{displayDate}</strong>.
+                    Esta acción quitará al empleado del parte actual y creará una entrada en blanco en el parte de destino.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-2">
+                <Label htmlFor="destination-crew">Cuadrilla de Destino</Label>
+                <Select value={destinationCrewId} onValueChange={setDestinationCrewId}>
+                    <SelectTrigger id="destination-crew">
+                        <SelectValue placeholder="Seleccione una cuadrilla" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableCrewsForMove.length > 0 ? (
+                            availableCrewsForMove.map(crew => (
+                                <SelectItem key={crew.value} value={crew.value}>{crew.label}</SelectItem>
+                            ))
+                        ) : (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                                No hay otras cuadrillas disponibles para mover.
+                            </div>
+                        )}
+                    </SelectContent>
+                </Select>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                <Button onClick={handleMoveEmployee} disabled={isPending || !destinationCrewId}>
+                  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Mover
+                </Button>
+            </DialogFooter>
+        </DialogContent>
     </Dialog>
 
     <AlertDialog open={isNotifyDialogOpen} onOpenChange={setIsNotifyDialogOpen}>
