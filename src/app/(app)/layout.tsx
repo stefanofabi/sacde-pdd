@@ -31,9 +31,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-          <div className="flex h-16 items-center justify-center">
+          <div className="flex h-16 items-center justify-center px-4">
              {/* Logo for expanded sidebar */}
-             <div className="w-full rounded-md bg-white p-2 mx-2 group-data-[collapsible=icon]:hidden">
+             <Link href="/" className="w-full group-data-[collapsible=icon]:hidden">
                 <Image 
                     src="/logo.png" 
                     alt="Sacde Logo" 
@@ -42,9 +42,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     className="h-auto w-full"
                     priority
                 />
-             </div>
+             </Link>
              {/* Icon for collapsed sidebar */}
-             <div className="hidden h-10 w-10 items-center justify-center rounded-lg bg-white p-1 group-data-[collapsible=icon]:flex">
+             <Link href="/" className="hidden h-10 w-10 items-center justify-center group-data-[collapsible=icon]:flex">
                  <Image 
                     src="/logo.png" 
                     alt="Sacde Icon" 
@@ -52,7 +52,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     height={32}
                     style={{ objectFit: 'contain' }}
                 />
-            </div>
+            </Link>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -82,18 +82,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <Link href="/permisos">
-                <SidebarMenuButton isActive={isActive('/permisos')}>
-                  <UserCheck />
-                  Permisos
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
               <Link href="/obras">
                 <SidebarMenuButton isActive={isActive('/obras')}>
                   <Briefcase />
                   Obras
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/permisos">
+                <SidebarMenuButton isActive={isActive('/permisos')}>
+                  <UserCheck />
+                  Permisos
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

@@ -73,18 +73,33 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
   
+  [data-sidebar="menu-button"] {
+    position: relative;
+  }
+  
   [data-sidebar="menu-button"][data-active="true"] {
+    background-color: hsl(var(--sidebar-accent));
+    color: hsl(var(--primary));
+    font-weight: 600;
+  }
+
+  [data-sidebar="menu-button"][data-active="true"]::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 20%;
+    bottom: 20%;
+    width: 3px;
     background-color: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
   }
 
   [data-sidebar="menu-button"][data-active="true"]:hover {
-      background-color: hsl(var(--primary) / 0.9);
-      color: hsl(var(--primary-foreground));
+    background-color: hsl(var(--sidebar-accent));
+    color: hsl(var(--primary));
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
