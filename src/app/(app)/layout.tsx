@@ -26,7 +26,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar variant="floating">
         <SidebarHeader>
           <div className="flex h-16 items-center justify-center px-4">
              {/* Logo for expanded sidebar */}
