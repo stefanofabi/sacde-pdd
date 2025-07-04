@@ -574,7 +574,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                 <UserPlus className="mr-2 h-4 w-4" />
                 Agregar Empleado
               </Button>
-              <Button onClick={handleSave} disabled={isPending || allPersonnelForTable.length === 0}>
+              <Button onClick={handleSave} disabled={isPending}>
                 {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Guardar Parte
               </Button>
@@ -616,5 +616,3 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     </TooltipProvider>
   );
 }
-
-    
