@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, AbsenceReason } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, AbsenceReason, DailyLaborNotificationData } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -13,6 +13,7 @@ const obrasFilePath = path.join(dataDir, 'obras.json');
 const employeesFilePath = path.join(dataDir, 'employees.json');
 const permissionsFilePath = path.join(dataDir, 'permissions.json');
 const dailyLaborFilePath = path.join(dataDir, 'daily-labor.json');
+const dailyLaborNotificationsFilePath = path.join(dataDir, 'daily-labor-notifications.json');
 
 
 async function readData<T>(filePath: string): Promise<T> {
@@ -22,7 +23,7 @@ async function readData<T>(filePath: string): Promise<T> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions')) return [] as T;
-      if (filePath.includes('attendance') || filePath.includes('daily-labor')) return {} as T;
+      if (filePath.includes('attendance') || filePath.includes('daily-labor') || filePath.includes('daily-labor-notifications')) return {} as T;
     }
     console.error(`Error reading file ${filePath}:`, error);
     throw new Error('Could not read data file.');
@@ -60,6 +61,27 @@ export async function getPermissions(): Promise<Permission[]> {
 
 export async function getDailyLabor(): Promise<DailyLaborData> {
   return readData<DailyLaborData>(dailyLaborFilePath);
+}
+
+export async function getDailyLaborNotifications(): Promise<DailyLaborNotificationData> {
+  return readData<DailyLaborNotificationData>(dailyLaborNotificationsFilePath);
+}
+
+export async function notifyDailyLabor(dateKey: string, crewId: string): Promise<void> {
+  const notifications = await getDailyLaborNotifications();
+  
+  const updatedNotifications: DailyLaborNotificationData = {
+    ...notifications,
+    [dateKey]: {
+      ...(notifications[dateKey] || {}),
+      [crewId]: {
+        notified: true,
+        notifiedAt: new Date().toISOString(),
+      },
+    },
+  };
+
+  await writeData(dailyLaborNotificationsFilePath, updatedNotifications);
 }
 
 export async function saveDailyLabor(

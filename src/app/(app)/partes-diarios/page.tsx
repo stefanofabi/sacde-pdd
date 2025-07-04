@@ -1,13 +1,14 @@
 
 import DailyLaborReport from "@/components/daily-labor-report";
 import { Toaster } from "@/components/ui/toaster";
-import { getCrews, getEmployees, getDailyLabor, getObras } from "@/app/actions";
+import { getCrews, getEmployees, getDailyLabor, getObras, getDailyLaborNotifications } from "@/app/actions";
 
 export default async function PartesDiariosPage() {
   const initialCrews = await getCrews();
   const initialEmployees = await getEmployees();
   const initialLaborData = await getDailyLabor();
   const initialObras = await getObras();
+  const initialNotificationData = await getDailyLaborNotifications();
 
   return (
     <>
@@ -26,6 +27,7 @@ export default async function PartesDiariosPage() {
             initialEmployees={initialEmployees}
             initialLaborData={initialLaborData}
             initialObras={initialObras}
+            initialNotificationData={initialNotificationData}
           />
         </div>
       </main>

@@ -105,3 +105,11 @@ export interface DailyLaborEntry {
 }
 
 export type DailyLaborData = Record<string, DailyLaborEntry[]>;
+
+export interface DailyLaborNotificationStatus {
+  notified: boolean;
+  notifiedAt: string | null;
+}
+
+// dateKey -> crewId -> status
+export type DailyLaborNotificationData = Record<string, Record<string, DailyLaborNotificationStatus>>;
