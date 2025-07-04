@@ -15,8 +15,6 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarInset,
-  SidebarFooter,
-  SidebarTrigger,
 } from '@/components/ui/sidebar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -55,7 +53,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu className="mt-4 gap-y-1">
+          <SidebarMenu className="mt-4 gap-y-2">
             <SidebarMenuItem>
               <Link href="/cuadrillas">
                 <SidebarMenuButton isActive={isActive('/cuadrillas')}>
@@ -98,11 +96,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
-        <SidebarFooter>
-          <div className="flex w-full justify-center">
-            <SidebarTrigger />
-          </div>
-        </SidebarFooter>
       </Sidebar>
       <SidebarInset>{children}</SidebarInset>
     </SidebarProvider>
