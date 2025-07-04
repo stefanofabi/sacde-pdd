@@ -58,3 +58,12 @@ export interface Permission {
   status: PermissionStatus;
   observations?: string;
 }
+
+export interface DailyLaborEntry {
+  id: string;
+  employeeId: string;
+  crewId: string;
+  hours: number;
+}
+
+export type DailyLaborData = Record<string, DailyLaborEntry[]>;

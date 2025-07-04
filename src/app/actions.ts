@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -12,6 +12,7 @@ const attendanceFilePath = path.join(dataDir, 'attendance.json');
 const obrasFilePath = path.join(dataDir, 'obras.json');
 const employeesFilePath = path.join(dataDir, 'employees.json');
 const permissionsFilePath = path.join(dataDir, 'permissions.json');
+const dailyLaborFilePath = path.join(dataDir, 'daily-labor.json');
 
 
 async function readData<T>(filePath: string): Promise<T> {
@@ -21,7 +22,7 @@ async function readData<T>(filePath: string): Promise<T> {
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions')) return [] as T;
-      if (filePath.includes('attendance')) return {} as T;
+      if (filePath.includes('attendance') || filePath.includes('daily-labor')) return {} as T;
     }
     console.error(`Error reading file ${filePath}:`, error);
     throw new Error('Could not read data file.');
@@ -55,6 +56,41 @@ export async function getAttendance(): Promise<AttendanceData> {
 
 export async function getPermissions(): Promise<Permission[]> {
   return readData<Permission[]>(permissionsFilePath);
+}
+
+export async function getDailyLabor(): Promise<DailyLaborData> {
+  return readData<DailyLaborData>(dailyLaborFilePath);
+}
+
+export async function saveDailyLabor(
+  dateKey: string,
+  crewId: string,
+  laborData: { employeeId: string; hours: number | null }[]
+): Promise<void> {
+  const dailyLabor = await getDailyLabor();
+  const dailyEntries = dailyLabor[dateKey] || [];
+
+  // Filter out old entries for the current crew on the given date
+  const otherCrewEntries = dailyEntries.filter(entry => entry.crewId !== crewId);
+
+  // Create new entries for the current crew, only for those with hours entered
+  const newCrewEntries: DailyLaborEntry[] = laborData
+    .filter(data => data.hours !== null && data.hours > 0)
+    .map(data => ({
+      id: crypto.randomUUID(),
+      employeeId: data.employeeId,
+      crewId: crewId,
+      hours: data.hours!,
+    }));
+
+  const updatedDailyEntries = [...otherCrewEntries, ...newCrewEntries];
+
+  const newDailyLaborData = {
+    ...dailyLabor,
+    [dateKey]: updatedDailyEntries,
+  };
+
+  await writeData(dailyLaborFilePath, newDailyLaborData);
 }
 
 export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
