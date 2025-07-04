@@ -72,7 +72,8 @@ export type AbsenceReason =
   | "fallecimiento" 
   | "donacion de sangre" 
   | "vacaciones" 
-  | "stand by";
+  | "stand by"
+  | "sin actividad";
 
 export const absenceReasons: { value: AbsenceReason; label: string }[] = [
     { value: 'franco', label: 'Franco' },
@@ -88,6 +89,7 @@ export const absenceReasons: { value: AbsenceReason; label: string }[] = [
     { value: 'donacion de sangre', label: 'Lic. Donación Sangre' },
     { value: 'vacaciones', label: 'Vacaciones' },
     { value: 'stand by', label: 'Stand By' },
+    { value: 'sin actividad', label: 'Sin Actividad' },
 ];
 
 export interface DailyLaborEntry {
@@ -96,9 +98,9 @@ export interface DailyLaborEntry {
   crewId: string;
   hours: number | null;
   absenceReason: AbsenceReason | null;
-  horasAltura?: number | null;
-  horasHormigon?: number | null;
-  horasNocturnas?: number | null;
+  horasAltura: number | null;
+  horasHormigon: number | null;
+  horasNocturnas: number | null;
 }
 
 export type DailyLaborData = Record<string, DailyLaborEntry[]>;
