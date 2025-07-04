@@ -1,2 +1,37 @@
 {
+  "2025-07-04": [
+    {
+      "id": "af131dc0-0186-4d70-8229-e01cc24f4dc9",
+      "employeeId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
+      "crewId": "crew-1",
+      "hours": 9,
+      "absenceReason": null,
+      "horasAltura": null,
+      "horasHormigon": null,
+      "horasNocturnas": null,
+      "manual": true
+    },
+    {
+      "id": "0ffeacde-1b3b-4f23-bc76-6d28178aab00",
+      "employeeId": "emp-002",
+      "crewId": "crew-1",
+      "hours": 9,
+      "absenceReason": null,
+      "horasAltura": null,
+      "horasHormigon": null,
+      "horasNocturnas": null,
+      "manual": false
+    },
+    {
+      "id": "e45ac6d2-9a0e-455d-a3b0-96cd8641a7a9",
+      "employeeId": "7ff9adcf-39db-4250-a0d5-c26e5ad80f53",
+      "crewId": "crew-1",
+      "hours": 9,
+      "absenceReason": null,
+      "horasAltura": null,
+      "horasHormigon": null,
+      "horasNocturnas": null,
+      "manual": false
+    }
+  ]
 }

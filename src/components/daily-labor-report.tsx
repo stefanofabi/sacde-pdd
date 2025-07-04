@@ -49,13 +49,14 @@ import {
 } from "@/components/ui/tooltip";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2 } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, Employee, DailyLaborData, Obra, AbsenceReason } from "@/types";
 import { absenceReasons } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor } from "@/app/actions";
+import { cn } from "@/lib/utils";
 
 interface DailyLaborReportProps {
   initialCrews: Crew[];
@@ -319,7 +320,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   }, [selectedObraId]);
 
   return (
-    <>
+    <TooltipProvider>
     <Card>
       <CardHeader>
         <CardTitle>Carga de Horas por Empleado</CardTitle>
@@ -395,31 +396,48 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                           <div className="flex items-center gap-2">
                             {`${emp.apellido}, ${emp.nombre}`}
                             {isManual && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <UserPlus className="h-4 w-4 text-primary" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Empleado agregado manualmente</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <UserPlus className="h-4 w-4 text-primary" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Empleado agregado manualmente</p>
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>{emp.denominacionPosicion}</TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            className="text-center"
-                            placeholder="-"
-                            value={entry.hours ?? ""}
-                            onChange={(e) => handleEntryChange(emp.id, 'hours', e.target.value)}
-                            disabled={isPending || !!entry.absenceReason}
-                            step="0.5"
-                            min="0"
-                          />
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              className={cn(
+                                "text-center",
+                                entry.hours && entry.hours > 12
+                                  ? "border-destructive text-destructive focus-visible:ring-destructive pr-8"
+                                  : ""
+                              )}
+                              placeholder="-"
+                              value={entry.hours ?? ""}
+                              onChange={(e) => handleEntryChange(emp.id, 'hours', e.target.value)}
+                              disabled={isPending || !!entry.absenceReason}
+                              step="0.5"
+                              min="0"
+                            />
+                            {entry.hours && entry.hours > 12 && (
+                              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Advertencia: Más de 12 horas cargadas.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                            <Input
@@ -548,6 +566,6 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    </>
+    </TooltipProvider>
   );
 }
