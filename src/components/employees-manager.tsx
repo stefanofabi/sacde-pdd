@@ -49,13 +49,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide, Search, Pencil } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide, Search, Pencil, FileSpreadsheet } from "lucide-react";
 import type { Employee, Obra, EmployeeCondition, EmployeeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addEmployee, deleteEmployee, updateEmployee } from "@/app/actions";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
+import * as XLSX from 'xlsx';
 
 interface EmployeesManagerProps {
   initialEmployees: Employee[];
@@ -221,6 +222,51 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
     });
   };
 
+  const handleExport = () => {
+    startTransition(() => {
+        try {
+            const dataToExport = employees.map(emp => ({
+                'Legajo': emp.legajo,
+                'Apellido': emp.apellido,
+                'Nombre': emp.nombre,
+                'CUIL': emp.cuil || '',
+                'Fecha de Ingreso': emp.fechaIngreso ? format(new Date(emp.fechaIngreso + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }) : '',
+                'Obra': obraNameMap[emp.obraId] || 'N/A',
+                'Posición': emp.denominacionPosicion,
+                'Condición': emp.condicion,
+                'Estado': emp.estado,
+                'Celular': emp.celular || '',
+                'Correo': emp.correo || ''
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Empleados");
+            
+            const colWidths = Object.keys(dataToExport[0] || {}).map(key => ({
+                wch: Math.max(
+                    key.length,
+                    ...dataToExport.map(row => (row[key as keyof typeof row] ? String(row[key as keyof typeof row]).length : 0))
+                ) + 2
+            }));
+            worksheet['!cols'] = colWidths;
+            
+            XLSX.writeFile(workbook, `Listado_Empleados_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+
+            toast({
+                title: "Exportación exitosa",
+                description: "El listado de empleados se ha descargado.",
+            });
+        } catch (error) {
+            toast({
+                title: "Error al exportar",
+                description: "No se pudo generar el archivo Excel.",
+                variant: "destructive"
+            });
+        }
+    });
+  };
+
   return (
     <>
       <Card>
@@ -229,7 +275,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                 <div>
                     <CardTitle>Lista de Empleados</CardTitle>
                     <CardDescription>
-                        Busque, edite o agregue nuevos empleados.
+                        Busque, edite, agregue nuevos empleados o exporte el listado.
                     </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -242,6 +288,10 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                             className="pl-10 w-full sm:w-[250px]"
                         />
                     </div>
+                    <Button onClick={handleExport} variant="outline" disabled={isPending}>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        Exportar a Excel
+                    </Button>
                     <Button onClick={handleOpenAddDialog}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Agregar Empleado
