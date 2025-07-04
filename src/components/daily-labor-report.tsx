@@ -138,7 +138,12 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   const availableEmployeesForManualAdd = useMemo(() => {
     const crewMemberIds = new Set(selectedCrew?.employeeIds || []);
     return initialEmployees
-      .filter(emp => !crewMemberIds.has(emp.id) && !manualEmployeeIds.includes(emp.id))
+      .filter(emp => 
+        emp.condicion === 'jornal' && 
+        emp.estado === 'activo' &&
+        !crewMemberIds.has(emp.id) && 
+        !manualEmployeeIds.includes(emp.id)
+      )
       .map(emp => ({ value: emp.id, label: `${emp.apellido}, ${emp.nombre} (L: ${emp.legajo})` }));
   }, [initialEmployees, selectedCrew, manualEmployeeIds]);
 
