@@ -116,6 +116,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     : "Seleccione una fecha";
 
   const employeeMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, emp])), [initialEmployees]);
+  const obraMap = useMemo(() => new Map(initialObras.map(o => [o.id, o.name])), [initialObras]);
 
   const obrasWithCrews = useMemo(() => {
     const obraIdsWithCrews = new Set(initialCrews.map(crew => crew.obraId));
@@ -128,14 +129,13 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   }, [initialCrews, selectedObraId]);
 
   const availableCrewsForMove = useMemo(() => {
-    if (!selectedObraId) return [];
-    return crewsForSelectedObra
+    return initialCrews
         .filter(c => 
             c.id !== selectedCrewId && 
             !notificationData[formattedDate]?.[c.id]?.notified
         )
-        .map(c => ({ value: c.id, label: c.name }));
-  }, [crewsForSelectedObra, selectedCrewId, notificationData, formattedDate]);
+        .map(c => ({ value: c.id, label: `${c.name} (${obraMap.get(c.obraId) || 'Sin Obra'})` }));
+  }, [initialCrews, selectedCrewId, notificationData, formattedDate, obraMap]);
 
   const selectedCrew = useMemo(() => {
     return initialCrews.find(c => c.id === selectedCrewId);
@@ -629,7 +629,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                                     <UserPlus className="h-4 w-4 text-primary" />
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                    <p>Empleado agregado manualmente</p>
+                                    <p>Empleado agregado manually</p>
                                     </TooltipContent>
                                 </Tooltip>
                                 )}
