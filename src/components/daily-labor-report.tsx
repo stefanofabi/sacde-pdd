@@ -69,6 +69,11 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     : "Seleccione una fecha";
 
   const employeeMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, emp])), [initialEmployees]);
+
+  const obrasWithCrews = useMemo(() => {
+    const obraIdsWithCrews = new Set(initialCrews.map(crew => crew.obraId));
+    return initialObras.filter(obra => obraIdsWithCrews.has(obra.id));
+  }, [initialCrews, initialObras]);
   
   const crewsForSelectedObra = useMemo(() => {
     if (!selectedObraId) return [];
@@ -187,7 +192,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
               <SelectValue placeholder="Seleccione una obra" />
             </SelectTrigger>
             <SelectContent>
-              {initialObras.map(obra => (
+              {obrasWithCrews.map(obra => (
                 <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>
               ))}
             </SelectContent>
