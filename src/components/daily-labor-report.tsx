@@ -165,12 +165,13 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     const mergedEntries = [...otherCrewsEntries, ...currentCrewUnsavedEntries];
 
     // 4. Calculate status from the merged view
-    const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
+    const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean; totalHours: number }>();
     for (const entry of mergedEntries) {
         if (!entry.employeeId) continue;
-        const currentStatus = statusMap.get(entry.employeeId) || { hasHours: false, hasAbsence: false };
+        const currentStatus = statusMap.get(entry.employeeId) || { hasHours: false, hasAbsence: false, totalHours: 0 };
         if (entry.hours && entry.hours > 0) {
             currentStatus.hasHours = true;
+            currentStatus.totalHours += entry.hours;
         }
         if (entry.absenceReason) {
             currentStatus.hasAbsence = true;
@@ -420,13 +421,23 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                       const hasHours = entry.hours !== null && entry.hours > 0;
                       const isManual = manualEmployeeIds.includes(emp.id);
 
-                      const conflictStatus = employeeAssignmentStatus.get(emp.id);
-                      const hasConflict = conflictStatus && conflictStatus.hasHours && conflictStatus.hasAbsence;
+                      const assignmentStatus = employeeAssignmentStatus.get(emp.id);
+                      const hasAbsenceConflict = assignmentStatus && assignmentStatus.hasHours && assignmentStatus.hasAbsence;
+                      const totalHours = assignmentStatus?.totalHours || 0;
+                      const hasOvertimeWarning = totalHours > 12;
 
+                      const warningMessages = [];
+                      if (hasAbsenceConflict) {
+                        warningMessages.push("El empleado tiene horas y una ausencia registradas en el mismo día.");
+                      }
+                      if (hasOvertimeWarning) {
+                        warningMessages.push(`El empleado suma un total de ${totalHours} horas en este día, superando el límite de 12.`);
+                      }
+                      
                       return (
                       <TableRow key={emp.id} className={cn(
                           isManual ? "bg-accent/50" : "",
-                          hasConflict ? "bg-destructive/10" : ""
+                          warningMessages.length > 0 ? "bg-destructive/10" : ""
                       )}>
                         <TableCell className="font-mono">{emp.legajo}</TableCell>
                         <TableCell className="font-medium">
@@ -438,17 +449,19 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                                   <UserPlus className="h-4 w-4 text-primary" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Empleado agregado manually</p>
+                                  <p>Empleado agregado manualmente</p>
                                 </TooltipContent>
                               </Tooltip>
                             )}
-                            {hasConflict && (
+                            {warningMessages.length > 0 && (
                                 <Tooltip>
                                     <TooltipTrigger>
                                         <AlertTriangle className="h-4 w-4 text-destructive" />
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                        <p className="max-w-xs">Advertencia: El empleado tiene horas y una ausencia registradas en el mismo día entre diferentes cuadrillas.</p>
+                                      <div className="max-w-xs space-y-1">
+                                        {warningMessages.map((msg, i) => <p key={i}>{msg}</p>)}
+                                      </div>
                                     </TooltipContent>
                                 </Tooltip>
                             )}
@@ -574,7 +587,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                 <UserPlus className="mr-2 h-4 w-4" />
                 Agregar Empleado
               </Button>
-              <Button onClick={handleSave} disabled={isPending}>
+              <Button onClick={handleSave} disabled={isPending || !selectedCrewId}>
                 {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Guardar Parte
               </Button>

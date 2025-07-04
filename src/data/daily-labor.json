@@ -1,10 +1,10 @@
 {
   "2025-07-04": [
     {
-      "id": "af131dc0-0186-4d70-8229-e01cc24f4dc9",
+      "id": "a7240a91-db94-4519-9575-f69f85313358",
       "employeeId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
       "crewId": "crew-1",
-      "hours": 9,
+      "hours": 10,
       "absenceReason": null,
       "horasAltura": null,
       "horasHormigon": null,
@@ -12,7 +12,7 @@
       "manual": true
     },
     {
-      "id": "0ffeacde-1b3b-4f23-bc76-6d28178aab00",
+      "id": "efaa7963-1ac5-4b16-afd4-8598a11163f1",
       "employeeId": "emp-002",
       "crewId": "crew-1",
       "hours": 9,
@@ -23,7 +23,7 @@
       "manual": false
     },
     {
-      "id": "e45ac6d2-9a0e-455d-a3b0-96cd8641a7a9",
+      "id": "d88f7f57-d206-4892-81b4-bb5aa15483e9",
       "employeeId": "7ff9adcf-39db-4250-a0d5-c26e5ad80f53",
       "crewId": "crew-1",
       "hours": 9,
@@ -34,11 +34,11 @@
       "manual": false
     },
     {
-      "id": "dc0aa79a-6b2c-4d90-bd6e-d66b9c14cf5d",
+      "id": "2a3855bb-814c-4a21-a311-fc814e4b81ff",
       "employeeId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
       "crewId": "crew-3",
-      "hours": null,
-      "absenceReason": "sin aviso",
+      "hours": 9,
+      "absenceReason": null,
       "horasAltura": null,
       "horasHormigon": null,
       "horasNocturnas": null,
