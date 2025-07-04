@@ -40,6 +40,8 @@ import type { Crew, Employee, DailyLaborData, Obra, AbsenceReason } from "@/type
 import { absenceReasons } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor } from "@/app/actions";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface DailyLaborReportProps {
   initialCrews: Crew[];
@@ -51,6 +53,9 @@ interface DailyLaborReportProps {
 interface LaborEntryState {
     hours: number | null;
     absenceReason: AbsenceReason | null;
+    isAltura: boolean;
+    isHormigon: boolean;
+    isNocturna: boolean;
 }
 
 export default function DailyLaborReport({ initialCrews, initialEmployees, initialLaborData, initialObras }: DailyLaborReportProps) {
@@ -106,6 +111,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
         initialEntries[emp.id] = {
             hours: entry?.hours ?? null,
             absenceReason: entry?.absenceReason ?? null,
+            isAltura: entry?.isAltura ?? false,
+            isHormigon: entry?.isHormigon ?? false,
+            isNocturna: entry?.isNocturna ?? false,
         }
       });
       setLaborEntries(initialEntries);
@@ -114,26 +122,38 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     }
   }, [formattedDate, selectedCrewId, laborData, personnelForSelectedCrew]);
 
-  const handleEntryChange = (employeeId: string, field: 'hours' | 'absenceReason', value: string | null) => {
+  const handleEntryChange = (
+      employeeId: string, 
+      field: keyof LaborEntryState, 
+      value: string | null | boolean
+    ) => {
     setLaborEntries(prev => {
-        const currentEntry = prev[employeeId] || { hours: null, absenceReason: null };
+        const currentEntry = prev[employeeId] || { hours: null, absenceReason: null, isAltura: false, isHormigon: false, isNocturna: false };
         let newEntry = { ...currentEntry };
 
         if (field === 'hours') {
-            const newHours = value === "" || value === null ? null : parseFloat(value);
+            const newHours = value === "" || value === null ? null : parseFloat(value as string);
             if (value === "" || value === null || !isNaN(newHours as number)) {
-                newEntry.hours = (newHours as number) >= 0 ? newHours : null;
+                newEntry.hours = newHours !== null && newHours > 0 ? newHours : null;
                 if (newHours !== null && newHours > 0) {
                     newEntry.absenceReason = null;
+                } else {
+                    newEntry.hours = null;
+                    newEntry.isAltura = false;
+                    newEntry.isHormigon = false;
+                    newEntry.isNocturna = false;
                 }
             }
-        }
-
-        if (field === 'absenceReason') {
+        } else if (field === 'absenceReason') {
             newEntry.absenceReason = value as AbsenceReason | null;
             if (value) {
                 newEntry.hours = null;
+                newEntry.isAltura = false;
+                newEntry.isHormigon = false;
+                newEntry.isNocturna = false;
             }
+        } else if (field === 'isAltura' || field === 'isHormigon' || field === 'isNocturna') {
+            newEntry[field] = value as boolean;
         }
         
         return { ...prev, [employeeId]: newEntry };
@@ -154,6 +174,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       employeeId,
       hours: entry.hours,
       absenceReason: entry.absenceReason,
+      isAltura: entry.isAltura,
+      isHormigon: entry.isHormigon,
+      isNocturna: entry.isNocturna,
     }));
 
     startTransition(async () => {
@@ -170,6 +193,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                 crewId: selectedCrewId,
                 hours: d.hours,
                 absenceReason: d.absenceReason,
+                isAltura: d.isAltura,
+                isHormigon: d.isHormigon,
+                isNocturna: d.isNocturna,
             }));
         
         setLaborData(prev => ({
@@ -250,13 +276,19 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                     <TableHead>Legajo</TableHead>
                     <TableHead>Apellido y Nombre</TableHead>
                     <TableHead>Posición</TableHead>
-                    <TableHead className="w-[150px] text-center">Horas</TableHead>
+                    <TableHead className="w-[120px] text-center">Horas</TableHead>
+                    <TableHead className="w-[100px] text-center">Altura</TableHead>
+                    <TableHead className="w-[100px] text-center">Hormigón</TableHead>
+                    <TableHead className="w-[100px] text-center">Nocturnas</TableHead>
                     <TableHead className="w-[220px]">Ausencia</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {personnelForSelectedCrew.length > 0 ? (
-                    personnelForSelectedCrew.map(emp => (
+                    personnelForSelectedCrew.map(emp => {
+                      const entry = laborEntries[emp.id] || { hours: null, absenceReason: null, isAltura: false, isHormigon: false, isNocturna: false };
+                      const hasHours = entry.hours !== null && entry.hours > 0;
+                      return (
                       <TableRow key={emp.id}>
                         <TableCell className="font-mono">{emp.legajo}</TableCell>
                         <TableCell className="font-medium">{`${emp.apellido}, ${emp.nombre}`}</TableCell>
@@ -266,18 +298,42 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                             type="number"
                             className="text-center"
                             placeholder="-"
-                            value={laborEntries[emp.id]?.hours ?? ""}
+                            value={entry.hours ?? ""}
                             onChange={(e) => handleEntryChange(emp.id, 'hours', e.target.value)}
-                            disabled={isPending || !!laborEntries[emp.id]?.absenceReason}
+                            disabled={isPending || !!entry.absenceReason}
                             step="0.5"
                             min="0"
                           />
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            id={`altura-${emp.id}`}
+                            checked={entry.isAltura}
+                            onCheckedChange={(checked) => handleEntryChange(emp.id, 'isAltura', checked as boolean)}
+                            disabled={isPending || !hasHours}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            id={`hormigon-${emp.id}`}
+                            checked={entry.isHormigon}
+                            onCheckedChange={(checked) => handleEntryChange(emp.id, 'isHormigon', checked as boolean)}
+                            disabled={isPending || !hasHours}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            id={`nocturna-${emp.id}`}
+                            checked={entry.isNocturna}
+                            onCheckedChange={(checked) => handleEntryChange(emp.id, 'isNocturna', checked as boolean)}
+                            disabled={isPending || !hasHours}
+                          />
+                        </TableCell>
                         <TableCell>
                            <Select
-                                value={laborEntries[emp.id]?.absenceReason ?? ""}
+                                value={entry.absenceReason ?? "NONE"}
                                 onValueChange={(value) => handleEntryChange(emp.id, 'absenceReason', value === 'NONE' ? null : value as AbsenceReason)}
-                                disabled={isPending || (laborEntries[emp.id]?.hours ?? 0) > 0}
+                                disabled={isPending || hasHours}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Seleccionar motivo..." />
@@ -293,10 +349,10 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                             </Select>
                         </TableCell>
                       </TableRow>
-                    ))
+                    )})
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
+                      <TableCell colSpan={8} className="h-24 text-center">
                         Esta cuadrilla no tiene personal asignado.
                       </TableCell>
                     </TableRow>
