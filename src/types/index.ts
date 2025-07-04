@@ -101,6 +101,7 @@ export interface DailyLaborEntry {
   horasAltura: number | null;
   horasHormigon: number | null;
   horasNocturnas: number | null;
+  manual?: boolean;
 }
 
 export type DailyLaborData = Record<string, DailyLaborEntry[]>;

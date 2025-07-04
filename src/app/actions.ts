@@ -72,6 +72,7 @@ export async function saveDailyLabor(
     horasAltura?: number | null;
     horasHormigon?: number | null;
     horasNocturnas?: number | null;
+    manual?: boolean;
   }[]
 ): Promise<void> {
   const dailyLabor = await getDailyLabor();
@@ -80,9 +81,9 @@ export async function saveDailyLabor(
   // Filter out old entries for the current crew on the given date
   const otherCrewEntries = dailyEntries.filter(entry => entry.crewId !== crewId);
 
-  // Create new entries for the current crew, only for those with hours or absence reason entered
+  // Create new entries for the current crew, only for those with hours, absence reason, or if manually added
   const newCrewEntries: DailyLaborEntry[] = laborData
-    .filter(data => (data.hours !== null && data.hours > 0) || data.absenceReason)
+    .filter(data => (data.hours !== null && data.hours > 0) || data.absenceReason || data.manual)
     .map(data => ({
       id: crypto.randomUUID(),
       employeeId: data.employeeId,
@@ -92,6 +93,7 @@ export async function saveDailyLabor(
       horasAltura: data.horasAltura ?? null,
       horasHormigon: data.horasHormigon ?? null,
       horasNocturnas: data.horasNocturnas ?? null,
+      manual: data.manual ?? false,
     }));
 
   const updatedDailyEntries = [...otherCrewEntries, ...newCrewEntries];
