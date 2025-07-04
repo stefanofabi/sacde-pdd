@@ -36,7 +36,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { Calendar as CalendarIcon, Loader2, Save } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, Employee, DailyLaborData, Obra } from "@/types";
+import type { Crew, Employee, DailyLaborData, Obra, AbsenceReason } from "@/types";
+import { absenceReasons } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor } from "@/app/actions";
 
@@ -47,6 +48,11 @@ interface DailyLaborReportProps {
   initialObras: Obra[];
 }
 
+interface LaborEntryState {
+    hours: number | null;
+    absenceReason: AbsenceReason | null;
+}
+
 export default function DailyLaborReport({ initialCrews, initialEmployees, initialLaborData, initialObras }: DailyLaborReportProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -55,7 +61,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedObraId, setSelectedObraId] = useState<string>("");
   const [selectedCrewId, setSelectedCrewId] = useState<string>("");
-  const [hours, setHours] = useState<Record<string, number | null>>({});
+  const [laborEntries, setLaborEntries] = useState<Record<string, LaborEntryState>>({});
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -94,22 +100,44 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       const dailyEntries = laborData[formattedDate] || [];
       const crewEntries = dailyEntries.filter(entry => entry.crewId === selectedCrewId);
       
-      const initialHours: Record<string, number | null> = {};
+      const initialEntries: Record<string, LaborEntryState> = {};
       personnelForSelectedCrew.forEach(emp => {
         const entry = crewEntries.find(e => e.employeeId === emp.id);
-        initialHours[emp.id] = entry ? entry.hours : null;
+        initialEntries[emp.id] = {
+            hours: entry?.hours ?? null,
+            absenceReason: entry?.absenceReason ?? null,
+        }
       });
-      setHours(initialHours);
+      setLaborEntries(initialEntries);
     } else {
-      setHours({});
+      setLaborEntries({});
     }
   }, [formattedDate, selectedCrewId, laborData, personnelForSelectedCrew]);
 
-  const handleHoursChange = (employeeId: string, value: string) => {
-    const newHours = value === "" ? null : parseFloat(value);
-    if (value === "" || (!isNaN(newHours) && newHours >= 0)) {
-      setHours(prev => ({ ...prev, [employeeId]: newHours }));
-    }
+  const handleEntryChange = (employeeId: string, field: 'hours' | 'absenceReason', value: string | null) => {
+    setLaborEntries(prev => {
+        const currentEntry = prev[employeeId] || { hours: null, absenceReason: null };
+        let newEntry = { ...currentEntry };
+
+        if (field === 'hours') {
+            const newHours = value === "" || value === null ? null : parseFloat(value);
+            if (value === "" || value === null || !isNaN(newHours as number)) {
+                newEntry.hours = (newHours as number) >= 0 ? newHours : null;
+                if (newHours !== null && newHours > 0) {
+                    newEntry.absenceReason = null;
+                }
+            }
+        }
+
+        if (field === 'absenceReason') {
+            newEntry.absenceReason = value as AbsenceReason | null;
+            if (value) {
+                newEntry.hours = null;
+            }
+        }
+        
+        return { ...prev, [employeeId]: newEntry };
+    });
   };
 
   const handleSave = () => {
@@ -122,9 +150,10 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       return;
     }
 
-    const laborDataToSave = Object.entries(hours).map(([employeeId, h]) => ({
+    const laborDataToSave = Object.entries(laborEntries).map(([employeeId, entry]) => ({
       employeeId,
-      hours: h,
+      hours: entry.hours,
+      absenceReason: entry.absenceReason,
     }));
 
     startTransition(async () => {
@@ -134,12 +163,13 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
         const dailyEntries = laborData[formattedDate] || [];
         const otherCrewEntries = dailyEntries.filter(entry => entry.crewId !== selectedCrewId);
         const newCrewEntries = laborDataToSave
-            .filter(d => d.hours !== null && d.hours > 0)
+            .filter(d => (d.hours !== null && d.hours > 0) || d.absenceReason)
             .map(d => ({
                 id: crypto.randomUUID(),
                 employeeId: d.employeeId,
                 crewId: selectedCrewId,
-                hours: d.hours!,
+                hours: d.hours,
+                absenceReason: d.absenceReason,
             }));
         
         setLaborData(prev => ({
@@ -149,7 +179,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
         
         toast({
           title: "Datos Guardados",
-          description: "Las horas se han registrado correctamente.",
+          description: "Las horas y ausencias se han registrado correctamente.",
         });
       } catch (error) {
         toast({
@@ -163,6 +193,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
 
   useEffect(() => {
     setSelectedCrewId("");
+    setLaborEntries({});
   }, [selectedObraId]);
 
   return (
@@ -170,7 +201,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       <CardHeader>
         <CardTitle>Carga de Horas por Empleado</CardTitle>
         <CardDescription>
-          Seleccione fecha, obra y cuadrilla para registrar las horas trabajadas.
+          Seleccione fecha, obra y cuadrilla para registrar las horas o ausencias del personal.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -219,7 +250,8 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                     <TableHead>Legajo</TableHead>
                     <TableHead>Apellido y Nombre</TableHead>
                     <TableHead>Posición</TableHead>
-                    <TableHead className="w-[150px] text-right">Horas</TableHead>
+                    <TableHead className="w-[150px] text-center">Horas</TableHead>
+                    <TableHead className="w-[220px]">Ausencia</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -229,23 +261,42 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                         <TableCell className="font-mono">{emp.legajo}</TableCell>
                         <TableCell className="font-medium">{`${emp.apellido}, ${emp.nombre}`}</TableCell>
                         <TableCell>{emp.denominacionPosicion}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
                           <Input
                             type="number"
-                            className="text-right"
-                            placeholder="0"
-                            value={hours[emp.id] ?? ""}
-                            onChange={(e) => handleHoursChange(emp.id, e.target.value)}
-                            disabled={isPending}
+                            className="text-center"
+                            placeholder="-"
+                            value={laborEntries[emp.id]?.hours ?? ""}
+                            onChange={(e) => handleEntryChange(emp.id, 'hours', e.target.value)}
+                            disabled={isPending || !!laborEntries[emp.id]?.absenceReason}
                             step="0.5"
                             min="0"
                           />
+                        </TableCell>
+                        <TableCell>
+                           <Select
+                                value={laborEntries[emp.id]?.absenceReason ?? ""}
+                                onValueChange={(value) => handleEntryChange(emp.id, 'absenceReason', value || null)}
+                                disabled={isPending || (laborEntries[emp.id]?.hours ?? 0) > 0}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccionar motivo..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="">-</SelectItem>
+                                    {absenceReasons.map(reason => (
+                                        <SelectItem key={reason.value} value={reason.value}>
+                                            {reason.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">
+                      <TableCell colSpan={5} className="h-24 text-center">
                         Esta cuadrilla no tiene personal asignado.
                       </TableCell>
                     </TableRow>

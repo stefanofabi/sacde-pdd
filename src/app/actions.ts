@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, AbsenceReason } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -65,7 +65,7 @@ export async function getDailyLabor(): Promise<DailyLaborData> {
 export async function saveDailyLabor(
   dateKey: string,
   crewId: string,
-  laborData: { employeeId: string; hours: number | null }[]
+  laborData: { employeeId: string; hours: number | null; absenceReason: AbsenceReason | null }[]
 ): Promise<void> {
   const dailyLabor = await getDailyLabor();
   const dailyEntries = dailyLabor[dateKey] || [];
@@ -73,14 +73,15 @@ export async function saveDailyLabor(
   // Filter out old entries for the current crew on the given date
   const otherCrewEntries = dailyEntries.filter(entry => entry.crewId !== crewId);
 
-  // Create new entries for the current crew, only for those with hours entered
+  // Create new entries for the current crew, only for those with hours or absence reason entered
   const newCrewEntries: DailyLaborEntry[] = laborData
-    .filter(data => data.hours !== null && data.hours > 0)
+    .filter(data => (data.hours !== null && data.hours > 0) || data.absenceReason)
     .map(data => ({
       id: crypto.randomUUID(),
       employeeId: data.employeeId,
       crewId: crewId,
-      hours: data.hours!,
+      hours: data.hours,
+      absenceReason: data.absenceReason,
     }));
 
   const updatedDailyEntries = [...otherCrewEntries, ...newCrewEntries];

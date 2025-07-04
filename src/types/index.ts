@@ -59,11 +59,43 @@ export interface Permission {
   observations?: string;
 }
 
+export type AbsenceReason = 
+  | "franco" 
+  | "permiso" 
+  | "art" 
+  | "enfermedad" 
+  | "sin aviso" 
+  | "con aviso" 
+  | "feriado" 
+  | "licencia nacimiento" 
+  | "licencia casamiento" 
+  | "fallecimiento" 
+  | "donacion de sangre" 
+  | "vacaciones" 
+  | "stand by";
+
+export const absenceReasons: { value: AbsenceReason; label: string }[] = [
+    { value: 'franco', label: 'Franco' },
+    { value: 'permiso', label: 'Permiso' },
+    { value: 'art', label: 'ART' },
+    { value: 'enfermedad', label: 'Enfermedad' },
+    { value: 'sin aviso', label: 'Ausente (S/A)' },
+    { value: 'con aviso', label: 'Ausente (C/A)' },
+    { value: 'feriado', label: 'Feriado' },
+    { value: 'licencia nacimiento', label: 'Lic. Nacimiento' },
+    { value: 'licencia casamiento', label: 'Lic. Casamiento' },
+    { value: 'fallecimiento', label: 'Lic. Fallecimiento' },
+    { value: 'donacion de sangre', label: 'Lic. Donación Sangre' },
+    { value: 'vacaciones', label: 'Vacaciones' },
+    { value: 'stand by', label: 'Stand By' },
+];
+
 export interface DailyLaborEntry {
   id: string;
   employeeId: string;
   crewId: string;
-  hours: number;
+  hours: number | null;
+  absenceReason: AbsenceReason | null;
 }
 
 export type DailyLaborData = Record<string, DailyLaborEntry[]>;
