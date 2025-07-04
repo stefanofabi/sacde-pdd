@@ -32,6 +32,17 @@
       "horasHormigon": null,
       "horasNocturnas": null,
       "manual": false
+    },
+    {
+      "id": "dc0aa79a-6b2c-4d90-bd6e-d66b9c14cf5d",
+      "employeeId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
+      "crewId": "crew-3",
+      "hours": null,
+      "absenceReason": "sin aviso",
+      "horasAltura": null,
+      "horasHormigon": null,
+      "horasNocturnas": null,
+      "manual": true
     }
   ]
 }

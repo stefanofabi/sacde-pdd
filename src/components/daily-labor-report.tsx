@@ -148,6 +148,37 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       .map(emp => ({ value: emp.id, label: `${emp.apellido}, ${emp.nombre} (L: ${emp.legajo})` }));
   }, [initialEmployees, selectedCrew, manualEmployeeIds]);
 
+  const employeeAssignmentStatus = useMemo(() => {
+    const allEntriesForDate = laborData[formattedDate] || [];
+    
+    // 1. Get all saved entries for the day EXCEPT for the currently selected crew
+    const otherCrewsEntries = allEntriesForDate.filter(entry => entry.crewId !== selectedCrewId);
+
+    // 2. Get the current, unsaved entries for the selected crew from the component's state
+    const currentCrewUnsavedEntries = allPersonnelForTable.map(emp => ({
+        employeeId: emp.id,
+        crewId: selectedCrewId,
+        ...(laborEntries[emp.id] || {}), // this has { hours, absenceReason, ... }
+    }));
+
+    // 3. Combine them
+    const mergedEntries = [...otherCrewsEntries, ...currentCrewUnsavedEntries];
+
+    // 4. Calculate status from the merged view
+    const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
+    for (const entry of mergedEntries) {
+        if (!entry.employeeId) continue;
+        const currentStatus = statusMap.get(entry.employeeId) || { hasHours: false, hasAbsence: false };
+        if (entry.hours && entry.hours > 0) {
+            currentStatus.hasHours = true;
+        }
+        if (entry.absenceReason) {
+            currentStatus.hasAbsence = true;
+        }
+        statusMap.set(entry.employeeId, currentStatus);
+    }
+    return statusMap;
+}, [laborData, formattedDate, selectedCrewId, allPersonnelForTable, laborEntries]);
 
   useEffect(() => {
     if (formattedDate && selectedCrewId) {
@@ -389,8 +420,14 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                       const hasHours = entry.hours !== null && entry.hours > 0;
                       const isManual = manualEmployeeIds.includes(emp.id);
 
+                      const conflictStatus = employeeAssignmentStatus.get(emp.id);
+                      const hasConflict = conflictStatus && conflictStatus.hasHours && conflictStatus.hasAbsence;
+
                       return (
-                      <TableRow key={emp.id} className={isManual ? "bg-accent/50" : ""}>
+                      <TableRow key={emp.id} className={cn(
+                          isManual ? "bg-accent/50" : "",
+                          hasConflict ? "bg-destructive/10" : ""
+                      )}>
                         <TableCell className="font-mono">{emp.legajo}</TableCell>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
@@ -401,9 +438,19 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                                   <UserPlus className="h-4 w-4 text-primary" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>Empleado agregado manualmente</p>
+                                  <p>Empleado agregado manually</p>
                                 </TooltipContent>
                               </Tooltip>
+                            )}
+                            {hasConflict && (
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="max-w-xs">Advertencia: El empleado tiene horas y una ausencia registradas en el mismo día entre diferentes cuadrillas.</p>
+                                    </TooltipContent>
+                                </Tooltip>
                             )}
                           </div>
                         </TableCell>
@@ -569,3 +616,5 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     </TooltipProvider>
   );
 }
+
+    
