@@ -276,14 +276,14 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                         <TableCell>
                            <Select
                                 value={laborEntries[emp.id]?.absenceReason ?? ""}
-                                onValueChange={(value) => handleEntryChange(emp.id, 'absenceReason', value || null)}
+                                onValueChange={(value) => handleEntryChange(emp.id, 'absenceReason', value === 'NONE' ? null : value as AbsenceReason)}
                                 disabled={isPending || (laborEntries[emp.id]?.hours ?? 0) > 0}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Seleccionar motivo..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">-</SelectItem>
+                                    <SelectItem value="NONE">-</SelectItem>
                                     {absenceReasons.map(reason => (
                                         <SelectItem key={reason.value} value={reason.value}>
                                             {reason.label}
