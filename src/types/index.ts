@@ -47,3 +47,14 @@ export interface Employee {
   celular?: string;
   correo?: string;
 }
+
+export type PermissionStatus = "APROBADO POR RRHH" | "APROBADO POR SUPERVISOR" | "NO APROBADO";
+
+export interface Permission {
+  id: string;
+  employeeId: string;
+  startDate: string; // ISO date string e.g. "2023-10-27"
+  endDate: string; // ISO date string e.g. "2023-10-27"
+  status: PermissionStatus;
+  observations?: string;
+}

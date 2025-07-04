@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -11,6 +11,7 @@ const crewsFilePath = path.join(dataDir, 'crews.json');
 const attendanceFilePath = path.join(dataDir, 'attendance.json');
 const obrasFilePath = path.join(dataDir, 'obras.json');
 const employeesFilePath = path.join(dataDir, 'employees.json');
+const permissionsFilePath = path.join(dataDir, 'permissions.json');
 
 
 async function readData<T>(filePath: string): Promise<T> {
@@ -19,7 +20,7 @@ async function readData<T>(filePath: string): Promise<T> {
     return JSON.parse(data);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees')) return [] as T;
+      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions')) return [] as T;
       if (filePath.includes('attendance')) return {} as T;
     }
     console.error(`Error reading file ${filePath}:`, error);
@@ -50,6 +51,10 @@ export async function getObras(): Promise<Obra[]> {
 
 export async function getAttendance(): Promise<AttendanceData> {
   return readData<AttendanceData>(attendanceFilePath);
+}
+
+export async function getPermissions(): Promise<Permission[]> {
+  return readData<Permission[]>(permissionsFilePath);
 }
 
 export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
@@ -279,4 +284,12 @@ export async function clonePreviousDayAttendance(dateKey: string): Promise<Atten
 
     await writeData(attendanceFilePath, newAttendanceData);
     return newAttendanceData;
+}
+
+export async function addPermission(newPermission: Omit<Permission, 'id'>): Promise<Permission> {
+    const permissions = await getPermissions();
+    const permissionWithId = { ...newPermission, id: crypto.randomUUID() };
+    const updatedPermissions = [...permissions, permissionWithId];
+    await writeData(permissionsFilePath, updatedPermissions);
+    return permissionWithId;
 }
