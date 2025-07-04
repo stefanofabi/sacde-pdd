@@ -49,10 +49,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide, Search } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide, Search, Pencil } from "lucide-react";
 import type { Employee, Obra, EmployeeCondition, EmployeeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addEmployee, deleteEmployee } from "@/app/actions";
+import { addEmployee, deleteEmployee, updateEmployee } from "@/app/actions";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
@@ -79,8 +79,9 @@ const emptyForm = {
 export default function EmployeesManager({ initialEmployees, initialObras }: EmployeesManagerProps) {
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const [formState, setFormState] = useState(emptyForm);
@@ -115,8 +116,26 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
   const handleInputChange = (field: keyof typeof emptyForm, value: any) => {
     setFormState(prev => ({ ...prev, [field]: value }));
   };
+  
+  const handleOpenAddDialog = () => {
+    setEditingEmployee(null);
+    setFormState(emptyForm);
+    setIsFormDialogOpen(true);
+  };
 
-  const handleAddEmployee = () => {
+  const handleOpenEditDialog = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setFormState({
+        ...employee,
+        cuil: employee.cuil || '',
+        celular: employee.celular || '',
+        correo: employee.correo || '',
+        fechaIngreso: employee.fechaIngreso ? new Date(employee.fechaIngreso + 'T00:00:00') : undefined,
+    });
+    setIsFormDialogOpen(true);
+  };
+
+  const handleSaveEmployee = () => {
     const { legajo, apellido, nombre, obraId, denominacionPosicion, condicion, estado, fechaIngreso } = formState;
 
     const requiredFields: (keyof typeof formState)[] = ['legajo', 'apellido', 'nombre', 'obraId', 'denominacionPosicion', 'condicion', 'estado'];
@@ -140,27 +159,39 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
         return;
     }
     
-    const newEmployeeData = {
+    const employeeData = {
         ...formState,
         fechaIngreso: format(fechaIngreso, "yyyy-MM-dd"),
         condicion: formState.condicion as EmployeeCondition,
         estado: formState.estado as EmployeeStatus,
     };
+    
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, ...dataToSave } = employeeData;
 
     startTransition(async () => {
       try {
-        const newEmployee = await addEmployee(newEmployeeData);
-        setEmployees((prev) => [...prev, newEmployee]);
-        setFormState(emptyForm);
-        setIsAddDialogOpen(false);
-        toast({
-          title: "Empleado agregado",
-          description: `El empleado "${newEmployee.nombre} ${newEmployee.apellido}" ha sido creado.`,
-        });
+        if (editingEmployee) {
+           const updatedEmployee = await updateEmployee(editingEmployee.id, dataToSave);
+           setEmployees(prev => prev.map(e => e.id === updatedEmployee.id ? updatedEmployee : e));
+           toast({
+            title: "Empleado actualizado",
+            description: `El empleado "${updatedEmployee.nombre} ${updatedEmployee.apellido}" ha sido actualizado.`,
+           });
+        } else {
+            const newEmployee = await addEmployee(dataToSave);
+            setEmployees((prev) => [...prev, newEmployee]);
+            toast({
+              title: "Empleado agregado",
+              description: `El empleado "${newEmployee.nombre} ${newEmployee.apellido}" ha sido creado.`,
+            });
+        }
+        setIsFormDialogOpen(false);
+        setEditingEmployee(null);
       } catch (error) {
         toast({
-          title: "Error al agregar",
-          description: error instanceof Error ? error.message : "No se pudo agregar el empleado.",
+          title: editingEmployee ? "Error al actualizar" : "Error al agregar",
+          description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
           variant: "destructive",
         });
       }
@@ -198,7 +229,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                 <div>
                     <CardTitle>Lista de Empleados</CardTitle>
                     <CardDescription>
-                        Busque empleados por nombre, apellido, legajo o CUIL.
+                        Busque, edite o agregue nuevos empleados.
                     </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -211,7 +242,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                             className="pl-10 w-full sm:w-[250px]"
                         />
                     </div>
-                    <Button onClick={() => { setFormState(emptyForm); setIsAddDialogOpen(true); }}>
+                    <Button onClick={handleOpenAddDialog}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Agregar Empleado
                     </Button>
@@ -228,7 +259,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                             <TableHead>Obra</TableHead>
                             <TableHead>Condición</TableHead>
                             <TableHead>Estado</TableHead>
-                            <TableHead className="text-right w-[100px]">Acciones</TableHead>
+                            <TableHead className="text-right w-[120px]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -247,7 +278,16 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                                         {emp.estado}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right space-x-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleOpenEditDialog(emp)}
+                                            disabled={isPending}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                            <span className="sr-only">Editar {emp.nombre}</span>
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="icon"
@@ -277,12 +317,12 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
         </CardContent>
       </Card>
       
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog open={isFormDialogOpen} onOpenChange={(open) => { setIsFormDialogOpen(open); if (!open) setEditingEmployee(null); }}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Agregar Nuevo Empleado</DialogTitle>
+            <DialogTitle>{editingEmployee ? 'Editar Empleado' : 'Agregar Nuevo Empleado'}</DialogTitle>
             <DialogDescription>
-              Complete los campos obligatorios (*) para registrar un nuevo empleado.
+              {editingEmployee ? 'Modifique la información del empleado.' : 'Complete los campos obligatorios (*) para registrar un nuevo empleado.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-6">
@@ -302,7 +342,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                     }} 
                     className="col-span-3" 
                     placeholder="Ej. 12345" 
-                    disabled={isPending}
+                    disabled={isPending || !!editingEmployee}
                     pattern="[0-9]*"
                     inputMode="numeric"
                   />
@@ -394,9 +434,9 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
           </div>
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
-            <Button type="submit" onClick={handleAddEmployee} disabled={isPending}>
+            <Button type="submit" onClick={handleSaveEmployee} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Guardar Empleado
+              {editingEmployee ? 'Guardar Cambios' : 'Guardar Empleado'}
             </Button>
           </DialogFooter>
         </DialogContent>

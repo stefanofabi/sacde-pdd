@@ -91,6 +91,29 @@ export async function addEmployee(newEmployee: Omit<Employee, 'id'>): Promise<Em
     return employeeWithId;
 }
 
+export async function updateEmployee(employeeId: string, updatedData: Partial<Omit<Employee, 'id'>>): Promise<Employee> {
+    const employees = await getEmployees();
+    const employeeIndex = employees.findIndex(e => e.id === employeeId);
+
+    if (employeeIndex === -1) {
+        throw new Error('El empleado a actualizar no fue encontrado.');
+    }
+
+    if (updatedData.legajo && updatedData.legajo !== employees[employeeIndex].legajo) {
+        if (employees.some(emp => emp.legajo === updatedData.legajo && emp.id !== employeeId)) {
+            throw new Error('Ya existe otro empleado con el mismo legajo.');
+        }
+    }
+
+    const updatedEmployee = { ...employees[employeeIndex], ...updatedData };
+    const updatedEmployees = [...employees];
+    updatedEmployees[employeeIndex] = updatedEmployee;
+
+    await writeData(employeesFilePath, updatedEmployees);
+    return updatedEmployee;
+}
+
+
 export async function deleteCrew(crewId: string): Promise<void> {
     const crews = await getCrews();
     const attendance = await getAttendance();
