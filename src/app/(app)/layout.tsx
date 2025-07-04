@@ -1,4 +1,3 @@
-
 'use client';
 
 import * as React from 'react';
@@ -56,7 +55,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          <SidebarMenu>
+          <SidebarMenu className="mt-4 gap-y-1">
             <SidebarMenuItem>
               <Link href="/cuadrillas">
                 <SidebarMenuButton isActive={isActive('/cuadrillas')}>
