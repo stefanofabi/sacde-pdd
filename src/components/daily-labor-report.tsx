@@ -855,7 +855,11 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
             <DialogHeader>
                 <DialogTitle>{t('moveEmployeeDialogTitle')}</DialogTitle>
                 <DialogDescription>
-                    {t('moveEmployeeDialogDescription', { name: `${employeeToMove?.apellido}, ${employeeToMove?.nombre}`, date: displayDate })}
+                    {t.rich('moveEmployeeDialogDescription', {
+                        name: `${employeeToMove?.apellido}, ${employeeToMove?.nombre}`,
+                        date: displayDate,
+                        strong: (chunks) => <strong>{chunks}</strong>
+                    })}
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-2">
@@ -892,7 +896,11 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
             <AlertDialogHeader>
                 <AlertDialogTitle>{t('notifyDialogTitle')}</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {t('notifyDialogDescription', { crewName: selectedCrew?.name, date: displayDate })}
+                    {t.rich('notifyDialogDescription', { 
+                        crewName: selectedCrew?.name, 
+                        date: displayDate,
+                        strong: (chunks) => <strong>{chunks}</strong>
+                    })}
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
