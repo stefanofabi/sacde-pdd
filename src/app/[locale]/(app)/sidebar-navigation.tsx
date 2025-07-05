@@ -1,16 +1,26 @@
 'use client';
 
-import { usePathname, Link } from 'next-intl/navigation';
-import { useTranslations } from 'next-intl';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { useTranslations, useLocale } from 'next-intl';
 import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 
 export function SidebarNavigation() {
-    const pathname = usePathname();
+    const pathnameWithLocale = usePathname();
     const t = useTranslations('Sidebar');
+    const locale = useLocale();
 
     const isActive = (path: string) => {
-        return pathname === path || pathname.startsWith(`${path}/`);
+        const pathWithoutLocale = pathnameWithLocale.startsWith(`/${locale}`)
+            ? pathnameWithLocale.substring(`/${locale}`.length)
+            : pathnameWithLocale;
+            
+        const finalPathname = pathWithoutLocale === '' ? '/' : pathWithoutLocale;
+
+        if (path === '/') return finalPathname === path;
+        
+        return finalPathname.startsWith(path);
     };
 
     return (

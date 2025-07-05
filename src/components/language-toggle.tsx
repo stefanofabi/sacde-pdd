@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from 'react';
-import { usePathname, useRouter } from 'next-intl/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Languages } from 'lucide-react';
 import {
@@ -15,13 +15,14 @@ import { Button } from '@/components/ui/button';
 export function LanguageToggle() {
     const [isPending, startTransition] = useTransition();
     const router = useRouter();
-    const pathname = usePathname();
-    const locale = useLocale();
+    const pathnameWithLocale = usePathname();
+    const currentLocale = useLocale();
     const t = useTranslations('LanguageToggle');
 
     const changeLocale = (nextLocale: 'en' | 'es') => {
+        const newPathname = pathnameWithLocale.replace(`/${currentLocale}`, `/${nextLocale}`);
         startTransition(() => {
-            router.replace(pathname, { locale: nextLocale });
+            router.replace(newPathname);
         });
     };
 
@@ -34,10 +35,10 @@ export function LanguageToggle() {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => changeLocale('en')} disabled={locale === 'en'}>
+                <DropdownMenuItem onClick={() => changeLocale('en')} disabled={currentLocale === 'en'}>
                     English
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => changeLocale('es')} disabled={locale === 'es'}>
+                <DropdownMenuItem onClick={() => changeLocale('es')} disabled={currentLocale === 'es'}>
                     Español
                 </DropdownMenuItem>
             </DropdownMenuContent>
