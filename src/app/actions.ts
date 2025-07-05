@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -17,6 +17,7 @@ const dailyLaborNotificationsFilePath = path.join(dataDir, 'daily-labor-notifica
 const absenceTypesFilePath = path.join(dataDir, 'absence-types.json');
 const phasesFilePath = path.join(dataDir, 'phases.json');
 const specialHourTypesFilePath = path.join(dataDir, 'special-hour-types.json');
+const unproductiveHourTypesFilePath = path.join(dataDir, 'unproductive-hour-types.json');
 
 
 async function readData<T>(filePath: string): Promise<T> {
@@ -25,7 +26,7 @@ async function readData<T>(filePath: string): Promise<T> {
     return JSON.parse(data);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types') || filePath.includes('phases') || filePath.includes('special-hour-types')) return [] as T;
+      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types') || filePath.includes('phases') || filePath.includes('special-hour-types') || filePath.includes('unproductive-hour-types')) return [] as T;
       if (filePath.includes('attendance') || filePath.includes('daily-labor') || filePath.includes('daily-labor-notifications')) return {} as T;
     }
     console.error(`Error reading file ${filePath}:`, error);
@@ -81,6 +82,43 @@ export async function getPhases(): Promise<Phase[]> {
 export async function getSpecialHourTypes(): Promise<SpecialHourType[]> {
   return readData<SpecialHourType[]>(specialHourTypesFilePath);
 }
+
+export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]> {
+    return readData<UnproductiveHourType[]>(unproductiveHourTypesFilePath);
+}
+
+export async function addUnproductiveHourType(newType: Omit<UnproductiveHourType, 'id'>): Promise<UnproductiveHourType> {
+    const types = await getUnproductiveHourTypes();
+    if (types.some(t => t.code.toLowerCase() === newType.code.toLowerCase())) {
+        throw new Error('Ya existe un tipo de hora improductiva con el mismo código.');
+    }
+    const typeWithId = { ...newType, id: crypto.randomUUID() };
+    const updatedTypes = [...types, typeWithId];
+    await writeData(unproductiveHourTypesFilePath, updatedTypes);
+    return typeWithId;
+}
+
+export async function deleteUnproductiveHourType(typeId: string): Promise<void> {
+    const types = await getUnproductiveHourTypes();
+    const dailyLabor = await getDailyLabor();
+    
+    const isTypeInUse = Object.values(dailyLabor).flat().some(entry =>
+      'unproductiveHours' in entry && entry.unproductiveHours && Object.keys(entry.unproductiveHours).includes(typeId)
+    );
+
+    if (isTypeInUse) {
+        throw new Error('No se puede eliminar el tipo de hora improductiva porque está en uso en partes diarios.');
+    }
+
+    const updatedTypes = types.filter(t => t.id !== typeId);
+    
+    if (updatedTypes.length === types.length) {
+        throw new Error('El tipo de hora improductiva a eliminar no fue encontrado.');
+    }
+
+    await writeData(unproductiveHourTypesFilePath, updatedTypes);
+}
+
 
 export async function addSpecialHourType(newType: Omit<SpecialHourType, 'id'>): Promise<SpecialHourType> {
     const types = await getSpecialHourTypes();
@@ -204,10 +242,10 @@ export async function moveEmployeeBetweenCrews(
     id: crypto.randomUUID(),
     employeeId: employeeId,
     crewId: destinationCrewId,
-    hours: null,
-    phaseId: null,
-    absenceReason: null,
+    productiveHours: {},
+    unproductiveHours: {},
     specialHours: {},
+    absenceReason: null,
     manual: true,
   };
   
@@ -241,14 +279,7 @@ export async function notifyDailyLabor(dateKey: string, crewId: string): Promise
 export async function saveDailyLabor(
   dateKey: string,
   crewId: string,
-  laborData: { 
-    employeeId: string; 
-    hours: number | null; 
-    phaseId: string | null;
-    absenceReason: string | null;
-    specialHours?: Record<string, number | null>;
-    manual?: boolean;
-  }[]
+  laborData: Omit<DailyLaborEntry, 'id' | 'crewId'>[]
 ): Promise<void> {
   const dailyLabor = await getDailyLabor();
   const dailyEntries = dailyLabor[dateKey] || [];
@@ -256,16 +287,10 @@ export async function saveDailyLabor(
   const otherCrewEntries = dailyEntries.filter(entry => entry.crewId !== crewId);
 
   const newCrewEntries: DailyLaborEntry[] = laborData
-    .filter(data => (data.hours !== null && data.hours > 0) || data.absenceReason || data.manual)
     .map(data => ({
       id: crypto.randomUUID(),
-      employeeId: data.employeeId,
-      crewId: crewId,
-      hours: data.hours,
-      phaseId: data.phaseId,
-      absenceReason: data.absenceReason,
-      specialHours: data.specialHours ?? {},
-      manual: data.manual ?? false,
+      crewId,
+      ...data
     }));
 
   const updatedDailyEntries = [...otherCrewEntries, ...newCrewEntries];

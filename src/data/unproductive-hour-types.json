@@ -1,0 +1,18 @@
+
+[
+  {
+    "id": "lluvia",
+    "name": "Lluvia",
+    "code": "LLU"
+  },
+  {
+    "id": "gremial",
+    "name": "Gremial",
+    "code": "GRE"
+  },
+  {
+    "id": "viento",
+    "name": "Viento",
+    "code": "VIE"
+  }
+]

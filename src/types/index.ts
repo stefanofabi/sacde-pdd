@@ -85,7 +85,26 @@ export interface SpecialHourType {
   code: string;
 }
 
+export interface UnproductiveHourType {
+  id: string;
+  name: string;
+  code: string;
+}
+
+// Represents a single employee's labor record for a given day and crew.
 export interface DailyLaborEntry {
+  id: string;
+  employeeId: string;
+  crewId: string;
+  absenceReason: string | null; // If present, all hour fields should be empty/null
+  productiveHours: Record<string, number | null>; // Key: phaseId, Value: hours
+  unproductiveHours: Record<string, number | null>; // Key: unproductiveTypeId, Value: hours
+  specialHours: Record<string, number | null>; // Key: specialHourTypeId, Value: hours
+  manual?: boolean;
+}
+
+// This type is for backward compatibility when reading old data.
+export interface LegacyDailyLaborEntry {
   id: string;
   employeeId: string;
   crewId: string;
@@ -96,7 +115,7 @@ export interface DailyLaborEntry {
   manual?: boolean;
 }
 
-export type DailyLaborData = Record<string, DailyLaborEntry[]>;
+export type DailyLaborData = Record<string, (DailyLaborEntry | LegacyDailyLaborEntry)[]>;
 
 export interface DailyLaborNotificationStatus {
   notified: boolean;

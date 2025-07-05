@@ -1,4 +1,3 @@
-
 [
   {
     "id": "hs-altura",
@@ -14,5 +13,10 @@
     "id": "hs-nocturnas",
     "name": "Horas Nocturnas",
     "code": "HS-NOC"
+  },
+  {
+    "name": "Maquinaria",
+    "code": "MAQ",
+    "id": "f2c3b5c9-4fb1-4139-9bee-d0e6ec499416"
   }
 ]

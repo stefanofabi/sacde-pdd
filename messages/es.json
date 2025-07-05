@@ -499,5 +499,34 @@
       "deleteErrorTitle": "Error al eliminar",
       "unexpectedError": "Ocurrió un error inesperado."
     }
+  },
+  "UnproductiveHourTypesManager": {
+    "cardTitle": "Tipos de Horas Improductivas",
+    "cardDescription": "Gestione los tipos de horas improductivas que se pueden registrar en los partes diarios.",
+    "addNewTypeTitle": "Agregar Nuevo Tipo de Hora Improductiva",
+    "codeLabel": "Código",
+    "codePlaceholder": "Ej. LLU",
+    "nameLabel": "Nombre del Tipo",
+    "namePlaceholder": "Ej. Lluvia",
+    "addButton": "Agregar",
+    "existingTypesTitle": "Tipos Existentes ({count})",
+    "noTypesCreated": "No hay tipos de horas improductivas creados.",
+    "deleteSr": "Eliminar {name}",
+    "deleteDialogTitle": "¿Está absolutamente seguro?",
+    "deleteDialogDescription": "Esta acción no se puede deshacer. Se eliminará permanentemente el tipo de hora improductiva \"{name}\". Esta acción fallará si el tipo está en uso.",
+    "cancelButton": "Cancelar",
+    "deleteDialogConfirmButton": "Sí, eliminar tipo",
+    "toast": {
+      "validationErrorTitle": "Error de validación",
+      "validationErrorDescription": "El nombre y el código del tipo no pueden estar vacíos.",
+      "typeAddedTitle": "Tipo agregado",
+      "typeAddedDescription": "El tipo \"{name}\" ha sido creado.",
+      "error": "Error",
+      "addErrorDescription": "No se pudo agregar el tipo.",
+      "typeDeletedTitle": "Tipo eliminado",
+      "typeDeletedDescription": "El tipo \"{name}\" ha sido eliminado con éxito.",
+      "deleteErrorTitle": "Error al eliminar",
+      "unexpectedError": "Ocurrió un error inesperado."
+    }
   }
 }
