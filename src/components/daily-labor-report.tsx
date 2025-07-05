@@ -685,7 +685,7 @@ export default function DailyLaborReport({
             )}
 
             <fieldset disabled={isNotified}>
-                <div className="rounded-lg border overflow-x-auto">
+                <div className="rounded-lg border">
                 <Table>
                     <TableHeader>
                     <TableRow>
@@ -864,7 +864,7 @@ export default function DailyLaborReport({
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={7 + activePhases.length + initialUnproductiveHourTypes.length} className="h-24 text-center">
+                        <TableCell colSpan={8 + activePhases.length + initialUnproductiveHourTypes.length} className="h-24 text-center">
                             {t('noPersonnelAssigned')}
                         </TableCell>
                         </TableRow>
