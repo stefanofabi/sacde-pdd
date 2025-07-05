@@ -256,7 +256,12 @@
     "specialHoursModalTitle": "Log Special Hours",
     "specialHoursModalDescription": "Log special hours for {name} on {date}. The total cannot exceed the total hours worked.",
     "totalHoursLabel": "Total Hours Worked",
-    "saveButton": "Save"
+    "saveButton": "Save",
+    "tableHeaderUnproductiveHours": "Unproductive Hours",
+    "editUnproductiveHoursButtonSr": "Edit unproductive hours for {name}",
+    "unproductiveHoursModalTitle": "Log Unproductive Hours",
+    "unproductiveHoursModalDescription": "Log unproductive hours for {name} on {date}.",
+    "totalProductiveHoursLabel": "Total Productive Hours"
   },
   "EmployeesManager": {
     "cardTitle": "Employee List",

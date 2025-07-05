@@ -223,7 +223,7 @@
     "noOtherCrewsAvailable": "No hay otras cuadrillas disponibles para mover.",
     "moveButton": "Mover",
     "notifyDialogTitle": "¿Notificar y cerrar el parte diario?",
-    "notifyDialogDescription": "Esta acción es irreversible. Una vez notificado, el parte diario para la cuadrilla <strong>{crewName}</strong> en la fecha <strong>{date}</strong> no podrá ser modificado. Asegúrese de que todos los datos son correctos.",
+    "notifyDialogDescription": "Esta acción es irreversible. Once notificado, el parte diario para la cuadrilla <strong>{crewName}</strong> en la fecha <strong>{date}</strong> no podrá ser modificado. Asegúrese de que todos los datos son correctos.",
     "notifyDialogConfirmButton": "Sí, notificar y cerrar",
     "toast": {
       "error": "Error",
@@ -256,7 +256,12 @@
     "specialHoursModalTitle": "Registrar Horas Especiales",
     "specialHoursModalDescription": "Registre las horas especiales para {name} en la fecha {date}. El total no puede exceder las horas totales trabajadas.",
     "totalHoursLabel": "Horas Totales Trabajadas",
-    "saveButton": "Guardar"
+    "saveButton": "Guardar",
+    "tableHeaderUnproductiveHours": "Horas Improductivas",
+    "editUnproductiveHoursButtonSr": "Editar horas improductivas para {name}",
+    "unproductiveHoursModalTitle": "Registrar Horas Improductivas",
+    "unproductiveHoursModalDescription": "Registre las horas improductivas para {name} en la fecha {date}.",
+    "totalProductiveHoursLabel": "Horas Productivas Totales"
   },
   "EmployeesManager": {
     "cardTitle": "Lista de Empleados",

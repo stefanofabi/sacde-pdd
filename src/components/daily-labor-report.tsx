@@ -68,7 +68,6 @@ import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotif
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
-import { Separator } from "./ui/separator";
 
 interface DailyLaborReportProps {
   initialCrews: Crew[];
@@ -122,6 +121,9 @@ export default function DailyLaborReport({
 
   const [specialHoursModalState, setSpecialHoursModalState] = useState<{ isOpen: boolean; employee: Employee | null }>({ isOpen: false, employee: null });
   const [modalSpecialHours, setModalSpecialHours] = useState<Record<string, number | null>>({});
+
+  const [unproductiveHoursModalState, setUnproductiveHoursModalState] = useState<{ isOpen: boolean; employee: Employee | null }>({ isOpen: false, employee: null });
+  const [modalUnproductiveHours, setModalUnproductiveHours] = useState<Record<string, number | null>>({});
 
 
   useEffect(() => {
@@ -292,7 +294,7 @@ export default function DailyLaborReport({
     });
   };
 
-  const handleHourChange = (employeeId: string, type: 'productive' | 'unproductive', typeId: string, value: string | null) => {
+  const handleProductiveHourChange = (employeeId: string, phaseId: string, value: string | null) => {
       setLaborEntries(prev => {
           const currentEntry = prev[employeeId] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
           
@@ -305,22 +307,15 @@ export default function DailyLaborReport({
           const updatedHours = newHours(value);
 
           let newProductiveHours = { ...currentEntry.productiveHours };
-          let newUnproductiveHours = { ...currentEntry.unproductiveHours };
-
-          if (type === 'productive') {
-              newProductiveHours[typeId] = updatedHours;
-          } else {
-              newUnproductiveHours[typeId] = updatedHours;
-          }
+          newProductiveHours[phaseId] = updatedHours;
           
-          const hasHours = Object.values(newProductiveHours).some(h => h && h > 0) || Object.values(newUnproductiveHours).some(h => h && h > 0);
+          const hasHours = Object.values(newProductiveHours).some(h => h && h > 0) || Object.values(currentEntry.unproductiveHours).some(h => h && h > 0);
 
           return {
               ...prev,
               [employeeId]: {
                   ...currentEntry,
                   productiveHours: newProductiveHours,
-                  unproductiveHours: newUnproductiveHours,
                   absenceReason: hasHours ? null : currentEntry.absenceReason,
                   specialHours: hasHours ? currentEntry.specialHours : {},
               }
@@ -604,6 +599,48 @@ export default function DailyLaborReport({
     ? Object.values(entryForModal.productiveHours).reduce((a, b) => a + (b || 0), 0) + 
       Object.values(entryForModal.unproductiveHours).reduce((a, b) => a + (b || 0), 0)
     : 0;
+  
+  // Unproductive Hours Modal Logic
+  const handleOpenUnproductiveHoursModal = (employee: Employee) => {
+    const currentEntry = laborEntries[employee.id] || { unproductiveHours: {} };
+    setModalUnproductiveHours(currentEntry.unproductiveHours || {});
+    setUnproductiveHoursModalState({ isOpen: true, employee });
+  };
+
+  const handleModalUnproductiveHourChange = (unproductiveHourId: string, value: string) => {
+    const numValue = value === "" ? null : parseFloat(value);
+    if (value !== "" && (isNaN(numValue!) || numValue! < 0)) return;
+  
+    setModalUnproductiveHours(prev => ({ ...prev, [unproductiveHourId]: numValue }));
+  };
+  
+  const handleSaveUnproductiveHours = () => {
+    const { employee } = unproductiveHoursModalState;
+    if (!employee) return;
+  
+    setLaborEntries(prev => {
+      const currentEntry = prev[employee.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
+      const hasUnproductiveHours = Object.values(modalUnproductiveHours).some(h => h && h > 0);
+      const hasProductiveHours = Object.values(currentEntry.productiveHours).some(h => h && h > 0);
+
+      return {
+        ...prev,
+        [employee.id]: {
+          ...currentEntry,
+          unproductiveHours: modalUnproductiveHours,
+          absenceReason: (hasUnproductiveHours || hasProductiveHours) ? null : currentEntry.absenceReason,
+        }
+      };
+    });
+  
+    setUnproductiveHoursModalState({ isOpen: false, employee: null });
+  };
+
+  const employeeInUnproductiveModal = unproductiveHoursModalState.employee;
+  const entryForUnproductiveModal = employeeInUnproductiveModal ? laborEntries[employeeInUnproductiveModal.id] : null;
+  const totalProductiveHoursForModal = entryForUnproductiveModal 
+    ? Object.values(entryForUnproductiveModal.productiveHours).reduce((a, b) => a + (b || 0), 0)
+    : 0;
 
   return (
     <TooltipProvider>
@@ -695,9 +732,7 @@ export default function DailyLaborReport({
                         {activePhases.map(phase => (
                             <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
                         ))}
-                        {initialUnproductiveHourTypes.map(uht => (
-                            <TableHead key={uht.id} className="w-[120px] text-center">{uht.name}</TableHead>
-                        ))}
+                        <TableHead className="w-[150px] text-center">{t('tableHeaderUnproductiveHours')}</TableHead>
                         <TableHead className="w-[120px] text-center font-bold text-foreground">{t('tableHeaderTotalHours')}</TableHead>
                         <TableHead className="w-[150px] text-center">{t('tableHeaderSpecialHours')}</TableHead>
                         <TableHead className="w-[100px] text-right">{t('tableHeaderActions')}</TableHead>
@@ -778,27 +813,33 @@ export default function DailyLaborReport({
                                         className="text-center"
                                         placeholder="-"
                                         value={entry.productiveHours[phase.id] ?? ""}
-                                        onChange={(e) => handleHourChange(emp.id, 'productive', phase.id, e.target.value)}
+                                        onChange={(e) => handleProductiveHourChange(emp.id, phase.id, e.target.value)}
                                         disabled={isPending || hasAbsence}
                                         step="0.5"
                                         min="0"
                                     />
                                 </TableCell>
                             ))}
-                            {initialUnproductiveHourTypes.map(uht => (
-                                <TableCell key={uht.id}>
-                                    <Input
-                                        type="number"
-                                        className="text-center"
-                                        placeholder="-"
-                                        value={entry.unproductiveHours[uht.id] ?? ""}
-                                        onChange={(e) => handleHourChange(emp.id, 'unproductive', uht.id, e.target.value)}
-                                        disabled={isPending || hasAbsence}
-                                        step="0.5"
-                                        min="0"
-                                    />
-                                </TableCell>
-                            ))}
+                            <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                    <span className="font-medium">{totalUnproductive > 0 ? totalUnproductive : "-"}</span>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleOpenUnproductiveHoursModal(emp)}
+                                            disabled={isPending || hasAbsence}
+                                        >
+                                            <Sparkles className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>{t('editUnproductiveHoursButtonSr', { name: `${emp.apellido}, ${emp.nombre}` })}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                </div>
+                            </TableCell>
                              <TableCell className="text-center font-bold">
                                 {totalHours > 0 ? totalHours : "-"}
                             </TableCell>
@@ -864,7 +905,7 @@ export default function DailyLaborReport({
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={8 + activePhases.length + initialUnproductiveHourTypes.length} className="h-24 text-center">
+                        <TableCell colSpan={7 + activePhases.length} className="h-24 text-center">
                             {t('noPersonnelAssigned')}
                         </TableCell>
                         </TableRow>
@@ -1035,6 +1076,52 @@ export default function DailyLaborReport({
         <DialogFooter>
           <Button variant="outline" onClick={() => setSpecialHoursModalState({ isOpen: false, employee: null })}>{t('cancelButton')}</Button>
           <Button onClick={handleSaveSpecialHours}>{t('saveButton')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={unproductiveHoursModalState.isOpen} onOpenChange={(isOpen) => setUnproductiveHoursModalState({ isOpen, employee: isOpen ? unproductiveHoursModalState.employee : null })}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('unproductiveHoursModalTitle')}</DialogTitle>
+          <DialogDescription>
+            {t('unproductiveHoursModalDescription', { 
+                name: `${unproductiveHoursModalState.employee?.apellido}, ${unproductiveHoursModalState.employee?.nombre}`,
+                date: displayDate
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 grid gap-4">
+          <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
+             <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">{t('totalProductiveHoursLabel')}</p>
+                <p className="text-2xl font-bold">{totalProductiveHoursForModal} hs</p>
+             </div>
+             <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">{t('tableHeaderUnproductiveHours')}</p>
+                <p className="text-2xl font-bold">{Object.values(modalUnproductiveHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
+             </div>
+          </div>
+          {initialUnproductiveHourTypes.map(uht => (
+            <div key={uht.id} className="grid grid-cols-3 items-center gap-4">
+              <Label htmlFor={`unproductive-hours-${uht.id}`} className="text-right">
+                {uht.name}
+              </Label>
+              <Input 
+                id={`unproductive-hours-${uht.id}`}
+                type="number"
+                className="col-span-2"
+                value={modalUnproductiveHours[uht.id] ?? ""}
+                onChange={(e) => handleModalUnproductiveHourChange(uht.id, e.target.value)}
+                step="0.5"
+                min="0"
+              />
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setUnproductiveHoursModalState({ isOpen: false, employee: null })}>{t('cancelButton')}</Button>
+          <Button onClick={handleSaveUnproductiveHours}>{t('saveButton')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
