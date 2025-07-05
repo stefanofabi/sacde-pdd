@@ -24,13 +24,18 @@
     "title": "Permission Management",
     "description": "Upload, view, and manage Sacde employee permissions."
   },
+  "AjustesPage": {
+    "title": "Settings",
+    "description": "Configure application options."
+  },
   "Sidebar": {
     "crews": "Crews",
     "employees": "Employees",
     "attendance": "Attendance",
     "dailyReports": "Daily Reports",
     "projects": "Projects",
-    "permissions": "Permissions"
+    "permissions": "Permissions",
+    "settings": "Settings"
   },
   "ThemeToggle": {
     "srToggleTheme": "Toggle theme",
@@ -229,22 +234,6 @@
       "employeeMovedDescription": "{name} has been moved successfully.",
       "moveErrorTitle": "Error Moving",
       "moveErrorDescription": "Could not move the employee."
-    },
-    "absenceReasons": {
-      "franco": "Day Off",
-      "permiso": "Permission",
-      "art": "ART",
-      "enfermedad": "Sickness",
-      "sin_aviso": "Absent (w/o notice)",
-      "con_aviso": "Absent (w/ notice)",
-      "feriado": "Holiday",
-      "licencia_nacimiento": "Paternity Leave",
-      "licencia_casamiento": "Marriage Leave",
-      "fallecimiento": "Bereavement Leave",
-      "donacion_de_sangre": "Blood Donation Leave",
-      "vacaciones": "Vacation",
-      "stand_by": "Stand By",
-      "sin_actividad": "No Activity"
     }
   },
   "EmployeesManager": {
@@ -410,6 +399,35 @@
       "permissionAddedTitle": "Permission Added",
       "permissionAddedDescription": "The permission for the employee has been successfully registered.",
       "addErrorTitle": "Error Adding Permission",
+      "unexpectedError": "An unexpected error occurred."
+    }
+  },
+  "AbsenceTypesManager": {
+    "cardTitle": "Absence Types",
+    "cardDescription": "Manage the absence reasons that can be recorded in daily reports.",
+    "addNewTypeTitle": "Add New Absence Type",
+    "codeLabel": "Code",
+    "codePlaceholder": "e.g., VAC",
+    "nameLabel": "Type Name",
+    "namePlaceholder": "e.g., Vacation",
+    "addButton": "Add",
+    "existingTypesTitle": "Existing Types ({count})",
+    "noTypesCreated": "No absence types created.",
+    "deleteSr": "Delete {name}",
+    "deleteDialogTitle": "Are you absolutely sure?",
+    "deleteDialogDescription": "This action cannot be undone. It will permanently delete the absence type \"{name}\". This action will fail if the type is in use.",
+    "cancelButton": "Cancel",
+    "deleteDialogConfirmButton": "Yes, delete type",
+    "toast": {
+      "validationErrorTitle": "Validation Error",
+      "validationErrorDescription": "The type name and code cannot be empty.",
+      "typeAddedTitle": "Type Added",
+      "typeAddedDescription": "The type \"{name}\" has been created.",
+      "error": "Error",
+      "addErrorDescription": "Could not add the type.",
+      "typeDeletedTitle": "Type Deleted",
+      "typeDeletedDescription": "The type \"{name}\" has been successfully deleted.",
+      "deleteErrorTitle": "Error Deleting",
       "unexpectedError": "An unexpected error occurred."
     }
   }

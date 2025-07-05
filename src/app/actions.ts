@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, AbsenceReason, DailyLaborNotificationData } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -14,6 +14,7 @@ const employeesFilePath = path.join(dataDir, 'employees.json');
 const permissionsFilePath = path.join(dataDir, 'permissions.json');
 const dailyLaborFilePath = path.join(dataDir, 'daily-labor.json');
 const dailyLaborNotificationsFilePath = path.join(dataDir, 'daily-labor-notifications.json');
+const absenceTypesFilePath = path.join(dataDir, 'absence-types.json');
 
 
 async function readData<T>(filePath: string): Promise<T> {
@@ -22,7 +23,7 @@ async function readData<T>(filePath: string): Promise<T> {
     return JSON.parse(data);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions')) return [] as T;
+      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types')) return [] as T;
       if (filePath.includes('attendance') || filePath.includes('daily-labor') || filePath.includes('daily-labor-notifications')) return {} as T;
     }
     console.error(`Error reading file ${filePath}:`, error);
@@ -65,6 +66,39 @@ export async function getDailyLabor(): Promise<DailyLaborData> {
 
 export async function getDailyLaborNotifications(): Promise<DailyLaborNotificationData> {
   return readData<DailyLaborNotificationData>(dailyLaborNotificationsFilePath);
+}
+
+export async function getAbsenceTypes(): Promise<AbsenceType[]> {
+  return readData<AbsenceType[]>(absenceTypesFilePath);
+}
+
+export async function addAbsenceType(newAbsenceType: Omit<AbsenceType, 'id'>): Promise<AbsenceType> {
+    const absenceTypes = await getAbsenceTypes();
+    if (absenceTypes.some(at => at.code.toLowerCase() === newAbsenceType.code.toLowerCase())) {
+        throw new Error('Ya existe un tipo de ausencia con el mismo código.');
+    }
+    const absenceTypeWithId = { ...newAbsenceType, id: crypto.randomUUID() };
+    const updatedAbsenceTypes = [...absenceTypes, absenceTypeWithId];
+    await writeData(absenceTypesFilePath, updatedAbsenceTypes);
+    return absenceTypeWithId;
+}
+
+export async function deleteAbsenceType(absenceTypeId: string): Promise<void> {
+    const absenceTypes = await getAbsenceTypes();
+    const dailyLabor = await getDailyLabor();
+    const isAbsenceTypeInUse = Object.values(dailyLabor).flat().some(entry => entry.absenceReason === absenceTypeId);
+
+    if (isAbsenceTypeInUse) {
+        throw new Error('No se puede eliminar el tipo de ausencia porque está en uso en partes diarios.');
+    }
+
+    const updatedAbsenceTypes = absenceTypes.filter(at => at.id !== absenceTypeId);
+    
+    if (updatedAbsenceTypes.length === absenceTypes.length) {
+        throw new Error('El tipo de ausencia a eliminar no fue encontrado.');
+    }
+
+    await writeData(absenceTypesFilePath, updatedAbsenceTypes);
 }
 
 export async function moveEmployeeBetweenCrews(
@@ -139,7 +173,7 @@ export async function saveDailyLabor(
   laborData: { 
     employeeId: string; 
     hours: number | null; 
-    absenceReason: AbsenceReason | null;
+    absenceReason: string | null;
     horasAltura?: number | null;
     horasHormigon?: number | null;
     horasNocturnas?: number | null;

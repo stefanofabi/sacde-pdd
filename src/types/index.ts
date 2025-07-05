@@ -59,31 +59,18 @@ export interface Permission {
   observations?: string;
 }
 
-export const absenceReasonValues = [
-  "franco",
-  "permiso",
-  "art",
-  "enfermedad",
-  "sin aviso",
-  "con aviso",
-  "feriado",
-  "licencia nacimiento",
-  "licencia casamiento",
-  "fallecimiento",
-  "donacion de sangre",
-  "vacaciones",
-  "stand by",
-  "sin actividad",
-] as const;
-
-export type AbsenceReason = (typeof absenceReasonValues)[number];
+export interface AbsenceType {
+  id: string;
+  name: string;
+  code: string;
+}
 
 export interface DailyLaborEntry {
   id: string;
   employeeId: string;
   crewId: string;
   hours: number | null;
-  absenceReason: AbsenceReason | null;
+  absenceReason: string | null;
   horasAltura: number | null;
   horasHormigon: number | null;
   horasNocturnas: number | null;

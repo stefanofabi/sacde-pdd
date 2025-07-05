@@ -64,8 +64,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import type { Crew, Employee, DailyLaborData, Obra, AbsenceReason, DailyLaborNotificationData, DailyLaborEntry } from "@/types";
-import { absenceReasonValues } from "@/types";
+import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
@@ -76,17 +75,18 @@ interface DailyLaborReportProps {
   initialLaborData: DailyLaborData;
   initialObras: Obra[];
   initialNotificationData: DailyLaborNotificationData;
+  initialAbsenceTypes: AbsenceType[];
 }
 
 interface LaborEntryState {
     hours: number | null;
-    absenceReason: AbsenceReason | null;
+    absenceReason: string | null;
     horasAltura: number | null;
     horasHormigon: number | null;
     horasNocturnas: number | null;
 }
 
-export default function DailyLaborReport({ initialCrews, initialEmployees, initialLaborData, initialObras, initialNotificationData }: DailyLaborReportProps) {
+export default function DailyLaborReport({ initialCrews, initialEmployees, initialLaborData, initialObras, initialNotificationData, initialAbsenceTypes }: DailyLaborReportProps) {
   const t = useTranslations('DailyLaborReport');
   const locale = useLocale();
   const dateLocale = locale === 'es' ? es : enUS;
@@ -107,11 +107,6 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   const [employeeToAdd, setEmployeeToAdd] = useState("");
   const [employeeToMove, setEmployeeToMove] = useState<Employee | null>(null);
   const [destinationCrewId, setDestinationCrewId] = useState<string>("");
-
-  const absenceReasons = useMemo(() => absenceReasonValues.map(reason => ({
-      value: reason,
-      label: t(`absenceReasons.${reason.replace(/ /g, '_')}`)
-  })), [t]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -280,7 +275,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                 newEntry.horasNocturnas = null;
             }
         } else if (field === 'absenceReason') {
-            newEntry.absenceReason = value === 'NONE' ? null : value as AbsenceReason | null;
+            newEntry.absenceReason = value === 'NONE' ? null : value;
             if (value !== 'NONE' && value !== null) {
                 newEntry.hours = null;
                 newEntry.horasAltura = null;
@@ -728,7 +723,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                             />
                             </TableCell>
                             <TableCell>
-                            <Select
+                                <Select
                                     value={entry.absenceReason ?? "NONE"}
                                     onValueChange={(value) => handleEntryChange(emp.id, 'absenceReason', value)}
                                     disabled={isPending || hasHours}
@@ -738,9 +733,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="NONE">-</SelectItem>
-                                        {absenceReasons.map(reason => (
-                                            <SelectItem key={reason.value} value={reason.value}>
-                                                {reason.label}
+                                        {initialAbsenceTypes.map(reason => (
+                                            <SelectItem key={reason.id} value={reason.id}>
+                                                {reason.name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

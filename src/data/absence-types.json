@@ -1,0 +1,73 @@
+
+[
+  {
+    "id": "franco",
+    "name": "Franco",
+    "code": "FR"
+  },
+  {
+    "id": "permiso",
+    "name": "Permiso",
+    "code": "PE"
+  },
+  {
+    "id": "art",
+    "name": "ART",
+    "code": "ART"
+  },
+  {
+    "id": "enfermedad",
+    "name": "Enfermedad",
+    "code": "ENF"
+  },
+  {
+    "id": "sin_aviso",
+    "name": "Ausente (S/A)",
+    "code": "ASA"
+  },
+  {
+    "id": "con_aviso",
+    "name": "Ausente (C/A)",
+    "code": "ACA"
+  },
+  {
+    "id": "feriado",
+    "name": "Feriado",
+    "code": "FER"
+  },
+  {
+    "id": "licencia_nacimiento",
+    "name": "Lic. Nacimiento",
+    "code": "LN"
+  },
+  {
+    "id": "licencia_casamiento",
+    "name": "Lic. Casamiento",
+    "code": "LC"
+  },
+  {
+    "id": "fallecimiento",
+    "name": "Lic. Fallecimiento",
+    "code": "LF"
+  },
+  {
+    "id": "donacion_de_sangre",
+    "name": "Lic. Donación Sangre",
+    "code": "LDS"
+  },
+  {
+    "id": "vacaciones",
+    "name": "Vacaciones",
+    "code": "VAC"
+  },
+  {
+    "id": "stand_by",
+    "name": "Stand By",
+    "code": "SBY"
+  },
+  {
+    "id": "sin_actividad",
+    "name": "Sin Actividad",
+    "code": "SACT"
+  }
+]

@@ -1,9 +1,10 @@
+
 'use client';
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
-import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList } from 'lucide-react';
+import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 
 export function SidebarNavigation() {
@@ -70,6 +71,14 @@ export function SidebarNavigation() {
                 <SidebarMenuButton isActive={isActive('/permisos')}>
                   <UserCheck />
                   {t('permissions')}
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <Link href="/ajustes">
+                <SidebarMenuButton isActive={isActive('/ajustes')}>
+                  <Settings />
+                  {t('settings')}
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

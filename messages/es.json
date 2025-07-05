@@ -24,13 +24,18 @@
     "title": "Gestión de Permisos",
     "description": "Cargue, vea y gestione los permisos de los empleados de Sacde."
   },
+  "AjustesPage": {
+    "title": "Ajustes",
+    "description": "Configure las opciones de la aplicación."
+  },
   "Sidebar": {
     "crews": "Cuadrillas",
     "employees": "Empleados",
     "attendance": "Asistencias",
     "dailyReports": "Partes Diarios",
     "projects": "Obras",
-    "permissions": "Permisos"
+    "permissions": "Permisos",
+    "settings": "Ajustes"
   },
   "ThemeToggle": {
     "srToggleTheme": "Cambiar tema",
@@ -229,22 +234,6 @@
       "employeeMovedDescription": "{name} ha sido movido con éxito.",
       "moveErrorTitle": "Error al mover",
       "moveErrorDescription": "No se pudo mover el empleado."
-    },
-    "absenceReasons": {
-      "franco": "Franco",
-      "permiso": "Permiso",
-      "art": "ART",
-      "enfermedad": "Enfermedad",
-      "sin_aviso": "Ausente (S/A)",
-      "con_aviso": "Ausente (C/A)",
-      "feriado": "Feriado",
-      "licencia_nacimiento": "Lic. Nacimiento",
-      "licencia_casamiento": "Lic. Casamiento",
-      "fallecimiento": "Lic. Fallecimiento",
-      "donacion_de_sangre": "Lic. Donación Sangre",
-      "vacaciones": "Vacaciones",
-      "stand_by": "Stand By",
-      "sin_actividad": "Sin Actividad"
     }
   },
   "EmployeesManager": {
@@ -410,6 +399,35 @@
       "permissionAddedTitle": "Permiso cargado",
       "permissionAddedDescription": "El permiso para el empleado ha sido registrado con éxito.",
       "addErrorTitle": "Error al cargar permiso",
+      "unexpectedError": "Ocurrió un error inesperado."
+    }
+  },
+  "AbsenceTypesManager": {
+    "cardTitle": "Tipos de Ausentismo",
+    "cardDescription": "Gestione los motivos de ausentismo que se pueden registrar en los partes diarios.",
+    "addNewTypeTitle": "Agregar Nuevo Tipo de Ausentismo",
+    "codeLabel": "Código",
+    "codePlaceholder": "Ej. VAC",
+    "nameLabel": "Nombre del Tipo",
+    "namePlaceholder": "Ej. Vacaciones",
+    "addButton": "Agregar",
+    "existingTypesTitle": "Tipos Existentes ({count})",
+    "noTypesCreated": "No hay tipos de ausentismo creados.",
+    "deleteSr": "Eliminar {name}",
+    "deleteDialogTitle": "¿Está absolutamente seguro?",
+    "deleteDialogDescription": "Esta acción no se puede deshacer. Se eliminará permanentemente el tipo de ausentismo \"{name}\". Esta acción fallará si el tipo está en uso.",
+    "cancelButton": "Cancelar",
+    "deleteDialogConfirmButton": "Sí, eliminar tipo",
+    "toast": {
+      "validationErrorTitle": "Error de validación",
+      "validationErrorDescription": "El nombre y el código del tipo no pueden estar vacíos.",
+      "typeAddedTitle": "Tipo agregado",
+      "typeAddedDescription": "El tipo \"{name}\" ha sido creado.",
+      "error": "Error",
+      "addErrorDescription": "No se pudo agregar el tipo.",
+      "typeDeletedTitle": "Tipo eliminado",
+      "typeDeletedDescription": "El tipo \"{name}\" ha sido eliminado con éxito.",
+      "deleteErrorTitle": "Error al eliminar",
       "unexpectedError": "Ocurrió un error inesperado."
     }
   }
