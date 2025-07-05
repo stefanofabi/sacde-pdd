@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useMemo, useTransition, useEffect } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -63,7 +64,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { format, startOfToday } from "date-fns";
-import { es } from "date-fns/locale";
+import { es, enUS } from "date-fns/locale";
 import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addAttendanceRequest, updateAttendanceSentStatus, clonePreviousDayAttendance, deleteAttendanceRequest } from "@/app/actions";
@@ -76,6 +77,10 @@ interface AttendanceTrackerProps {
 }
 
 export default function AttendanceTracker({ initialCrews, initialAttendance, initialObras, initialEmployees }: AttendanceTrackerProps) {
+  const t = useTranslations('AttendanceTracker');
+  const locale = useLocale();
+  const dateLocale = locale === 'es' ? es : enUS;
+
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
   const [attendance, setAttendance] = useState<AttendanceData>(initialAttendance);
@@ -97,8 +102,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
 
   const formattedDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
   const displayDate = selectedDate
-    ? format(selectedDate, "PPP", { locale: es })
-    : "Seleccione una fecha";
+    ? format(selectedDate, "PPP", { locale: dateLocale })
+    : t('selectDate');
 
   const obraNameMap = useMemo(() => {
     return Object.fromEntries(initialObras.map(obra => [obra.id, obra.name]));
@@ -167,8 +172,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         });
       } catch (error) {
         toast({
-          title: "Error",
-          description: "No se pudo actualizar la asistencia.",
+          title: t('toast.updateErrorTitle'),
+          description: t('toast.updateErrorDescription'),
           variant: "destructive",
         });
       }
@@ -178,8 +183,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   const handleAddRequest = () => {
     if (!selectedDate || !newRequestState.obraId || !newRequestState.crewId || !newRequestState.responsibleId) {
       toast({
-        title: "Error de validación",
-        description: "Debe seleccionar una obra, una cuadrilla y un responsable.",
+        title: t('toast.validationErrorTitle'),
+        description: t('toast.addRequestValidationError'),
         variant: "destructive",
       });
       return;
@@ -199,13 +204,13 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
         setNewRequestState({ obraId: "", crewId: "", responsibleId: "" });
         setIsRequestDialogOpen(false);
         toast({
-          title: "Solicitud creada",
-          description: `La cuadrilla ha sido añadida al parte del día.`,
+          title: t('toast.requestCreatedTitle'),
+          description: t('toast.requestCreatedDescription'),
         });
       } catch (error) {
         toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "No se pudo agregar la solicitud.",
+          title: t('toast.error'),
+          description: error instanceof Error ? error.message : t('toast.addRequestError'),
           variant: "destructive",
         });
       }
@@ -224,13 +229,13 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
           return { ...prev, [dateKey]: updatedDailyData };
         });
         toast({
-          title: "Solicitud eliminada",
-          description: "La solicitud de asistencia ha sido eliminada con éxito.",
+          title: t('toast.requestDeletedTitle'),
+          description: t('toast.requestDeletedDescription'),
         });
       } catch (error) {
         toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "No se pudo eliminar la solicitud.",
+          title: t('toast.error'),
+          description: error instanceof Error ? error.message : t('toast.deleteRequestError'),
           variant: "destructive",
         });
       } finally {
@@ -248,13 +253,13 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             setAttendance(newAttendance);
             setIsCloneDialogOpen(false);
             toast({
-                title: "Día clonado",
-                description: `Se clonó la lista de cuadrillas y responsables del día anterior. Todos los estados se reiniciaron a 'no enviado'.`,
+                title: t('toast.dayClonedTitle'),
+                description: t('toast.dayClonedDescription'),
             });
         } catch (error) {
              toast({
-              title: "Error al clonar",
-              description: "No se pudo clonar el día anterior. Es posible que no haya datos.",
+              title: t('toast.cloneErrorTitle'),
+              description: t('toast.cloneErrorDescription'),
               variant: "destructive",
             });
         }
@@ -265,9 +270,9 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Registro de Asistencia</CardTitle>
+          <CardTitle>{t('cardTitle')}</CardTitle>
           <CardDescription>
-            Seleccione una fecha y gestione las cuadrillas para el parte diario.
+            {t('cardDescription')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -288,7 +293,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   selected={selectedDate}
                   onSelect={setSelectedDate}
                   initialFocus
-                  locale={es}
+                  locale={dateLocale}
                   disabled={(date) => date > new Date()}
                 />
               </PopoverContent>
@@ -296,7 +301,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por cuadrilla, obra, responsable..."
+                placeholder={t('searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -304,22 +309,22 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             </div>
             <Select value={sentStatusFilter} onValueChange={(value: "all" | "sent" | "not-sent") => setSentStatusFilter(value)}>
                 <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filtrar por estado" />
+                  <SelectValue placeholder={t('filterByStatusPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos los estados</SelectItem>
-                  <SelectItem value="sent">Enviados</SelectItem>
-                  <SelectItem value="not-sent">No Enviados</SelectItem>
+                  <SelectItem value="all">{t('statusAll')}</SelectItem>
+                  <SelectItem value="sent">{t('statusSent')}</SelectItem>
+                  <SelectItem value="not-sent">{t('statusNotSent')}</SelectItem>
                 </SelectContent>
             </Select>
             <div className="flex flex-wrap gap-2">
                 <Button onClick={() => setIsCloneDialogOpen(true)} variant="outline">
                     <Copy className="mr-2 h-4 w-4" />
-                    Clonar Día Anterior
+                    {t('cloneDayButton')}
                 </Button>
                 <Button onClick={() => { setNewRequestState({ obraId: "", crewId: "", responsibleId: "" }); setIsRequestDialogOpen(true); }}>
                     <UserPlus className="mr-2 h-4 w-4" />
-                    Crear Solicitud de Asistencia
+                    {t('createRequestButton')}
                 </Button>
             </div>
           </div>
@@ -333,12 +338,12 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Cuadrilla</TableHead>
-                  <TableHead>Obra</TableHead>
-                  <TableHead>Responsable</TableHead>
-                  <TableHead>Fecha de Envío</TableHead>
-                  <TableHead className="text-center w-[150px]">Enviado</TableHead>
-                  <TableHead className="text-right w-[100px]">Acciones</TableHead>
+                  <TableHead>{t('tableHeaderCrew')}</TableHead>
+                  <TableHead>{t('tableHeaderProject')}</TableHead>
+                  <TableHead>{t('tableHeaderResponsible')}</TableHead>
+                  <TableHead>{t('tableHeaderSentDate')}</TableHead>
+                  <TableHead className="text-center w-[150px]">{t('tableHeaderSent')}</TableHead>
+                  <TableHead className="text-right w-[100px]">{t('tableHeaderActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -353,7 +358,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                         <TableCell>{obraNameMap[crew.obraId] || 'N/A'}</TableCell>
                         <TableCell>{employeeNameMap[entry.responsibleId ?? ''] || 'N/A'}</TableCell>
                         <TableCell>
-                          {entry.sentAt ? format(new Date(entry.sentAt), 'Pp', { locale: es }) : 'Pendiente'}
+                          {entry.sentAt ? format(new Date(entry.sentAt), 'Pp', { locale: dateLocale }) : t('pendingStatus')}
                         </TableCell>
                         <TableCell className="text-center">
                           <Switch
@@ -372,7 +377,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                             disabled={isPending}
                           >
                             <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Eliminar solicitud</span>
+                            <span className="sr-only">{t('deleteRequestSr')}</span>
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -382,8 +387,8 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center">
                       {(attendance[formattedDate] || []).length === 0 
-                        ? "No hay cuadrillas asignadas para este día."
-                        : "No se encontraron cuadrillas con el filtro aplicado."
+                        ? t('noCrewsForDay')
+                        : t('noCrewsWithFilter')
                       }
                     </TableCell>
                   </TableRow>
@@ -397,21 +402,21 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       <Dialog open={isRequestDialogOpen} onOpenChange={setIsRequestDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Nueva Solicitud de Asistencia</DialogTitle>
+            <DialogTitle>{t('newRequestDialogTitle')}</DialogTitle>
             <DialogDescription>
-              Seleccione la obra, luego la cuadrilla y finalmente asigne un responsable.
+              {t('newRequestDialogDescription')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-                <Label htmlFor="request-obra">Obra</Label>
+                <Label htmlFor="request-obra">{t('projectLabel')}</Label>
                 <Select
                     value={newRequestState.obraId}
                     onValueChange={(value) => setNewRequestState(prev => ({ ...prev, obraId: value, crewId: "" }))}
                     disabled={isPending}
                 >
                     <SelectTrigger id="request-obra">
-                        <SelectValue placeholder="Seleccione una obra" />
+                        <SelectValue placeholder={t('selectProjectPlaceholder')} />
                     </SelectTrigger>
                     <SelectContent>
                         {initialObras.map((obra) => (
@@ -423,35 +428,35 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
                 </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="request-crew">Cuadrilla</Label>
+              <Label htmlFor="request-crew">{t('crewLabel')}</Label>
               <Combobox
                     options={availableCrewOptionsForRequest}
                     value={newRequestState.crewId}
                     onValueChange={(value) => setNewRequestState(prev => ({ ...prev, crewId: value }))}
-                    placeholder="Seleccione una cuadrilla"
-                    searchPlaceholder="Buscar cuadrilla..."
-                    emptyMessage="No hay cuadrillas para esta obra."
+                    placeholder={t('selectCrewPlaceholder')}
+                    searchPlaceholder={t('searchCrewPlaceholder')}
+                    emptyMessage={t('noCrewsForProject')}
                     disabled={isPending || !newRequestState.obraId}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="request-responsible">Responsable del Envío</Label>
+              <Label htmlFor="request-responsible">{t('responsibleLabel')}</Label>
               <Combobox
                 options={employeeOptions}
                 value={newRequestState.responsibleId}
                 onValueChange={(value) => setNewRequestState(prev => ({ ...prev, responsibleId: value }))}
-                placeholder="Seleccione un empleado"
-                searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                emptyMessage="No se encontró el empleado."
+                placeholder={t('selectEmployeePlaceholder')}
+                searchPlaceholder={t('searchEmployeePlaceholder')}
+                emptyMessage={t('employeeNotFound')}
                 disabled={isPending}
               />
             </div>
           </div>
           <DialogFooter>
-            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
+            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>{t('cancelButton')}</Button></DialogClose>
             <Button type="submit" onClick={handleAddRequest} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Crear Solicitud
+              {t('createRequestButton')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -460,15 +465,15 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       <AlertDialog open={isCloneDialogOpen} onOpenChange={setIsCloneDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>¿Clonar lista del día anterior?</AlertDialogTitle>
+                <AlertDialogTitle>{t('cloneDialogTitle')}</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción reemplazará la lista de cuadrillas de hoy ({displayDate}) con la lista de cuadrillas y responsables del día anterior. Todos los estados de asistencia se reiniciarán a "no enviado". ¿Desea continuar?
+                    {t('cloneDialogDescription', { date: displayDate })}
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setIsCloneDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setIsCloneDialogOpen(false)} disabled={isPending}>{t('cancelButton')}</AlertDialogCancel>
                 <AlertDialogAction onClick={handleCloneDay} disabled={isPending}>
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, clonar"}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('cloneDialogConfirmButton')}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
@@ -477,19 +482,19 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       <AlertDialog open={!!requestToDelete} onOpenChange={(open) => !open && setRequestToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar solicitud de asistencia?</AlertDialogTitle>
+                <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Se eliminará permanentemente la solicitud para la cuadrilla "{requestToDelete && crewMap.get(requestToDelete.crewId)?.name}" a cargo de "{requestToDelete && employeeNameMap[requestToDelete.responsibleId || '']}".
+                   {t('deleteDialogDescription', { crewName: requestToDelete && crewMap.get(requestToDelete.crewId)?.name, responsibleName: requestToDelete && employeeNameMap[requestToDelete.responsibleId || ''] })}
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setRequestToDelete(null)} disabled={isPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setRequestToDelete(null)} disabled={isPending}>{t('cancelButton')}</AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={handleDeleteRequest} 
                   disabled={isPending}
                   className={buttonVariants({ variant: "destructive" })}
                 >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar"}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('deleteDialogConfirmButton')}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

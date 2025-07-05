@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -49,7 +50,7 @@ import type { Permission, Employee, PermissionStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addPermission } from "@/app/actions";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { es, enUS } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
 
 interface PermissionsManagerProps {
@@ -66,6 +67,9 @@ const emptyForm = {
 };
 
 export default function PermissionsManager({ initialPermissions, initialEmployees }: PermissionsManagerProps) {
+    const t = useTranslations('PermissionsManager');
+    const locale = useLocale();
+    const dateLocale = locale === 'es' ? es : enUS;
     const { toast } = useToast();
     const [permissions, setPermissions] = useState<Permission[]>(initialPermissions);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -116,8 +120,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
         const { employeeId, startDate, endDate, status } = formState;
         if (!employeeId || !startDate || !endDate || !status) {
             toast({
-                title: "Error de validación",
-                description: "Debe completar todos los campos obligatorios: Empleado, Desde, Hasta y Estado.",
+                title: t('toast.validationErrorTitle'),
+                description: t('toast.validationErrorDescription'),
                 variant: "destructive",
             });
             return;
@@ -125,8 +129,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
 
         if (endDate < startDate) {
             toast({
-                title: "Error de validación",
-                description: "La fecha 'Hasta' no puede ser anterior a la fecha 'Desde'.",
+                title: t('toast.validationErrorTitle'),
+                description: t('toast.dateValidationError'),
                 variant: "destructive",
             });
             return;
@@ -145,20 +149,26 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                 const newPermission = await addPermission(permissionData);
                 setPermissions(prev => [...prev, newPermission]);
                 toast({
-                    title: "Permiso cargado",
-                    description: `El permiso para el empleado ha sido registrado con éxito.`,
+                    title: t('toast.permissionAddedTitle'),
+                    description: t('toast.permissionAddedDescription'),
                 });
                 setIsFormOpen(false);
                 setFormState(emptyForm);
             } catch (error) {
                 toast({
-                    title: "Error al cargar permiso",
-                    description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
+                    title: t('toast.addErrorTitle'),
+                    description: error instanceof Error ? error.message : t('toast.unexpectedError'),
                     variant: "destructive",
                 });
             }
         });
     };
+
+    const permissionStatusOptions = [
+      { value: "APROBADO POR SUPERVISOR", label: t('statusOptions.approvedBySupervisor')},
+      { value: "APROBADO POR RRHH", label: t('statusOptions.approvedByHR') },
+      { value: "NO APROBADO", label: t('statusOptions.notApproved') },
+    ];
 
     return (
         <>
@@ -166,16 +176,16 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                 <CardHeader>
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
-                            <CardTitle>Listado de Permisos</CardTitle>
+                            <CardTitle>{t('cardTitle')}</CardTitle>
                             <CardDescription>
-                                Filtre, vea y agregue nuevos permisos para los empleados.
+                                {t('cardDescription')}
                             </CardDescription>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
                              <div className="relative">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Buscar por empleado..."
+                                    placeholder={t('searchPlaceholder')}
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-10 w-full sm:w-[200px]"
@@ -183,17 +193,17 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                             </div>
                             <Select value={activityFilter} onValueChange={(value: "all" | "active" | "inactive") => setActivityFilter(value)}>
                                 <SelectTrigger className="w-full sm:w-[180px]">
-                                    <SelectValue placeholder="Filtrar por actividad" />
+                                    <SelectValue placeholder={t('filterByActivityPlaceholder')} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">Todos</SelectItem>
-                                    <SelectItem value="active">Activos</SelectItem>
-                                    <SelectItem value="inactive">Inactivos</SelectItem>
+                                    <SelectItem value="all">{t('activityFilters.all')}</SelectItem>
+                                    <SelectItem value="active">{t('activityFilters.active')}</SelectItem>
+                                    <SelectItem value="inactive">{t('activityFilters.inactive')}</SelectItem>
                                 </SelectContent>
                             </Select>
                             <Button onClick={() => { setFormState(emptyForm); setIsFormOpen(true); }}>
                                 <PlusCircle className="mr-2 h-4 w-4" />
-                                Cargar Permiso
+                                {t('addPermissionButton')}
                             </Button>
                         </div>
                     </div>
@@ -203,24 +213,24 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Empleado</TableHead>
-                                    <TableHead>Desde</TableHead>
-                                    <TableHead>Hasta</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead>Observaciones</TableHead>
+                                    <TableHead>{t('tableHeaderEmployee')}</TableHead>
+                                    <TableHead>{t('tableHeaderFrom')}</TableHead>
+                                    <TableHead>{t('tableHeaderTo')}</TableHead>
+                                    <TableHead>{t('tableHeaderStatus')}</TableHead>
+                                    <TableHead>{t('tableHeaderObservations')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredPermissions.length > 0 ? (
                                     filteredPermissions.map((perm) => (
                                         <TableRow key={perm.id}>
-                                            <TableCell className="font-medium">{employeeMap.get(perm.employeeId) || 'Empleado no encontrado'}</TableCell>
-                                            <TableCell>{format(new Date(perm.startDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}</TableCell>
-                                            <TableCell>{format(new Date(perm.endDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es })}</TableCell>
+                                            <TableCell className="font-medium">{employeeMap.get(perm.employeeId) || t('employeeNotFound')}</TableCell>
+                                            <TableCell>{format(new Date(perm.startDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: dateLocale })}</TableCell>
+                                            <TableCell>{format(new Date(perm.endDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: dateLocale })}</TableCell>
                                             <TableCell>
                                                 <Badge variant={perm.status.startsWith('APROBADO') ? 'default' : 'destructive'}
-                                                    className={perm.status.startsWith('APROBado') ? 'bg-green-600' : ''}>
-                                                    {perm.status}
+                                                    className={perm.status.startsWith('APROBADO') ? 'bg-green-600' : ''}>
+                                                    {permissionStatusOptions.find(p => p.value === perm.status)?.label || perm.status}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="max-w-xs truncate" title={perm.observations}>{perm.observations}</TableCell>
@@ -230,8 +240,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                     <TableRow>
                                         <TableCell colSpan={5} className="h-24 text-center">
                                             {permissions.length === 0 
-                                                ? "No hay permisos cargados." 
-                                                : "No se encontraron permisos con los filtros aplicados."
+                                                ? t('noPermissionsAdded') 
+                                                : t('noPermissionsWithFilter')
                                             }
                                         </TableCell>
                                     </TableRow>
@@ -245,81 +255,81 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
             <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Cargar Nuevo Permiso</DialogTitle>
+                        <DialogTitle>{t('addPermissionDialogTitle')}</DialogTitle>
                         <DialogDescription>
-                            Complete la información para registrar un nuevo permiso.
+                            {t('addPermissionDialogDescription')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="employeeId">Empleado *</Label>
+                            <Label htmlFor="employeeId">{t('employeeLabel')} *</Label>
                             <Combobox
                                 options={employeeOptions}
                                 value={formState.employeeId}
                                 onValueChange={(value) => handleInputChange('employeeId', value)}
-                                placeholder="Seleccione un empleado"
-                                searchPlaceholder="Buscar por nombre, legajo..."
-                                emptyMessage="No se encontró el empleado."
+                                placeholder={t('selectEmployeePlaceholder')}
+                                searchPlaceholder={t('searchEmployeePlaceholder')}
+                                emptyMessage={t('employeeNotFound')}
                                 disabled={isPending}
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="startDate">Desde *</Label>
+                                <Label htmlFor="startDate">{t('fromLabel')} *</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-start text-left font-normal">
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {formState.startDate ? format(formState.startDate, 'PPP', { locale: es }) : <span>Seleccione fecha</span>}
+                                            {formState.startDate ? format(formState.startDate, 'PPP', { locale: dateLocale }) : <span>{t('selectDatePlaceholder')}</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formState.startDate} onSelect={(date) => handleInputChange('startDate', date)} initialFocus />
+                                        <Calendar mode="single" selected={formState.startDate} onSelect={(date) => handleInputChange('startDate', date)} initialFocus locale={dateLocale}/>
                                     </PopoverContent>
                                 </Popover>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="endDate">Hasta *</Label>
+                                <Label htmlFor="endDate">{t('toLabel')} *</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-start text-left font-normal">
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {formState.endDate ? format(formState.endDate, 'PPP', { locale: es }) : <span>Seleccione fecha</span>}
+                                            {formState.endDate ? format(formState.endDate, 'PPP', { locale: dateLocale }) : <span>{t('selectDatePlaceholder')}</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={formState.endDate} onSelect={(date) => handleInputChange('endDate', date)} initialFocus />
+                                        <Calendar mode="single" selected={formState.endDate} onSelect={(date) => handleInputChange('endDate', date)} initialFocus locale={dateLocale} />
                                     </PopoverContent>
                                 </Popover>
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="status">Estado *</Label>
+                            <Label htmlFor="status">{t('statusLabel')} *</Label>
                             <Select onValueChange={(value: PermissionStatus) => handleInputChange('status', value)} value={formState.status} disabled={isPending}>
-                                <SelectTrigger><SelectValue placeholder="Seleccione un estado" /></SelectTrigger>
+                                <SelectTrigger><SelectValue placeholder={t('selectStatusPlaceholder')} /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="APROBADO POR SUPERVISOR">APROBADO POR SUPERVISOR</SelectItem>
-                                    <SelectItem value="APROBADO POR RRHH">APROBADO POR RRHH</SelectItem>
-                                    <SelectItem value="NO APROBADO">NO APROBADO</SelectItem>
+                                    {permissionStatusOptions.map(opt => (
+                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="observations">Observaciones</Label>
+                            <Label htmlFor="observations">{t('observationsLabel')}</Label>
                             <Textarea
                                 id="observations"
                                 value={formState.observations}
                                 onChange={(e) => handleInputChange('observations', e.target.value)}
-                                placeholder="Añadir observaciones..."
+                                placeholder={t('observationsPlaceholder')}
                                 disabled={isPending}
                             />
                         </div>
                     </div>
                     <DialogFooter>
-                        <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
+                        <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>{t('cancelButton')}</Button></DialogClose>
                         <Button type="submit" onClick={handleSavePermission} disabled={isPending}>
                             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Guardar Permiso
+                            {t('savePermissionButton')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

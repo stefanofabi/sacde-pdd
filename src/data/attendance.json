@@ -44,5 +44,14 @@
       "responsibleId": "emp-001",
       "sentAt": "2025-07-03T09:05:00.000Z"
     }
+  ],
+  "2025-07-05": [
+    {
+      "id": "8f08339e-6025-4cbd-93a3-74ad65006780",
+      "crewId": "crew-1",
+      "responsibleId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
+      "sent": true,
+      "sentAt": "2025-07-05T11:15:53.279Z"
+    }
   ]
 }
