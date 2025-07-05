@@ -245,7 +245,11 @@
       "employeeMovedDescription": "{name} ha sido movido con éxito.",
       "moveErrorTitle": "Error al mover",
       "moveErrorDescription": "No se pudo mover el empleado."
-    }
+    },
+    "foremanLabel": "Capataz",
+    "tallymanLabel": "Apuntador",
+    "siteManagerLabel": "Jefe de Obra",
+    "mgmtControlLabel": "Control y Gestión"
   },
   "EmployeesManager": {
     "cardTitle": "Lista de Empleados",

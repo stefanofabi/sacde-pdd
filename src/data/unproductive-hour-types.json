@@ -1,4 +1,3 @@
-
 [
   {
     "id": "lluvia",
@@ -14,5 +13,10 @@
     "id": "viento",
     "name": "Viento",
     "code": "VIE"
+  },
+  {
+    "name": "Nieve",
+    "code": "ICE",
+    "id": "b42a8dfe-b7af-4e56-acdc-359aa46dd918"
   }
 ]

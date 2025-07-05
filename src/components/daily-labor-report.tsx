@@ -629,6 +629,28 @@ export default function DailyLaborReport({
                 </AlertDescription>
               </Alert>
             )}
+
+            {selectedCrew && (
+              <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border p-4 bg-muted/50">
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">{t('foremanLabel')}</p>
+                  <p className="truncate">{employeeMap.get(selectedCrew.capatazId) ? `${employeeMap.get(selectedCrew.capatazId)?.apellido}, ${employeeMap.get(selectedCrew.capatazId)?.nombre}` : 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">{t('tallymanLabel')}</p>
+                  <p className="truncate">{employeeMap.get(selectedCrew.apuntadorId) ? `${employeeMap.get(selectedCrew.apuntadorId)?.apellido}, ${employeeMap.get(selectedCrew.apuntadorId)?.nombre}` : 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">{t('siteManagerLabel')}</p>
+                  <p className="truncate">{employeeMap.get(selectedCrew.jefeDeObraId) ? `${employeeMap.get(selectedCrew.jefeDeObraId)?.apellido}, ${employeeMap.get(selectedCrew.jefeDeObraId)?.nombre}` : 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">{t('mgmtControlLabel')}</p>
+                  <p className="truncate">{employeeMap.get(selectedCrew.controlGestionId) ? `${employeeMap.get(selectedCrew.controlGestionId)?.apellido}, ${employeeMap.get(selectedCrew.controlGestionId)?.nombre}` : 'N/A'}</p>
+                </div>
+              </div>
+            )}
+
             <fieldset disabled={isNotified}>
                 <div className="rounded-lg border overflow-x-auto">
                 <Table>
@@ -636,7 +658,6 @@ export default function DailyLaborReport({
                     <TableRow>
                         <TableHead className="sticky left-0 bg-background z-10">{t('tableHeaderLegajo')}</TableHead>
                         <TableHead className="sticky left-[70px] bg-background z-10">{t('tableHeaderName')}</TableHead>
-                        <TableHead>{t('tableHeaderPosition')}</TableHead>
                         {activePhases.map(phase => (
                             <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
                         ))}
@@ -699,7 +720,6 @@ export default function DailyLaborReport({
                                 )}
                             </div>
                             </TableCell>
-                            <TableCell>{emp.denominacionPosicion}</TableCell>
                             {activePhases.map(phase => (
                                 <TableCell key={phase.id}>
                                     <Input
@@ -807,7 +827,7 @@ export default function DailyLaborReport({
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={7 + activePhases.length + initialSpecialHourTypes.length + initialUnproductiveHourTypes.length} className="h-24 text-center">
+                        <TableCell colSpan={6 + activePhases.length + initialSpecialHourTypes.length + initialUnproductiveHourTypes.length} className="h-24 text-center">
                             {t('noPersonnelAssigned')}
                         </TableCell>
                         </TableRow>

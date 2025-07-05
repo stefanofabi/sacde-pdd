@@ -245,7 +245,11 @@
       "employeeMovedDescription": "{name} has been moved successfully.",
       "moveErrorTitle": "Error Moving",
       "moveErrorDescription": "Could not move the employee."
-    }
+    },
+    "foremanLabel": "Foreman",
+    "tallymanLabel": "Tallyman",
+    "siteManagerLabel": "Site Manager",
+    "mgmtControlLabel": "Management & Control"
   },
   "EmployeesManager": {
     "cardTitle": "Employee List",
