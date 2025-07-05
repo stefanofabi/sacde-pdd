@@ -64,7 +64,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry } from "@/types";
+import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
@@ -76,17 +76,18 @@ interface DailyLaborReportProps {
   initialObras: Obra[];
   initialNotificationData: DailyLaborNotificationData;
   initialAbsenceTypes: AbsenceType[];
+  initialPhases: Phase[];
 }
 
 interface LaborEntryState {
-    hours: number | null;
+    hoursByPhase: Record<string, number | null>;
     absenceReason: string | null;
     horasAltura: number | null;
     horasHormigon: number | null;
     horasNocturnas: number | null;
 }
 
-export default function DailyLaborReport({ initialCrews, initialEmployees, initialLaborData, initialObras, initialNotificationData, initialAbsenceTypes }: DailyLaborReportProps) {
+export default function DailyLaborReport({ initialCrews, initialEmployees, initialLaborData, initialObras, initialNotificationData, initialAbsenceTypes, initialPhases }: DailyLaborReportProps) {
   const t = useTranslations('DailyLaborReport');
   const locale = useLocale();
   const dateLocale = locale === 'es' ? es : enUS;
@@ -101,7 +102,6 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
   const [selectedCrewId, setSelectedCrewId] = useState<string>("");
   const [laborEntries, setLaborEntries] = useState<Record<string, LaborEntryState>>({});
   
-  const [manualEmployeeIds, setManualEmployeeIds] = useState<string[]>([]);
   const [isAddEmployeeDialogOpen, setIsAddEmployeeDialogOpen] = useState(false);
   const [isNotifyDialogOpen, setIsNotifyDialogOpen] = useState(false);
   const [employeeToAdd, setEmployeeToAdd] = useState("");
@@ -121,6 +121,8 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
 
   const employeeMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, emp])), [initialEmployees]);
   const obraMap = useMemo(() => new Map(initialObras.map(o => [o.id, o.name])), [initialObras]);
+  const phaseMap = useMemo(() => new Map(initialPhases.map(p => [p.id, p])), [initialPhases]);
+
 
   const obrasWithCrews = useMemo(() => {
     const obraIdsWithCrews = new Set(initialCrews.map(crew => crew.obraId));
@@ -155,7 +157,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     const manualIdsForCrew = dailyEntries
       .filter(e => e.crewId === selectedCrewId && e.manual)
       .map(e => e.employeeId);
-    return manualIdsForCrew.map(id => employeeMap.get(id)).filter(Boolean) as Employee[];
+    return [...new Set(manualIdsForCrew)].map(id => employeeMap.get(id)).filter(Boolean) as Employee[];
   }, [laborData, formattedDate, selectedCrewId, employeeMap]);
 
   const allPersonnelForTable = useMemo(() => {
@@ -184,6 +186,23 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       .map(emp => ({ value: emp.id, label: `${emp.apellido}, ${emp.nombre} (L: ${emp.legajo})` }));
   }, [initialEmployees, selectedCrew, manuallyAddedPersonnel]);
 
+  const activePhases = useMemo(() => {
+    if (!selectedCrew || !selectedDate) return [];
+    const date = new Date(selectedDate);
+    date.setUTCHours(0,0,0,0);
+    
+    return (selectedCrew.assignedPhases || [])
+        .filter(p => {
+            const startDate = new Date(p.startDate);
+            const endDate = new Date(p.endDate);
+            return date >= startDate && date <= endDate;
+        })
+        .map(p => phaseMap.get(p.phaseId))
+        .filter((p): p is Phase => !!p)
+        .sort((a, b) => a.name.localeCompare(b.name));
+  }, [selectedCrew, selectedDate, phaseMap]);
+
+
   const { isNotified, notifiedAt } = useMemo(() => {
     const status = notificationData[formattedDate]?.[selectedCrewId];
     return {
@@ -191,62 +210,46 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       notifiedAt: status?.notifiedAt ? format(new Date(status.notifiedAt), 'Pp', { locale: dateLocale }) : null,
     }
   }, [notificationData, formattedDate, selectedCrewId, dateLocale]);
-
-  const employeeAssignmentStatus = useMemo(() => {
-    const allEntriesForDate = laborData[formattedDate] || [];
-    
-    const otherCrewsEntries = allEntriesForDate.filter(entry => entry.crewId !== selectedCrewId);
-
-    const currentCrewUnsavedEntries = allPersonnelForTable.map(emp => ({
-        employeeId: emp.id,
-        crewId: selectedCrewId,
-        ...(laborEntries[emp.id] || {}),
-    }));
-
-    const mergedEntries = [...otherCrewsEntries, ...currentCrewUnsavedEntries];
-
-    const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean; totalHours: number }>();
-    for (const entry of mergedEntries) {
-        if (!entry.employeeId) continue;
-        const currentStatus = statusMap.get(entry.employeeId) || { hasHours: false, hasAbsence: false, totalHours: 0 };
-        if (entry.hours && entry.hours > 0) {
-            currentStatus.hasHours = true;
-            currentStatus.totalHours += entry.hours;
-        }
-        if (entry.absenceReason) {
-            currentStatus.hasAbsence = true;
-        }
-        statusMap.set(entry.employeeId, currentStatus);
-    }
-    return statusMap;
-}, [laborData, formattedDate, selectedCrewId, allPersonnelForTable, laborEntries]);
-
+  
   useEffect(() => {
-    if (formattedDate && selectedCrewId) {
+    if (formattedDate && selectedCrewId && allPersonnelForTable.length > 0) {
       const dailyEntries = laborData[formattedDate] || [];
       const crewEntries = dailyEntries.filter(entry => entry.crewId === selectedCrewId);
       
-      const crewMemberIds = selectedCrew?.employeeIds || [];
-      const manualIds = crewEntries.filter(e => e.manual).map(e => e.employeeId);
-      const allIdsForCrew = new Set([...crewMemberIds, ...manualIds]);
+      const newLaborEntries: Record<string, LaborEntryState> = {};
       
-      const initialEntries: Record<string, LaborEntryState> = {};
-      
-      allIdsForCrew.forEach(empId => {
-          const entry = crewEntries.find(e => e.employeeId === empId);
-          initialEntries[empId] = {
-              hours: entry?.hours ?? null,
-              absenceReason: entry?.absenceReason ?? null,
-              horasAltura: entry?.horasAltura ?? null,
-              horasHormigon: entry?.horasHormigon ?? null,
-              horasNocturnas: entry?.horasNocturnas ?? null,
+      allPersonnelForTable.forEach(emp => {
+          const entriesForEmp = crewEntries.filter(e => e.employeeId === emp.id);
+          const initialEntryState: LaborEntryState = {
+              hoursByPhase: {},
+              absenceReason: null,
+              horasAltura: null,
+              horasHormigon: null,
+              horasNocturnas: null,
+          };
+
+          if (entriesForEmp.length > 0) {
+              const absenceEntry = entriesForEmp.find(e => e.absenceReason);
+              initialEntryState.absenceReason = absenceEntry?.absenceReason ?? null;
+              
+              entriesForEmp.forEach(e => {
+                  if (e.phaseId && e.hours) {
+                      initialEntryState.hoursByPhase[e.phaseId] = e.hours;
+                  }
+              });
+
+              const entryWithSpecialHours = entriesForEmp.find(e => e.horasAltura || e.horasHormigon || e.horasNocturnas);
+              initialEntryState.horasAltura = entryWithSpecialHours?.horasAltura ?? null;
+              initialEntryState.horasHormigon = entryWithSpecialHours?.horasHormigon ?? null;
+              initialEntryState.horasNocturnas = entryWithSpecialHours?.horasNocturnas ?? null;
           }
+          newLaborEntries[emp.id] = initialEntryState;
       });
-      setLaborEntries(initialEntries);
+      setLaborEntries(newLaborEntries);
     } else {
       setLaborEntries({});
     }
-  }, [formattedDate, selectedCrewId, laborData, selectedCrew]);
+  }, [formattedDate, selectedCrewId, laborData, allPersonnelForTable]);
 
   const handleEntryChange = (
       employeeId: string, 
@@ -254,7 +257,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       value: string | null
     ) => {
     setLaborEntries(prev => {
-        const currentEntry = prev[employeeId] || { hours: null, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
+        const currentEntry = prev[employeeId] || { hoursByPhase: {}, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
         let newEntry = { ...currentEntry };
 
         const parseNumericValue = (val: string | null) => {
@@ -263,30 +266,17 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
             return isNaN(num) ? null : num;
         }
 
-        if (field === 'hours') {
-            const newHours = parseNumericValue(value);
-            newEntry.hours = newHours !== null && newHours > 0 ? newHours : null;
-            if (newHours !== null && newHours > 0) {
-                newEntry.absenceReason = null;
-            } else {
-                newEntry.hours = null;
-                newEntry.horasAltura = null;
-                newEntry.horasHormigon = null;
-                newEntry.horasNocturnas = null;
-            }
-        } else if (field === 'absenceReason') {
+        if (field === 'absenceReason') {
             newEntry.absenceReason = value === 'NONE' ? null : value;
             if (value !== 'NONE' && value !== null) {
-                newEntry.hours = null;
-                newEntry.horasAltura = null;
-                newEntry.horasHormigon = null;
-                newEntry.horasNocturnas = null;
+                newEntry.hoursByPhase = {};
             }
         } else if (field === 'horasAltura' || field === 'horasHormigon' || field === 'horasNocturnas') {
+             const totalHours = Object.values(newEntry.hoursByPhase).reduce((sum, h) => sum + (h || 0), 0);
             let newSpecialHours = parseNumericValue(value);
             if (newSpecialHours !== null && newSpecialHours > 0) {
-                if (newEntry.hours !== null && newSpecialHours > newEntry.hours) {
-                    newSpecialHours = newEntry.hours;
+                if (totalHours > 0 && newSpecialHours > totalHours) {
+                    newSpecialHours = totalHours;
                 }
             } else {
                 newSpecialHours = null;
@@ -298,6 +288,33 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     });
   };
 
+  const handlePhaseHourChange = (employeeId: string, phaseId: string, value: string | null) => {
+      setLaborEntries(prev => {
+          const currentEntry = prev[employeeId] || { hoursByPhase: {}, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
+          
+          const newHours = (val: string | null) => {
+            if (val === "" || val === null) return null;
+            const num = parseFloat(val);
+            return isNaN(num) || num < 0 ? null : num;
+          };
+
+          const updatedHours = newHours(value);
+
+          const newHoursByPhase = { ...currentEntry.hoursByPhase, [phaseId]: updatedHours };
+          
+          const hasHours = Object.values(newHoursByPhase).some(h => h && h > 0);
+
+          return {
+              ...prev,
+              [employeeId]: {
+                  ...currentEntry,
+                  hoursByPhase: newHoursByPhase,
+                  absenceReason: hasHours ? null : currentEntry.absenceReason,
+              }
+          }
+      });
+  }
+
   const handleSave = () => {
     if (!formattedDate || !selectedCrewId) {
       toast({
@@ -308,41 +325,47 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       return;
     }
 
-    const manualIds = (laborData[formattedDate] || []).filter(e => e.crewId === selectedCrewId && e.manual).map(e => e.employeeId);
+    const payloadToSave: Omit<DailyLaborEntry, 'id'>[] = [];
+    const existingManualEntries = (laborData[formattedDate] || []).filter(e => e.crewId === selectedCrewId && e.manual).map(e => e.employeeId);
 
-    const laborDataToSave = allPersonnelForTable.map(emp => {
-      const entry = laborEntries[emp.id] || {};
-      const isManual = !selectedCrew?.employeeIds.includes(emp.id) || manualIds.includes(emp.id);
-      return {
-        employeeId: emp.id,
-        hours: entry.hours ?? null,
-        absenceReason: entry.absenceReason ?? null,
-        horasAltura: entry.horasAltura ?? null,
-        horasHormigon: entry.horasHormigon ?? null,
-        horasNocturnas: entry.horasNocturnas ?? null,
-        manual: isManual,
-      };
+    allPersonnelForTable.forEach(emp => {
+      const stateEntry = laborEntries[emp.id];
+      if (!stateEntry) return;
+
+      const isManual = !selectedCrew?.employeeIds.includes(emp.id) || existingManualEntries.includes(emp.id);
+
+      if (stateEntry.absenceReason) {
+        payloadToSave.push({ employeeId: emp.id, crewId: selectedCrewId, hours: null, phaseId: null, absenceReason: stateEntry.absenceReason, horasAltura: null, horasHormigon: null, horasNocturnas: null, manual: isManual });
+      } else {
+        const phaseEntries = Object.entries(stateEntry.hoursByPhase).filter(([, hours]) => hours && hours > 0);
+        if (phaseEntries.length > 0) {
+            phaseEntries.forEach(([phaseId, hours], index) => {
+              payloadToSave.push({
+                  employeeId: emp.id,
+                  crewId: selectedCrewId,
+                  hours: hours,
+                  phaseId: phaseId,
+                  absenceReason: null,
+                  // Assign special hours only to the first entry to avoid duplication
+                  horasAltura: index === 0 ? stateEntry.horasAltura : null,
+                  horasHormigon: index === 0 ? stateEntry.horasHormigon : null,
+                  horasNocturnas: index === 0 ? stateEntry.horasNocturnas : null,
+                  manual: isManual
+              });
+            });
+        } else if (isManual) {
+            // Save manual employees even if they have no hours/absence, to keep them on the list
+            payloadToSave.push({ employeeId: emp.id, crewId: selectedCrewId, hours: null, phaseId: null, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null, manual: true });
+        }
+      }
     });
 
     startTransition(async () => {
       try {
-        await saveDailyLabor(formattedDate, selectedCrewId, laborDataToSave);
+        await saveDailyLabor(formattedDate, selectedCrewId, payloadToSave as any);
 
-        const dailyEntries = laborData[formattedDate] || [];
-        const otherCrewEntries = dailyEntries.filter(entry => entry.crewId !== selectedCrewId);
-        const newCrewEntries = laborDataToSave
-            .filter(d => (d.hours !== null && d.hours > 0) || d.absenceReason || d.manual)
-            .map(d => ({
-                id: crypto.randomUUID(),
-                employeeId: d.employeeId,
-                crewId: selectedCrewId,
-                hours: d.hours,
-                absenceReason: d.absenceReason,
-                horasAltura: d.horasAltura,
-                horasHormigon: d.horasHormigon,
-                horasNocturnas: d.horasNocturnas,
-                manual: d.manual
-            }));
+        const otherCrewEntries = (laborData[formattedDate] || []).filter(entry => entry.crewId !== selectedCrewId);
+        const newCrewEntries = payloadToSave.map(d => ({ ...d, id: crypto.randomUUID() }));
         
         setLaborData(prev => ({
             ...prev,
@@ -406,9 +429,17 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
 
     const personnelWithoutNovelty = allPersonnelForTable.filter(emp => {
         const entry = laborEntries[emp.id];
-        const hasHours = entry && entry.hours && entry.hours > 0;
-        const hasAbsence = entry && entry.absenceReason;
+        if (!entry) return true;
+        const hasHours = Object.values(entry.hoursByPhase).some(h => h && h > 0);
+        const hasAbsence = !!entry.absenceReason;
         return !hasHours && !hasAbsence;
+    });
+    
+    const personnelWithHoursAndNoPhase = allPersonnelForTable.filter(emp => {
+      const entry = laborEntries[emp.id];
+      if (!entry) return false;
+      const hasHours = Object.values(entry.hoursByPhase).some(h => h && h > 0);
+      return hasHours && activePhases.length === 0;
     });
 
     if (personnelWithoutNovelty.length > 0) {
@@ -447,6 +478,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                     employeeId: employeeToMove.id,
                     crewId: destinationCrewId,
                     hours: null,
+                    phaseId: null,
                     absenceReason: null,
                     horasAltura: null,
                     horasHormigon: null,
@@ -492,6 +524,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                 employeeId: employeeToAdd,
                 crewId: selectedCrewId,
                 hours: null,
+                phaseId: null,
                 absenceReason: null,
                 horasAltura: null,
                 horasHormigon: null,
@@ -589,7 +622,10 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                         <TableHead>{t('tableHeaderLegajo')}</TableHead>
                         <TableHead>{t('tableHeaderName')}</TableHead>
                         <TableHead>{t('tableHeaderPosition')}</TableHead>
-                        <TableHead className="w-[120px] text-center">{t('tableHeaderHours')}</TableHead>
+                        {activePhases.map(phase => (
+                            <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
+                        ))}
+                        <TableHead className="w-[120px] text-center font-bold text-foreground">{t('tableHeaderTotalHours')}</TableHead>
                         <TableHead className="w-[110px] text-center">{t('tableHeaderHeightHours')}</TableHead>
                         <TableHead className="w-[110px] text-center">{t('tableHeaderConcreteHours')}</TableHead>
                         <TableHead className="w-[110px] text-center">{t('tableHeaderNightHours')}</TableHead>
@@ -600,28 +636,20 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                     <TableBody>
                     {allPersonnelForTable.length > 0 ? (
                         allPersonnelForTable.map(emp => {
-                        const entry = laborEntries[emp.id] || { hours: null, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
-                        const hasHours = entry.hours !== null && entry.hours > 0;
+                        const entry = laborEntries[emp.id] || { hoursByPhase: {}, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
+                        const hasAbsence = !!entry.absenceReason;
+                        const totalHours = Object.values(entry.hoursByPhase).reduce((acc, h) => acc + (h || 0), 0);
+                        const hasHours = totalHours > 0;
+
                         const dailyEntries = laborData[formattedDate] || [];
                         const isManual = dailyEntries.some(e => e.crewId === selectedCrewId && e.employeeId === emp.id && e.manual);
                         
-                        const assignmentStatus = employeeAssignmentStatus.get(emp.id);
-                        const hasAbsenceConflict = assignmentStatus && assignmentStatus.hasHours && assignmentStatus.hasAbsence;
-                        const totalHours = assignmentStatus?.totalHours || 0;
                         const hasOvertimeWarning = totalHours > 12;
 
-                        const warningMessages = [];
-                        if (hasAbsenceConflict) {
-                            warningMessages.push(t('warningAbsenceConflict'));
-                        }
-                        if (hasOvertimeWarning) {
-                            warningMessages.push(t('warningOvertime', { hours: totalHours }));
-                        }
-                        
                         return (
                         <TableRow key={emp.id} className={cn(
                             isManual ? "bg-accent/50" : "",
-                            warningMessages.length > 0 ? "bg-destructive/10" : ""
+                            hasOvertimeWarning ? "bg-destructive/10" : ""
                         )}>
                             <TableCell className="font-mono">{emp.legajo}</TableCell>
                             <TableCell className="font-medium">
@@ -637,51 +665,35 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                                     </TooltipContent>
                                 </Tooltip>
                                 )}
-                                {warningMessages.length > 0 && (
+                                {hasOvertimeWarning && (
                                     <Tooltip>
                                         <TooltipTrigger>
                                             <AlertTriangle className="h-4 w-4 text-destructive" />
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                        <div className="max-w-xs space-y-1">
-                                            {warningMessages.map((msg, i) => <p key={i}>{msg}</p>)}
-                                        </div>
+                                          <p>{t('warningOvertime', { hours: totalHours })}</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 )}
                             </div>
                             </TableCell>
                             <TableCell>{emp.denominacionPosicion}</TableCell>
-                            <TableCell>
-                            <div className="relative">
-                                <Input
-                                type="number"
-                                className={cn(
-                                    "text-center",
-                                    entry.hours && entry.hours > 12
-                                    ? "border-destructive text-destructive focus-visible:ring-destructive pr-8"
-                                    : ""
-                                )}
-                                placeholder="-"
-                                value={entry.hours ?? ""}
-                                onChange={(e) => handleEntryChange(emp.id, 'hours', e.target.value)}
-                                disabled={isPending || !!entry.absenceReason}
-                                step="0.5"
-                                min="0"
-                                />
-                                {entry.hours && entry.hours > 12 && (
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                    <Tooltip>
-                                    <TooltipTrigger>
-                                        <AlertTriangle className="h-4 w-4 text-destructive" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{t('warningOver12Hours')}</p>
-                                    </TooltipContent>
-                                    </Tooltip>
-                                </div>
-                                )}
-                            </div>
+                            {activePhases.map(phase => (
+                                <TableCell key={phase.id}>
+                                    <Input
+                                        type="number"
+                                        className="text-center"
+                                        placeholder="-"
+                                        value={entry.hoursByPhase[phase.id] ?? ""}
+                                        onChange={(e) => handlePhaseHourChange(emp.id, phase.id, e.target.value)}
+                                        disabled={isPending || hasAbsence}
+                                        step="0.5"
+                                        min="0"
+                                    />
+                                </TableCell>
+                            ))}
+                             <TableCell className="text-center font-bold">
+                                {totalHours > 0 ? totalHours : "-"}
                             </TableCell>
                             <TableCell>
                             <Input
@@ -693,7 +705,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                                 disabled={isPending || !hasHours}
                                 step="0.5"
                                 min="0"
-                                max={entry.hours || 0}
+                                max={totalHours || 0}
                             />
                             </TableCell>
                             <TableCell>
@@ -706,7 +718,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                                 disabled={isPending || !hasHours}
                                 step="0.5"
                                 min="0"
-                                max={entry.hours || 0}
+                                max={totalHours || 0}
                             />
                             </TableCell>
                             <TableCell>
@@ -719,7 +731,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                                 disabled={isPending || !hasHours}
                                 step="0.5"
                                 min="0"
-                                max={entry.hours || 0}
+                                max={totalHours || 0}
                             />
                             </TableCell>
                             <TableCell>
@@ -783,7 +795,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={9} className="h-24 text-center">
+                        <TableCell colSpan={9 + activePhases.length} className="h-24 text-center">
                             {t('noPersonnelAssigned')}
                         </TableCell>
                         </TableRow>
