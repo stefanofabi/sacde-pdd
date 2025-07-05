@@ -32,6 +32,10 @@
     "pickDate": "Seleccione un rango de fechas",
     "selectProjects": "Seleccionar obras...",
     "selectCrews": "Seleccionar cuadrillas...",
+    "selectAllProjects": "Seleccionar todas las obras",
+    "deselectAllProjects": "Deseleccionar todas las obras",
+    "selectAllCrews": "Seleccionar todas las cuadrillas",
+    "deselectAllCrews": "Deseleccionar todas las cuadrillas",
     "kpi": {
       "totalHours": "Horas Totales",
       "unproductiveHours": "Horas Improductivas",

@@ -213,6 +213,8 @@ export default function StatisticsDashboard({
             onChange={setSelectedObras}
             placeholder={t('selectProjects')}
             className="w-full md:w-[250px]"
+            selectAllLabel={t('selectAllProjects')}
+            deselectAllLabel={t('deselectAllProjects')}
           />
           <MultiSelectCombobox
             options={crewOptions}
@@ -221,6 +223,8 @@ export default function StatisticsDashboard({
             placeholder={t('selectCrews')}
             className="w-full md:w-[250px]"
             disabled={crewOptions.length === 0}
+            selectAllLabel={t('selectAllCrews')}
+            deselectAllLabel={t('deselectAllCrews')}
           />
         </CardContent>
       </Card>
@@ -341,4 +345,3 @@ export default function StatisticsDashboard({
     </div>
   );
 }
-

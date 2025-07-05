@@ -32,6 +32,10 @@
     "pickDate": "Pick a date range",
     "selectProjects": "Select projects...",
     "selectCrews": "Select crews...",
+    "selectAllProjects": "Select all projects",
+    "deselectAllProjects": "Deselect all projects",
+    "selectAllCrews": "Select all crews",
+    "deselectAllCrews": "Deselect all crews",
     "kpi": {
       "totalHours": "Total Hours",
       "unproductiveHours": "Unproductive Hours",

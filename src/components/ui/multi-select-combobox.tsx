@@ -13,6 +13,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 import {
   Popover,
@@ -35,6 +36,8 @@ interface MultiSelectComboboxProps {
   emptyMessage?: string;
   className?: string;
   disabled?: boolean;
+  selectAllLabel?: string;
+  deselectAllLabel?: string;
 }
 
 export function MultiSelectCombobox({
@@ -46,12 +49,16 @@ export function MultiSelectCombobox({
   emptyMessage = "No options found.",
   className,
   disabled = false,
+  selectAllLabel,
+  deselectAllLabel,
 }: MultiSelectComboboxProps) {
   const [open, setOpen] = React.useState(false);
 
   const handleUnselect = (item: string) => {
     onChange(selected.filter((s) => s !== item));
   };
+
+  const allSelected = options.length > 0 && selected.length === options.length;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -93,6 +100,28 @@ export function MultiSelectCombobox({
           <CommandList>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
             <CommandGroup>
+              {selectAllLabel && deselectAllLabel && options.length > 1 && (
+                <>
+                  <CommandItem
+                    onSelect={() => {
+                      if (allSelected) {
+                        onChange([]);
+                      } else {
+                        onChange(options.map((option) => option.value));
+                      }
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        allSelected ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    {allSelected ? deselectAllLabel : selectAllLabel}
+                  </CommandItem>
+                  <CommandSeparator />
+                </>
+              )}
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
