@@ -51,7 +51,7 @@
   ],
   "2025-07-05": [
     {
-      "id": "a03442b1-28bf-4f10-848e-686c6a12cf2f",
+      "id": "4ab0c377-8c81-46da-8844-f09b5c5866c7",
       "crewId": "crew-1",
       "employeeId": "emp-002",
       "absenceReason": null,
@@ -65,7 +65,7 @@
       "manual": false
     },
     {
-      "id": "e3c92c80-8d71-47b5-b7f2-2a5783d3a8b7",
+      "id": "8e9cbd97-f5ae-4323-89f4-8c09aef8065d",
       "crewId": "crew-1",
       "employeeId": "7ff9adcf-39db-4250-a0d5-c26e5ad80f53",
       "absenceReason": null,

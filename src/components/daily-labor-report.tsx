@@ -61,7 +61,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry } from "@/types";
@@ -533,7 +533,7 @@ export default function DailyLaborReport({
     startTransition(async () => {
        const updatedEntries = (laborData[formattedDate] || []).filter(e => !(e.crewId === selectedCrewId && e.employeeId === employeeId));
        const newLaborData = { ...laborData, [formattedDate]: updatedEntries };
-       await writeData(dailyLaborFilePath, newLaborData);
+       await saveDailyLabor(formattedDate, selectedCrewId, newLaborData[formattedDate] || []);
        setLaborData(newLaborData);
     });
   };
@@ -711,7 +711,7 @@ export default function DailyLaborReport({
                   <p className="truncate">{employeeMap.get(selectedCrew.apuntadorId) ? `${employeeMap.get(selectedCrew.apuntadorId)?.apellido}, ${employeeMap.get(selectedCrew.apuntadorId)?.nombre}` : 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground">{t('siteManagerLabel')}</p>
+                  <p className="text-sm font-semibold text-muted-foreground">{t('projectManagerLabel')}</p>
                   <p className="truncate">{employeeMap.get(selectedCrew.jefeDeObraId) ? `${employeeMap.get(selectedCrew.jefeDeObraId)?.apellido}, ${employeeMap.get(selectedCrew.jefeDeObraId)?.nombre}` : 'N/A'}</p>
                 </div>
                 <div>
@@ -722,12 +722,12 @@ export default function DailyLaborReport({
             )}
 
             <fieldset disabled={isNotified}>
-                <div className="rounded-lg border">
+                <div className="relative w-full overflow-auto">
                 <Table>
                     <TableHeader>
                     <TableRow>
                         <TableHead className="sticky left-0 bg-background z-10">{t('tableHeaderLegajo')}</TableHead>
-                        <TableHead className="sticky left-[70px] bg-background z-10">{t('tableHeaderName')}</TableHead>
+                        <TableHead className="sticky left-[70px] bg-background z-10 min-w-[200px]">{t('tableHeaderName')}</TableHead>
                         <TableHead className="w-[220px]">{t('tableHeaderAbsence')}</TableHead>
                         {activePhases.map(phase => (
                             <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
@@ -831,7 +831,7 @@ export default function DailyLaborReport({
                                             onClick={() => handleOpenUnproductiveHoursModal(emp)}
                                             disabled={isPending || hasAbsence}
                                         >
-                                            <Sparkles className="h-4 w-4" />
+                                            <Hourglass className="h-4 w-4" />
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
@@ -905,7 +905,7 @@ export default function DailyLaborReport({
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={7 + activePhases.length} className="h-24 text-center">
+                        <TableCell colSpan={8 + activePhases.length} className="h-24 text-center">
                             {t('noPersonnelAssigned')}
                         </TableCell>
                         </TableRow>
