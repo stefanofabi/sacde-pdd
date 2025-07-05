@@ -51,7 +51,7 @@
   ],
   "2025-07-05": [
     {
-      "id": "4ab0c377-8c81-46da-8844-f09b5c5866c7",
+      "id": "b256d7fa-7215-4531-abdc-41b47813822d",
       "crewId": "crew-1",
       "employeeId": "emp-002",
       "absenceReason": null,
@@ -59,13 +59,13 @@
         "47a0fe61-c09d-492e-a5a5-8039b4c64e66": 1
       },
       "unproductiveHours": {
-        "lluvia": 0
+        "lluvia": 13
       },
       "specialHours": {},
       "manual": false
     },
     {
-      "id": "8e9cbd97-f5ae-4323-89f4-8c09aef8065d",
+      "id": "1aed09a8-34e1-44ee-8b53-d125853bde9a",
       "crewId": "crew-1",
       "employeeId": "7ff9adcf-39db-4250-a0d5-c26e5ad80f53",
       "absenceReason": null,

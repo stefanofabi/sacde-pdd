@@ -4,7 +4,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslations, useLocale } from 'next-intl';
-import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings } from 'lucide-react';
+import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 
 export function SidebarNavigation() {
@@ -63,6 +63,14 @@ export function SidebarNavigation() {
                 <SidebarMenuButton isActive={isActive('/obras')}>
                   <Briefcase />
                   {t('projects')}
+                </SidebarMenuButton>
+              </Link>
+            </SidebarMenuItem>
+             <SidebarMenuItem>
+              <Link href="/estadisticas">
+                <SidebarMenuButton isActive={isActive('/estadisticas')}>
+                  <BarChart3 />
+                  {t('statistics')}
                 </SidebarMenuButton>
               </Link>
             </SidebarMenuItem>

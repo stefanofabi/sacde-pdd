@@ -24,6 +24,30 @@
     "title": "Permission Management",
     "description": "Upload, view, and manage Sacde employee permissions."
   },
+  "EstadisticasPage": {
+    "title": "Statistics",
+    "description": "Analyze attendance and productivity data with filters and charts.",
+    "filtersTitle": "Filters",
+    "filtersDescription": "Select a date range, projects, and crews to analyze.",
+    "pickDate": "Pick a date range",
+    "selectProjects": "Select projects...",
+    "selectCrews": "Select crews...",
+    "kpi": {
+      "totalHours": "Total Hours",
+      "unproductiveHours": "Unproductive Hours",
+      "specialHours": "Special Hours",
+      "totalAbsences": "Total Absences",
+      "attendancePercentage": "Attendance %"
+    },
+    "charts": {
+      "absenceTypesTitle": "Absence Types Distribution",
+      "absencesByCrewTitle": "Absences by Crew",
+      "hoursCompositionTitle": "Hours Composition",
+      "productiveHours": "Productive",
+      "unproductiveHours": "Unproductive",
+      "absences": "Absences"
+    }
+  },
   "AjustesPage": {
     "title": "Settings",
     "description": "Configure application options."
@@ -35,7 +59,8 @@
     "dailyReports": "Daily Reports",
     "projects": "Projects",
     "permissions": "Permissions",
-    "settings": "Settings"
+    "settings": "Settings",
+    "statistics": "Statistics"
   },
   "ThemeToggle": {
     "srToggleTheme": "Toggle theme",
@@ -114,7 +139,7 @@
     "tableHeaderName": "Name",
     "tableHeaderForeman": "Foreman",
     "tableHeaderTallyman": "Tallyman",
-    "tableHeaderSiteManager": "Project Manager",
+    "tableHeaderProjectManager": "Project Manager",
     "tableHeaderMgmtControl": "Management & Control",
     "tableHeaderPersonnel": "Personnel",
     "tableHeaderActions": "Actions",
@@ -249,7 +274,7 @@
     },
     "foremanLabel": "Foreman",
     "tallymanLabel": "Tallyman",
-    "siteManagerLabel": "Project Manager",
+    "projectManagerLabel": "Project Manager",
     "mgmtControlLabel": "Management & Control",
     "tableHeaderSpecialHours": "Special Hours",
     "editSpecialHoursButtonSr": "Edit special hours for {name}",

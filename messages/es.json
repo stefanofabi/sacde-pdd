@@ -24,6 +24,30 @@
     "title": "Gestión de Permisos",
     "description": "Cargue, vea y gestione los permisos de los empleados de Sacde."
   },
+  "EstadisticasPage": {
+    "title": "Estadísticas",
+    "description": "Analice los datos de asistencia y productividad con filtros y gráficos.",
+    "filtersTitle": "Filtros",
+    "filtersDescription": "Seleccione un rango de fechas, obras y cuadrillas para analizar.",
+    "pickDate": "Seleccione un rango de fechas",
+    "selectProjects": "Seleccionar obras...",
+    "selectCrews": "Seleccionar cuadrillas...",
+    "kpi": {
+      "totalHours": "Horas Totales",
+      "unproductiveHours": "Horas Improductivas",
+      "specialHours": "Horas Especiales",
+      "totalAbsences": "Ausentismo Total",
+      "attendancePercentage": "% Presentismo"
+    },
+    "charts": {
+      "absenceTypesTitle": "Distribución de Tipos de Ausentismo",
+      "absencesByCrewTitle": "Ausentismo por Cuadrilla",
+      "hoursCompositionTitle": "Composición de Horas",
+      "productiveHours": "Productivas",
+      "unproductiveHours": "Improductivas",
+      "absences": "Ausencias"
+    }
+  },
   "AjustesPage": {
     "title": "Ajustes",
     "description": "Configure las opciones de la aplicación."
@@ -35,7 +59,8 @@
     "dailyReports": "Partes Diarios",
     "projects": "Obras",
     "permissions": "Permisos",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "statistics": "Estadísticas"
   },
   "ThemeToggle": {
     "srToggleTheme": "Cambiar tema",
@@ -114,7 +139,7 @@
     "tableHeaderName": "Nombre",
     "tableHeaderForeman": "Capataz",
     "tableHeaderTallyman": "Apuntador",
-    "tableHeaderSiteManager": "Jefe de Proyecto",
+    "tableHeaderProjectManager": "Jefe de Proyecto",
     "tableHeaderMgmtControl": "Control y Gestión",
     "tableHeaderPersonnel": "Personal",
     "tableHeaderActions": "Acciones",
@@ -249,7 +274,7 @@
     },
     "foremanLabel": "Capataz",
     "tallymanLabel": "Apuntador",
-    "siteManagerLabel": "Jefe de Proyecto",
+    "projectManagerLabel": "Jefe de Proyecto",
     "mgmtControlLabel": "Control y Gestión",
     "tableHeaderSpecialHours": "Horas Especiales",
     "editSpecialHoursButtonSr": "Editar horas especiales para {name}",
