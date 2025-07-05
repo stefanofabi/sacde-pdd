@@ -1,13 +1,14 @@
 
 import CrewsManager from "@/components/crews-manager";
 import { Toaster } from "@/components/ui/toaster";
-import { getCrews, getObras, getEmployees } from "@/app/actions";
+import { getCrews, getObras, getEmployees, getPhases } from "@/app/actions";
 import { getTranslations } from "next-intl/server";
 
 export default async function CuadrillasPage() {
   const initialCrews = await getCrews();
   const initialObras = await getObras();
   const initialEmployees = await getEmployees();
+  const initialPhases = await getPhases();
   const t = await getTranslations('CuadrillasPage');
 
   return (
@@ -26,6 +27,7 @@ export default async function CuadrillasPage() {
             initialCrews={initialCrews} 
             initialObras={initialObras}
             initialEmployees={initialEmployees} 
+            initialPhases={initialPhases}
           />
         </div>
       </main>

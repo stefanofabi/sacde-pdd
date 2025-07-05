@@ -1,4 +1,3 @@
-
 [
   {
     "id": "franco",
@@ -69,5 +68,10 @@
     "id": "sin_actividad",
     "name": "Sin Actividad",
     "code": "SACT"
+  },
+  {
+    "name": "HORA DEL MATE",
+    "code": "MATE",
+    "id": "a6c62738-3f8a-4c9e-80a6-985c3cd6fdaa"
   }
 ]

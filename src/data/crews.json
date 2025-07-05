@@ -1,3 +1,4 @@
+
 [
   {
     "id": "crew-1",
@@ -10,7 +11,8 @@
     "employeeIds": [
       "emp-002",
       "7ff9adcf-39db-4250-a0d5-c26e5ad80f53"
-    ]
+    ],
+    "assignedPhases": []
   },
   {
     "id": "crew-2",
@@ -20,7 +22,8 @@
     "apuntadorId": "emp-002",
     "jefeDeObraId": "emp-003",
     "controlGestionId": "emp-004",
-    "employeeIds": []
+    "employeeIds": [],
+    "assignedPhases": []
   },
   {
     "id": "crew-3",
@@ -30,6 +33,7 @@
     "apuntadorId": "emp-002",
     "jefeDeObraId": "emp-003",
     "controlGestionId": "emp-004",
-    "employeeIds": []
+    "employeeIds": [],
+    "assignedPhases": []
   }
 ]

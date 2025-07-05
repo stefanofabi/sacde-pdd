@@ -1,3 +1,4 @@
+
 {
   "2025-07-04": [
     {
@@ -5,6 +6,7 @@
       "employeeId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
       "crewId": "crew-3",
       "hours": 9,
+      "phaseId": null,
       "absenceReason": null,
       "horasAltura": null,
       "horasHormigon": null,
@@ -16,6 +18,7 @@
       "employeeId": "emp-002",
       "crewId": "crew-1",
       "hours": 9,
+      "phaseId": null,
       "absenceReason": null,
       "horasAltura": null,
       "horasHormigon": null,
@@ -27,6 +30,7 @@
       "employeeId": "7ff9adcf-39db-4250-a0d5-c26e5ad80f53",
       "crewId": "crew-1",
       "hours": 9,
+      "phaseId": null,
       "absenceReason": null,
       "horasAltura": null,
       "horasHormigon": null,
@@ -38,6 +42,7 @@
       "employeeId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
       "crewId": "crew-2",
       "hours": null,
+      "phaseId": null,
       "absenceReason": null,
       "horasAltura": null,
       "horasHormigon": null,

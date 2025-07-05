@@ -5,6 +5,19 @@ export interface Obra {
   name: string;
 }
 
+export interface Phase {
+  id: string;
+  name: string;
+  pepElement: string;
+}
+
+export interface CrewPhaseAssignment {
+  id: string;
+  phaseId: string;
+  startDate: string; // ISO date string e.g. "2023-10-27"
+  endDate: string; // ISO date string e.g. "2023-10-27"
+}
+
 export interface Crew {
   id: string;
   name: string;
@@ -14,6 +27,7 @@ export interface Crew {
   jefeDeObraId: string;
   controlGestionId: string;
   employeeIds: string[];
+  assignedPhases?: CrewPhaseAssignment[];
 }
 
 export interface AttendanceEntry {
@@ -70,6 +84,7 @@ export interface DailyLaborEntry {
   employeeId: string;
   crewId: string;
   hours: number | null;
+  phaseId: string | null;
   absenceReason: string | null;
   horasAltura: number | null;
   horasHormigon: number | null;

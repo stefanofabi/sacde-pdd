@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -15,6 +15,7 @@ const permissionsFilePath = path.join(dataDir, 'permissions.json');
 const dailyLaborFilePath = path.join(dataDir, 'daily-labor.json');
 const dailyLaborNotificationsFilePath = path.join(dataDir, 'daily-labor-notifications.json');
 const absenceTypesFilePath = path.join(dataDir, 'absence-types.json');
+const phasesFilePath = path.join(dataDir, 'phases.json');
 
 
 async function readData<T>(filePath: string): Promise<T> {
@@ -23,7 +24,7 @@ async function readData<T>(filePath: string): Promise<T> {
     return JSON.parse(data);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types')) return [] as T;
+      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types') || filePath.includes('phases')) return [] as T;
       if (filePath.includes('attendance') || filePath.includes('daily-labor') || filePath.includes('daily-labor-notifications')) return {} as T;
     }
     console.error(`Error reading file ${filePath}:`, error);
@@ -71,6 +72,40 @@ export async function getDailyLaborNotifications(): Promise<DailyLaborNotificati
 export async function getAbsenceTypes(): Promise<AbsenceType[]> {
   return readData<AbsenceType[]>(absenceTypesFilePath);
 }
+
+export async function getPhases(): Promise<Phase[]> {
+  return readData<Phase[]>(phasesFilePath);
+}
+
+export async function addPhase(newPhase: Omit<Phase, 'id'>): Promise<Phase> {
+    const phases = await getPhases();
+    if (phases.some(ph => ph.name.toLowerCase() === newPhase.name.toLowerCase() || ph.pepElement.toLowerCase() === newPhase.pepElement.toLowerCase())) {
+        throw new Error('Ya existe una fase con el mismo nombre o elemento PEP.');
+    }
+    const phaseWithId = { ...newPhase, id: crypto.randomUUID() };
+    const updatedPhases = [...phases, phaseWithId];
+    await writeData(phasesFilePath, updatedPhases);
+    return phaseWithId;
+}
+
+export async function deletePhase(phaseId: string): Promise<void> {
+    const phases = await getPhases();
+    const crews = await getCrews();
+
+    const isPhaseInUse = crews.some(crew => crew.assignedPhases?.some(ap => ap.phaseId === phaseId));
+    if (isPhaseInUse) {
+        throw new Error('No se puede eliminar la fase porque está asignada a una o más cuadrillas.');
+    }
+
+    const updatedPhases = phases.filter(p => p.id !== phaseId);
+    
+    if (updatedPhases.length === phases.length) {
+        throw new Error('La fase a eliminar no fue encontrada.');
+    }
+
+    await writeData(phasesFilePath, updatedPhases);
+}
+
 
 export async function addAbsenceType(newAbsenceType: Omit<AbsenceType, 'id'>): Promise<AbsenceType> {
     const absenceTypes = await getAbsenceTypes();
@@ -133,6 +168,7 @@ export async function moveEmployeeBetweenCrews(
     employeeId: employeeId,
     crewId: destinationCrewId,
     hours: null,
+    phaseId: null,
     absenceReason: null,
     horasAltura: null,
     horasHormigon: null,
@@ -173,6 +209,7 @@ export async function saveDailyLabor(
   laborData: { 
     employeeId: string; 
     hours: number | null; 
+    phaseId: string | null;
     absenceReason: string | null;
     horasAltura?: number | null;
     horasHormigon?: number | null;
@@ -192,6 +229,7 @@ export async function saveDailyLabor(
       employeeId: data.employeeId,
       crewId: crewId,
       hours: data.hours,
+      phaseId: data.phaseId,
       absenceReason: data.absenceReason,
       horasAltura: data.horasAltura ?? null,
       horasHormigon: data.horasHormigon ?? null,
