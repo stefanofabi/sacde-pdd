@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from 'react';
-import { useRouter, usePathname } from 'next-intl/navigation';
+import { usePathname, useRouter } from 'next-intl/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Languages } from 'lucide-react';
 import {
