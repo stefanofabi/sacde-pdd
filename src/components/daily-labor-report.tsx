@@ -64,7 +64,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase } from "@/types";
+import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
@@ -77,17 +77,25 @@ interface DailyLaborReportProps {
   initialNotificationData: DailyLaborNotificationData;
   initialAbsenceTypes: AbsenceType[];
   initialPhases: Phase[];
+  initialSpecialHourTypes: SpecialHourType[];
 }
 
 interface LaborEntryState {
     hoursByPhase: Record<string, number | null>;
     absenceReason: string | null;
-    horasAltura: number | null;
-    horasHormigon: number | null;
-    horasNocturnas: number | null;
+    specialHours: Record<string, number | null>;
 }
 
-export default function DailyLaborReport({ initialCrews, initialEmployees, initialLaborData, initialObras, initialNotificationData, initialAbsenceTypes, initialPhases }: DailyLaborReportProps) {
+export default function DailyLaborReport({ 
+  initialCrews, 
+  initialEmployees, 
+  initialLaborData, 
+  initialObras, 
+  initialNotificationData, 
+  initialAbsenceTypes, 
+  initialPhases,
+  initialSpecialHourTypes
+}: DailyLaborReportProps) {
   const t = useTranslations('DailyLaborReport');
   const locale = useLocale();
   const dateLocale = locale === 'es' ? es : enUS;
@@ -223,9 +231,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
           const initialEntryState: LaborEntryState = {
               hoursByPhase: {},
               absenceReason: null,
-              horasAltura: null,
-              horasHormigon: null,
-              horasNocturnas: null,
+              specialHours: {},
           };
 
           if (entriesForEmp.length > 0) {
@@ -238,10 +244,10 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                   }
               });
 
-              const entryWithSpecialHours = entriesForEmp.find(e => e.horasAltura || e.horasHormigon || e.horasNocturnas);
-              initialEntryState.horasAltura = entryWithSpecialHours?.horasAltura ?? null;
-              initialEntryState.horasHormigon = entryWithSpecialHours?.horasHormigon ?? null;
-              initialEntryState.horasNocturnas = entryWithSpecialHours?.horasNocturnas ?? null;
+              const entryWithSpecialHours = entriesForEmp.find(e => e.specialHours && Object.keys(e.specialHours).length > 0);
+              if (entryWithSpecialHours?.specialHours) {
+                  initialEntryState.specialHours = entryWithSpecialHours.specialHours;
+              }
           }
           newLaborEntries[emp.id] = initialEntryState;
       });
@@ -251,46 +257,53 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
     }
   }, [formattedDate, selectedCrewId, laborData, allPersonnelForTable]);
 
-  const handleEntryChange = (
+  const handleAbsenceChange = (
       employeeId: string, 
-      field: keyof LaborEntryState, 
       value: string | null
     ) => {
     setLaborEntries(prev => {
-        const currentEntry = prev[employeeId] || { hoursByPhase: {}, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
+        const currentEntry = prev[employeeId] || { hoursByPhase: {}, absenceReason: null, specialHours: {} };
         let newEntry = { ...currentEntry };
 
-        const parseNumericValue = (val: string | null) => {
-            if (val === "" || val === null) return null;
-            const num = parseFloat(val);
-            return isNaN(num) ? null : num;
-        }
-
-        if (field === 'absenceReason') {
-            newEntry.absenceReason = value === 'NONE' ? null : value;
-            if (value !== 'NONE' && value !== null) {
-                newEntry.hoursByPhase = {};
-            }
-        } else if (field === 'horasAltura' || field === 'horasHormigon' || field === 'horasNocturnas') {
-             const totalHours = Object.values(newEntry.hoursByPhase).reduce((sum, h) => sum + (h || 0), 0);
-            let newSpecialHours = parseNumericValue(value);
-            if (newSpecialHours !== null && newSpecialHours > 0) {
-                if (totalHours > 0 && newSpecialHours > totalHours) {
-                    newSpecialHours = totalHours;
-                }
-            } else {
-                newSpecialHours = null;
-            }
-            newEntry[field] = newSpecialHours;
+        newEntry.absenceReason = value === 'NONE' ? null : value;
+        if (value !== 'NONE' && value !== null) {
+            newEntry.hoursByPhase = {};
+            newEntry.specialHours = {};
         }
         
         return { ...prev, [employeeId]: newEntry };
     });
   };
 
+  const handleSpecialHourChange = (employeeId: string, specialHourId: string, value: string | null) => {
+    setLaborEntries(prev => {
+        const currentEntry = prev[employeeId] || { hoursByPhase: {}, absenceReason: null, specialHours: {} };
+        
+        const parseNumericValue = (val: string | null) => {
+            if (val === "" || val === null) return null;
+            const num = parseFloat(val);
+            return isNaN(num) ? null : num;
+        }
+
+        const totalHours = Object.values(currentEntry.hoursByPhase).reduce((sum, h) => sum + (h || 0), 0);
+        let newSpecialHoursValue = parseNumericValue(value);
+        if (newSpecialHoursValue !== null && newSpecialHoursValue > 0) {
+            if (totalHours > 0 && newSpecialHoursValue > totalHours) {
+                newSpecialHoursValue = totalHours;
+            }
+        } else {
+            newSpecialHoursValue = null;
+        }
+        
+        const newSpecialHours = { ...currentEntry.specialHours, [specialHourId]: newSpecialHoursValue };
+
+        return { ...prev, [employeeId]: { ...currentEntry, specialHours: newSpecialHours } };
+    });
+  };
+
   const handlePhaseHourChange = (employeeId: string, phaseId: string, value: string | null) => {
       setLaborEntries(prev => {
-          const currentEntry = prev[employeeId] || { hoursByPhase: {}, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
+          const currentEntry = prev[employeeId] || { hoursByPhase: {}, absenceReason: null, specialHours: {} };
           
           const newHours = (val: string | null) => {
             if (val === "" || val === null) return null;
@@ -310,6 +323,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                   ...currentEntry,
                   hoursByPhase: newHoursByPhase,
                   absenceReason: hasHours ? null : currentEntry.absenceReason,
+                  specialHours: hasHours ? currentEntry.specialHours : {},
               }
           }
       });
@@ -335,7 +349,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
       const isManual = !selectedCrew?.employeeIds.includes(emp.id) || existingManualEntries.includes(emp.id);
 
       if (stateEntry.absenceReason) {
-        payloadToSave.push({ employeeId: emp.id, crewId: selectedCrewId, hours: null, phaseId: null, absenceReason: stateEntry.absenceReason, horasAltura: null, horasHormigon: null, horasNocturnas: null, manual: isManual });
+        payloadToSave.push({ employeeId: emp.id, crewId: selectedCrewId, hours: null, phaseId: null, absenceReason: stateEntry.absenceReason, specialHours: {}, manual: isManual });
       } else {
         const phaseEntries = Object.entries(stateEntry.hoursByPhase).filter(([, hours]) => hours && hours > 0);
         if (phaseEntries.length > 0) {
@@ -346,16 +360,12 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                   hours: hours,
                   phaseId: phaseId,
                   absenceReason: null,
-                  // Assign special hours only to the first entry to avoid duplication
-                  horasAltura: index === 0 ? stateEntry.horasAltura : null,
-                  horasHormigon: index === 0 ? stateEntry.horasHormigon : null,
-                  horasNocturnas: index === 0 ? stateEntry.horasNocturnas : null,
+                  specialHours: index === 0 ? stateEntry.specialHours : {},
                   manual: isManual
               });
             });
         } else if (isManual) {
-            // Save manual employees even if they have no hours/absence, to keep them on the list
-            payloadToSave.push({ employeeId: emp.id, crewId: selectedCrewId, hours: null, phaseId: null, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null, manual: true });
+            payloadToSave.push({ employeeId: emp.id, crewId: selectedCrewId, hours: null, phaseId: null, absenceReason: null, specialHours: {}, manual: true });
         }
       }
     });
@@ -480,9 +490,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                     hours: null,
                     phaseId: null,
                     absenceReason: null,
-                    horasAltura: null,
-                    horasHormigon: null,
-                    horasNocturnas: null,
+                    specialHours: {},
                     manual: true
                 };
                 return {
@@ -514,7 +522,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
             const laborDataToSave = [{
                 employeeId: employeeToAdd,
                 hours: null,
+                phaseId: null,
                 absenceReason: null,
+                specialHours: {},
                 manual: true,
             }];
             await saveDailyLabor(formattedDate, selectedCrewId, laborDataToSave);
@@ -526,9 +536,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                 hours: null,
                 phaseId: null,
                 absenceReason: null,
-                horasAltura: null,
-                horasHormigon: null,
-                horasNocturnas: null,
+                specialHours: {},
                 manual: true
             };
             setLaborData(prev => ({
@@ -544,7 +552,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
 
   const handleRemoveManualEmployee = (employeeId: string) => {
     startTransition(async () => {
-       await saveDailyLabor(formattedDate, selectedCrewId, [{ employeeId, hours: null, absenceReason: null, manual: false }]); // This will remove it
+       await saveDailyLabor(formattedDate, selectedCrewId, [{ employeeId, hours: null, phaseId: null, absenceReason: null, manual: false }]); // This will remove it
        setLaborData(prev => {
          const updatedEntries = (prev[formattedDate] || []).filter(e => !(e.crewId === selectedCrewId && e.employeeId === employeeId));
          return { ...prev, [formattedDate]: updatedEntries };
@@ -626,9 +634,9 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                             <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
                         ))}
                         <TableHead className="w-[120px] text-center font-bold text-foreground">{t('tableHeaderTotalHours')}</TableHead>
-                        <TableHead className="w-[110px] text-center">{t('tableHeaderHeightHours')}</TableHead>
-                        <TableHead className="w-[110px] text-center">{t('tableHeaderConcreteHours')}</TableHead>
-                        <TableHead className="w-[110px] text-center">{t('tableHeaderNightHours')}</TableHead>
+                        {initialSpecialHourTypes.map(sht => (
+                            <TableHead key={sht.id} className="w-[110px] text-center">{sht.name}</TableHead>
+                        ))}
                         <TableHead className="w-[220px]">{t('tableHeaderAbsence')}</TableHead>
                         <TableHead className="w-[100px] text-right">{t('tableHeaderActions')}</TableHead>
                     </TableRow>
@@ -636,7 +644,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                     <TableBody>
                     {allPersonnelForTable.length > 0 ? (
                         allPersonnelForTable.map(emp => {
-                        const entry = laborEntries[emp.id] || { hoursByPhase: {}, absenceReason: null, horasAltura: null, horasHormigon: null, horasNocturnas: null };
+                        const entry = laborEntries[emp.id] || { hoursByPhase: {}, absenceReason: null, specialHours: {} };
                         const hasAbsence = !!entry.absenceReason;
                         const totalHours = Object.values(entry.hoursByPhase).reduce((acc, h) => acc + (h || 0), 0);
                         const hasHours = totalHours > 0;
@@ -695,49 +703,25 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                              <TableCell className="text-center font-bold">
                                 {totalHours > 0 ? totalHours : "-"}
                             </TableCell>
-                            <TableCell>
-                            <Input
-                                type="number"
-                                className="text-center"
-                                placeholder="-"
-                                value={entry.horasAltura ?? ""}
-                                onChange={(e) => handleEntryChange(emp.id, 'horasAltura', e.target.value)}
-                                disabled={isPending || !hasHours}
-                                step="0.5"
-                                min="0"
-                                max={totalHours || 0}
-                            />
-                            </TableCell>
-                            <TableCell>
-                            <Input
-                                type="number"
-                                className="text-center"
-                                placeholder="-"
-                                value={entry.horasHormigon ?? ""}
-                                onChange={(e) => handleEntryChange(emp.id, 'horasHormigon', e.target.value)}
-                                disabled={isPending || !hasHours}
-                                step="0.5"
-                                min="0"
-                                max={totalHours || 0}
-                            />
-                            </TableCell>
-                            <TableCell>
-                            <Input
-                                type="number"
-                                className="text-center"
-                                placeholder="-"
-                                value={entry.horasNocturnas ?? ""}
-                                onChange={(e) => handleEntryChange(emp.id, 'horasNocturnas', e.target.value)}
-                                disabled={isPending || !hasHours}
-                                step="0.5"
-                                min="0"
-                                max={totalHours || 0}
-                            />
-                            </TableCell>
+                            {initialSpecialHourTypes.map(sht => (
+                                <TableCell key={sht.id}>
+                                <Input
+                                    type="number"
+                                    className="text-center"
+                                    placeholder="-"
+                                    value={entry.specialHours[sht.id] ?? ""}
+                                    onChange={(e) => handleSpecialHourChange(emp.id, sht.id, e.target.value)}
+                                    disabled={isPending || !hasHours}
+                                    step="0.5"
+                                    min="0"
+                                    max={totalHours || 0}
+                                />
+                                </TableCell>
+                            ))}
                             <TableCell>
                                 <Select
                                     value={entry.absenceReason ?? "NONE"}
-                                    onValueChange={(value) => handleEntryChange(emp.id, 'absenceReason', value)}
+                                    onValueChange={(value) => handleAbsenceChange(emp.id, value)}
                                     disabled={isPending || hasHours}
                                 >
                                     <SelectTrigger>
@@ -795,7 +779,7 @@ export default function DailyLaborReport({ initialCrews, initialEmployees, initi
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={9 + activePhases.length} className="h-24 text-center">
+                        <TableCell colSpan={6 + activePhases.length + initialSpecialHourTypes.length} className="h-24 text-center">
                             {t('noPersonnelAssigned')}
                         </TableCell>
                         </TableRow>

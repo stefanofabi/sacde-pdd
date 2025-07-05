@@ -79,6 +79,12 @@ export interface AbsenceType {
   code: string;
 }
 
+export interface SpecialHourType {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export interface DailyLaborEntry {
   id: string;
   employeeId: string;
@@ -86,9 +92,7 @@ export interface DailyLaborEntry {
   hours: number | null;
   phaseId: string | null;
   absenceReason: string | null;
-  horasAltura: number | null;
-  horasHormigon: number | null;
-  horasNocturnas: number | null;
+  specialHours?: Record<string, number | null>;
   manual?: boolean;
 }
 

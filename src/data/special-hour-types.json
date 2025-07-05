@@ -1,0 +1,18 @@
+
+[
+  {
+    "id": "hs-altura",
+    "name": "Horas Altura",
+    "code": "HS-ALT"
+  },
+  {
+    "id": "hs-hormigon",
+    "name": "Horas Hormigón",
+    "code": "HS-HOR"
+  },
+  {
+    "id": "hs-nocturnas",
+    "name": "Horas Nocturnas",
+    "code": "HS-NOC"
+  }
+]

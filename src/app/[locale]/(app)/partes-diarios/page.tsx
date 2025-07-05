@@ -1,7 +1,7 @@
 
 import DailyLaborReport from "@/components/daily-labor-report";
 import { Toaster } from "@/components/ui/toaster";
-import { getCrews, getEmployees, getDailyLabor, getObras, getDailyLaborNotifications, getAbsenceTypes, getPhases } from "@/app/actions";
+import { getCrews, getEmployees, getDailyLabor, getObras, getDailyLaborNotifications, getAbsenceTypes, getPhases, getSpecialHourTypes } from "@/app/actions";
 import { getTranslations } from "next-intl/server";
 
 export default async function PartesDiariosPage() {
@@ -12,6 +12,7 @@ export default async function PartesDiariosPage() {
   const initialNotificationData = await getDailyLaborNotifications();
   const initialAbsenceTypes = await getAbsenceTypes();
   const initialPhases = await getPhases();
+  const initialSpecialHourTypes = await getSpecialHourTypes();
   const t = await getTranslations('PartesDiariosPage');
 
   return (
@@ -34,6 +35,7 @@ export default async function PartesDiariosPage() {
             initialNotificationData={initialNotificationData}
             initialAbsenceTypes={initialAbsenceTypes}
             initialPhases={initialPhases}
+            initialSpecialHourTypes={initialSpecialHourTypes}
           />
         </div>
       </main>

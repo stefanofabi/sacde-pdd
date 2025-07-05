@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
@@ -16,6 +16,7 @@ const dailyLaborFilePath = path.join(dataDir, 'daily-labor.json');
 const dailyLaborNotificationsFilePath = path.join(dataDir, 'daily-labor-notifications.json');
 const absenceTypesFilePath = path.join(dataDir, 'absence-types.json');
 const phasesFilePath = path.join(dataDir, 'phases.json');
+const specialHourTypesFilePath = path.join(dataDir, 'special-hour-types.json');
 
 
 async function readData<T>(filePath: string): Promise<T> {
@@ -24,7 +25,7 @@ async function readData<T>(filePath: string): Promise<T> {
     return JSON.parse(data);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types') || filePath.includes('phases')) return [] as T;
+      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types') || filePath.includes('phases') || filePath.includes('special-hour-types')) return [] as T;
       if (filePath.includes('attendance') || filePath.includes('daily-labor') || filePath.includes('daily-labor-notifications')) return {} as T;
     }
     console.error(`Error reading file ${filePath}:`, error);
@@ -75,6 +76,42 @@ export async function getAbsenceTypes(): Promise<AbsenceType[]> {
 
 export async function getPhases(): Promise<Phase[]> {
   return readData<Phase[]>(phasesFilePath);
+}
+
+export async function getSpecialHourTypes(): Promise<SpecialHourType[]> {
+  return readData<SpecialHourType[]>(specialHourTypesFilePath);
+}
+
+export async function addSpecialHourType(newType: Omit<SpecialHourType, 'id'>): Promise<SpecialHourType> {
+    const types = await getSpecialHourTypes();
+    if (types.some(t => t.code.toLowerCase() === newType.code.toLowerCase())) {
+        throw new Error('Ya existe un tipo de hora especial con el mismo código.');
+    }
+    const typeWithId = { ...newType, id: crypto.randomUUID() };
+    const updatedTypes = [...types, typeWithId];
+    await writeData(specialHourTypesFilePath, updatedTypes);
+    return typeWithId;
+}
+
+export async function deleteSpecialHourType(typeId: string): Promise<void> {
+    const types = await getSpecialHourTypes();
+    const dailyLabor = await getDailyLabor();
+    
+    const isTypeInUse = Object.values(dailyLabor).flat().some(entry => 
+        entry.specialHours && Object.keys(entry.specialHours).includes(typeId)
+    );
+
+    if (isTypeInUse) {
+        throw new Error('No se puede eliminar el tipo de hora especial porque está en uso en partes diarios.');
+    }
+
+    const updatedTypes = types.filter(t => t.id !== typeId);
+    
+    if (updatedTypes.length === types.length) {
+        throw new Error('El tipo de hora especial a eliminar no fue encontrado.');
+    }
+
+    await writeData(specialHourTypesFilePath, updatedTypes);
 }
 
 export async function addPhase(newPhase: Omit<Phase, 'id'>): Promise<Phase> {
@@ -170,9 +207,7 @@ export async function moveEmployeeBetweenCrews(
     hours: null,
     phaseId: null,
     absenceReason: null,
-    horasAltura: null,
-    horasHormigon: null,
-    horasNocturnas: null,
+    specialHours: {},
     manual: true,
   };
   
@@ -211,9 +246,7 @@ export async function saveDailyLabor(
     hours: number | null; 
     phaseId: string | null;
     absenceReason: string | null;
-    horasAltura?: number | null;
-    horasHormigon?: number | null;
-    horasNocturnas?: number | null;
+    specialHours?: Record<string, number | null>;
     manual?: boolean;
   }[]
 ): Promise<void> {
@@ -231,9 +264,7 @@ export async function saveDailyLabor(
       hours: data.hours,
       phaseId: data.phaseId,
       absenceReason: data.absenceReason,
-      horasAltura: data.horasAltura ?? null,
-      horasHormigon: data.horasHormigon ?? null,
-      horasNocturnas: data.horasNocturnas ?? null,
+      specialHours: data.specialHours ?? {},
       manual: data.manual ?? false,
     }));
 

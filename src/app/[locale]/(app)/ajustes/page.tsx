@@ -1,8 +1,9 @@
 
 import AbsenceTypesManager from "@/components/absence-types-manager";
 import PhasesManager from "@/components/phases-manager";
+import SpecialHourTypesManager from "@/components/special-hour-types-manager";
 import { Toaster } from "@/components/ui/toaster";
-import { getAbsenceTypes, getPhases } from "@/app/actions";
+import { getAbsenceTypes, getPhases, getSpecialHourTypes } from "@/app/actions";
 import { getTranslations } from "next-intl/server";
 import { Settings } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -10,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 export default async function AjustesPage() {
   const initialAbsenceTypes = await getAbsenceTypes();
   const initialPhases = await getPhases();
+  const initialSpecialHourTypes = await getSpecialHourTypes();
   const t = await getTranslations('AjustesPage');
 
   return (
@@ -29,6 +31,8 @@ export default async function AjustesPage() {
             <AbsenceTypesManager initialAbsenceTypes={initialAbsenceTypes} />
             <Separator />
             <PhasesManager initialPhases={initialPhases} />
+            <Separator />
+            <SpecialHourTypesManager initialSpecialHourTypes={initialSpecialHourTypes} />
           </div>
         </div>
       </main>

@@ -1,4 +1,3 @@
-
 {
   "2025-07-04": [
     {
@@ -48,6 +47,20 @@
       "horasHormigon": null,
       "horasNocturnas": null,
       "manual": true
+    }
+  ],
+  "2025-07-05": [
+    {
+      "id": "e5bd5196-7082-473c-82cc-c0341110ee32",
+      "employeeId": "emp-002",
+      "crewId": "crew-1",
+      "hours": 2,
+      "phaseId": "47a0fe61-c09d-492e-a5a5-8039b4c64e66",
+      "absenceReason": null,
+      "horasAltura": null,
+      "horasHormigon": null,
+      "horasNocturnas": null,
+      "manual": false
     }
   ]
 }
