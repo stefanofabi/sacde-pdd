@@ -18,7 +18,7 @@ import { SidebarNavigation } from './sidebar-navigation';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
-      <Sidebar variant="floating">
+      <Sidebar>
         <SidebarHeader>
           <div className="flex h-16 items-center justify-center px-4">
              {/* Logo for expanded sidebar */}

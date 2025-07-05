@@ -51,15 +51,30 @@
   ],
   "2025-07-05": [
     {
-      "id": "e5bd5196-7082-473c-82cc-c0341110ee32",
-      "employeeId": "emp-002",
+      "id": "8c431255-3662-4ce4-9de1-4f69a86405c1",
       "crewId": "crew-1",
-      "hours": 2,
-      "phaseId": "47a0fe61-c09d-492e-a5a5-8039b4c64e66",
+      "employeeId": "emp-002",
       "absenceReason": null,
-      "horasAltura": null,
-      "horasHormigon": null,
-      "horasNocturnas": null,
+      "productiveHours": {
+        "47a0fe61-c09d-492e-a5a5-8039b4c64e66": 2
+      },
+      "unproductiveHours": {},
+      "specialHours": {
+        "hs-altura": null,
+        "hs-nocturnas": 2
+      },
+      "manual": false
+    },
+    {
+      "id": "9bd46c01-90f4-42c8-b8a1-ec79ff767b33",
+      "crewId": "crew-1",
+      "employeeId": "7ff9adcf-39db-4250-a0d5-c26e5ad80f53",
+      "absenceReason": null,
+      "productiveHours": {
+        "5222a0bc-15b2-447b-9553-76d2186c3b4e": 2
+      },
+      "unproductiveHours": {},
+      "specialHours": {},
       "manual": false
     }
   ]
