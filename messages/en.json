@@ -174,7 +174,8 @@
     "assignedPhasesTitle": "Assigned Phases ({count})",
     "noPhasesAssigned": "No phases assigned.",
     "removePhaseSr": "Remove phase {name}",
-    "phaseDateValidation": "End date cannot be earlier than start date."
+    "phaseDateValidation": "End date cannot be earlier than start date.",
+    "selectDatePlaceholder": "Select a date"
   },
   "DailyLaborReport": {
     "cardTitle": "Employee Hour Logging",

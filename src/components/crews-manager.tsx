@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useTransition, useMemo, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -48,18 +48,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, PlusCircle, Trash2, Pencil, Plus, X, Search } from "lucide-react";
-import type { Crew, Obra, Employee } from "@/types";
+import { Loader2, PlusCircle, Trash2, Pencil, Plus, X, Search, CalendarIcon } from "lucide-react";
+import type { Crew, Obra, Employee, Phase, CrewPhaseAssignment } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addCrew, deleteCrew, updateCrew } from "@/app/actions";
 import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
+import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
+import { Calendar } from "./ui/calendar";
+import { format } from "date-fns";
+import { es, enUS } from "date-fns/locale";
 
 interface CrewsManagerProps {
   initialCrews: Crew[];
   initialObras: Obra[];
   initialEmployees: Employee[];
+  initialPhases: Phase[];
 }
 
 const emptyForm = {
@@ -70,10 +75,13 @@ const emptyForm = {
     jefeDeObraId: "",
     controlGestionId: "",
     employeeIds: [] as string[],
+    assignedPhases: [] as CrewPhaseAssignment[],
 };
 
-export default function CrewsManager({ initialCrews, initialObras, initialEmployees }: CrewsManagerProps) {
+export default function CrewsManager({ initialCrews, initialObras, initialEmployees, initialPhases }: CrewsManagerProps) {
   const t = useTranslations('CrewsManager');
+  const locale = useLocale();
+  const dateLocale = locale === 'es' ? es : enUS;
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
   const [isCrewDialogOpen, setIsCrewDialogOpen] = useState(false);
@@ -84,19 +92,32 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   
   const [newCrewState, setNewCrewState] = useState(emptyForm);
   const [personnelSearchTerm, setPersonnelSearchTerm] = useState("");
+  const [phaseAssignment, setPhaseAssignment] = useState<{phaseId: string; startDate?: Date; endDate?: Date}>({ phaseId: "" });
+
   
   const [isPending, startTransition] = useTransition();
+
+  const phaseMap = useMemo(() => new Map(initialPhases.map(p => [p.id, p])), [initialPhases]);
 
   useEffect(() => {
     if (isCrewDialogOpen) {
       if (editingCrew) {
-        setNewCrewState({ ...editingCrew, employeeIds: editingCrew.employeeIds || [] });
+        setNewCrewState({ 
+            ...editingCrew, 
+            employeeIds: editingCrew.employeeIds || [],
+            assignedPhases: (editingCrew.assignedPhases || []).map(p => ({
+                ...p,
+                startDate: p.startDate,
+                endDate: p.endDate
+            }))
+        });
       } else {
         const initialObraId = selectedObraId !== 'all' ? selectedObraId : "";
         setNewCrewState({...emptyForm, obraId: initialObraId});
       }
     } else {
-      setPersonnelSearchTerm(""); // Reset on close
+      setPersonnelSearchTerm("");
+      setPhaseAssignment({ phaseId: "" });
     }
   }, [editingCrew, isCrewDialogOpen, selectedObraId]);
 
@@ -110,6 +131,13 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
         label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo}${emp.cuil ? `, C: ${emp.cuil}` : ''})`
     }));
   }, [initialEmployees]);
+
+  const phaseOptions = useMemo(() => {
+    return initialPhases.map(phase => ({
+        value: phase.id,
+        label: `${phase.name} (${phase.pepElement})`
+    }));
+  }, [initialPhases]);
 
   const jornalEmployees = useMemo(() => {
     return initialEmployees.filter(emp => emp.condicion === 'jornal' && emp.estado === 'activo');
@@ -159,8 +187,36 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
     );
   }, [allCrews, selectedObraId, searchTerm, employeeNameMap]);
   
-  const handleInputChange = (field: keyof typeof emptyForm, value: string | string[]) => {
+  const handleInputChange = (field: keyof typeof emptyForm, value: any) => {
     setNewCrewState(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddPhaseAssignment = () => {
+    const { phaseId, startDate, endDate } = phaseAssignment;
+    if (!phaseId || !startDate || !endDate) return;
+
+    if (endDate < startDate) {
+        toast({
+            title: t('toast.validationErrorTitle'),
+            description: t('toast.phaseDateValidation'),
+            variant: "destructive"
+        });
+        return;
+    }
+
+    const newAssignment: CrewPhaseAssignment = {
+        id: crypto.randomUUID(),
+        phaseId,
+        startDate: format(startDate, "yyyy-MM-dd"),
+        endDate: format(endDate, "yyyy-MM-dd"),
+    };
+    
+    handleInputChange('assignedPhases', [...(newCrewState.assignedPhases || []), newAssignment]);
+    setPhaseAssignment({ phaseId: "" });
+  };
+
+  const handleRemovePhaseAssignment = (assignmentId: string) => {
+    handleInputChange('assignedPhases', (newCrewState.assignedPhases || []).filter(p => p.id !== assignmentId));
   };
 
   const handleSaveCrew = () => {
@@ -412,6 +468,83 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                     disabled={isPending}
                   />
               </div>
+            </div>
+            <Separator className="my-4" />
+            <div>
+              <h3 className="mb-4 text-lg font-medium leading-none">{t('assignPhasesTitle')}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4 rounded-md border p-4">
+                        <h4 className="font-semibold text-sm">{t('assignPhasesTitle')}</h4>
+                        <div className="space-y-2">
+                            <Label htmlFor="phase-id">{t('phaseLabel')}</Label>
+                            <Combobox
+                                options={phaseOptions}
+                                value={phaseAssignment.phaseId}
+                                onValueChange={(value) => setPhaseAssignment(p => ({...p, phaseId: value}))}
+                                placeholder={t('selectPhasePlaceholder')}
+                                searchPlaceholder={t('searchEmployeePlaceholder')}
+                                emptyMessage={t('phaseNotFound')}
+                                disabled={isPending}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>{t('startDateLabel')}</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {phaseAssignment.startDate ? format(phaseAssignment.startDate, 'PPP', { locale: dateLocale }) : <span>{t('selectDatePlaceholder')}</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar mode="single" selected={phaseAssignment.startDate} onSelect={(d) => setPhaseAssignment(p => ({...p, startDate: d}))} initialFocus locale={dateLocale} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>{t('endDateLabel')}</Label>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className="w-full justify-start text-left font-normal">
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {phaseAssignment.endDate ? format(phaseAssignment.endDate, 'PPP', { locale: dateLocale }) : <span>{t('selectDatePlaceholder')}</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0">
+                                        <Calendar mode="single" selected={phaseAssignment.endDate} onSelect={(d) => setPhaseAssignment(p => ({...p, endDate: d}))} initialFocus locale={dateLocale} />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        </div>
+                        <Button onClick={handleAddPhaseAssignment} className="w-full" disabled={isPending || !phaseAssignment.phaseId || !phaseAssignment.startDate || !phaseAssignment.endDate}>
+                            <Plus className="mr-2 h-4 w-4" /> {t('addPhaseButton')}
+                        </Button>
+                    </div>
+                     <div className="flex flex-col gap-2">
+                        <h4 className="font-semibold text-sm">{t('assignedPhasesTitle', { count: (newCrewState.assignedPhases || []).length })}</h4>
+                        <ScrollArea className="flex-1 h-60 rounded-md border p-2">
+                             {(newCrewState.assignedPhases || []).length > 0 ? (newCrewState.assignedPhases || []).map(p => (
+                                <div key={p.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                                    <div>
+                                        <p className="font-medium">{phaseMap.get(p.phaseId)?.name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          {format(new Date(p.startDate), 'P', {locale: dateLocale})} - {format(new Date(p.endDate), 'P', {locale: dateLocale})}
+                                        </p>
+                                    </div>
+                                    <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleRemovePhaseAssignment(p.id)} disabled={isPending}>
+                                        <X className="h-4 w-4" />
+                                        <span className="sr-only">{t('removePhaseSr', { name: phaseMap.get(p.phaseId)?.name })}</span>
+                                    </Button>
+                                </div>
+                            )) : (
+                                <div className="text-center text-sm text-muted-foreground py-4">
+                                    {t('noPhasesAssigned')}
+                                </div>
+                            )}
+                        </ScrollArea>
+                    </div>
+                </div>
             </div>
             <Separator className="my-4" />
              <div>

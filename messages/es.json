@@ -174,7 +174,8 @@
     "assignedPhasesTitle": "Fases Asignadas ({count})",
     "noPhasesAssigned": "No hay fases asignadas.",
     "removePhaseSr": "Quitar fase {name}",
-    "phaseDateValidation": "La fecha de fin no puede ser anterior a la de inicio."
+    "phaseDateValidation": "La fecha de fin no puede ser anterior a la de inicio.",
+    "selectDatePlaceholder": "Seleccione una fecha"
   },
   "DailyLaborReport": {
     "cardTitle": "Carga de Horas por Empleado",
