@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname } from 'next-intl/client';
-import Link from 'next-intl/link';
+import { usePathname, Link } from 'next-intl/navigation';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList } from 'lucide-react';
