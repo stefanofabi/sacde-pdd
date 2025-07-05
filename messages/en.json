@@ -244,12 +244,19 @@
       "employeeMovedTitle": "Employee Moved",
       "employeeMovedDescription": "{name} has been moved successfully.",
       "moveErrorTitle": "Error Moving",
-      "moveErrorDescription": "Could not move the employee."
+      "moveErrorDescription": "Could not move the employee.",
+      "specialHoursExceededError": "The sum of special hours cannot exceed the total hours worked ({totalHours}h)."
     },
     "foremanLabel": "Foreman",
     "tallymanLabel": "Tallyman",
     "siteManagerLabel": "Site Manager",
-    "mgmtControlLabel": "Management & Control"
+    "mgmtControlLabel": "Management & Control",
+    "tableHeaderSpecialHours": "Special Hours",
+    "editSpecialHoursButtonSr": "Edit special hours for {name}",
+    "specialHoursModalTitle": "Log Special Hours",
+    "specialHoursModalDescription": "Log special hours for {name} on {date}. The total cannot exceed the total hours worked.",
+    "totalHoursLabel": "Total Hours Worked",
+    "saveButton": "Save"
   },
   "EmployeesManager": {
     "cardTitle": "Employee List",

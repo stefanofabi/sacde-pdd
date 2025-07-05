@@ -244,12 +244,19 @@
       "employeeMovedTitle": "Empleado Movido",
       "employeeMovedDescription": "{name} ha sido movido con éxito.",
       "moveErrorTitle": "Error al mover",
-      "moveErrorDescription": "No se pudo mover el empleado."
+      "moveErrorDescription": "No se pudo mover el empleado.",
+      "specialHoursExceededError": "La suma de horas especiales no puede superar el total de horas trabajadas ({totalHours}h)."
     },
     "foremanLabel": "Capataz",
     "tallymanLabel": "Apuntador",
     "siteManagerLabel": "Jefe de Obra",
-    "mgmtControlLabel": "Control y Gestión"
+    "mgmtControlLabel": "Control y Gestión",
+    "tableHeaderSpecialHours": "Horas Especiales",
+    "editSpecialHoursButtonSr": "Editar horas especiales para {name}",
+    "specialHoursModalTitle": "Registrar Horas Especiales",
+    "specialHoursModalDescription": "Registre las horas especiales para {name} en la fecha {date}. El total no puede exceder las horas totales trabajadas.",
+    "totalHoursLabel": "Horas Totales Trabajadas",
+    "saveButton": "Guardar"
   },
   "EmployeesManager": {
     "cardTitle": "Lista de Empleados",

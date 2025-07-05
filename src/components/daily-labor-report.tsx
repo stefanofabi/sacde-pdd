@@ -61,13 +61,14 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
+import { Separator } from "./ui/separator";
 
 interface DailyLaborReportProps {
   initialCrews: Crew[];
@@ -118,6 +119,10 @@ export default function DailyLaborReport({
   const [employeeToAdd, setEmployeeToAdd] = useState("");
   const [employeeToMove, setEmployeeToMove] = useState<Employee | null>(null);
   const [destinationCrewId, setDestinationCrewId] = useState<string>("");
+
+  const [specialHoursModalState, setSpecialHoursModalState] = useState<{ isOpen: boolean; employee: Employee | null }>({ isOpen: false, employee: null });
+  const [modalSpecialHours, setModalSpecialHours] = useState<Record<string, number | null>>({});
+
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -284,35 +289,6 @@ export default function DailyLaborReport({
         }
         
         return { ...prev, [employeeId]: newEntry };
-    });
-  };
-
-  const handleSpecialHourChange = (employeeId: string, specialHourId: string, value: string | null) => {
-    setLaborEntries(prev => {
-        const currentEntry = prev[employeeId] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
-        
-        const parseNumericValue = (val: string | null) => {
-            if (val === "" || val === null) return null;
-            const num = parseFloat(val);
-            return isNaN(num) ? null : num;
-        }
-        
-        const totalProductive = Object.values(currentEntry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
-        const totalUnproductive = Object.values(currentEntry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
-        const totalHours = totalProductive + totalUnproductive;
-
-        let newSpecialHoursValue = parseNumericValue(value);
-        if (newSpecialHoursValue !== null && newSpecialHoursValue > 0) {
-            if (totalHours > 0 && newSpecialHoursValue > totalHours) {
-                newSpecialHoursValue = totalHours;
-            }
-        } else {
-            newSpecialHoursValue = null;
-        }
-        
-        const newSpecialHours = { ...currentEntry.specialHours, [specialHourId]: newSpecialHoursValue };
-
-        return { ...prev, [employeeId]: { ...currentEntry, specialHours: newSpecialHours } };
     });
   };
 
@@ -572,6 +548,63 @@ export default function DailyLaborReport({
     setLaborEntries({});
   }, [selectedObraId]);
 
+  // Special Hours Modal Logic
+  const handleOpenSpecialHoursModal = (employee: Employee) => {
+    const currentEntry = laborEntries[employee.id] || { specialHours: {} };
+    setModalSpecialHours(currentEntry.specialHours || {});
+    setSpecialHoursModalState({ isOpen: true, employee });
+  };
+
+  const handleModalSpecialHourChange = (specialHourId: string, value: string) => {
+    const numValue = value === "" ? null : parseFloat(value);
+    if (value !== "" && (isNaN(numValue!) || numValue! < 0)) return;
+  
+    setModalSpecialHours(prev => ({ ...prev, [specialHourId]: numValue }));
+  };
+  
+  const handleSaveSpecialHours = () => {
+    const { employee } = specialHoursModalState;
+    if (!employee) return;
+  
+    const entry = laborEntries[employee.id];
+    if (entry) {
+        const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
+        const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
+        const totalHours = totalProductive + totalUnproductive;
+        const newTotalSpecial = Object.values(modalSpecialHours).reduce((acc, h) => acc + (h || 0), 0);
+
+        if (newTotalSpecial > totalHours) {
+            toast({
+                variant: "destructive",
+                title: t('toast.error'),
+                description: t('toast.specialHoursExceededError', { totalHours }),
+            });
+            return;
+        }
+    }
+  
+    setLaborEntries(prev => {
+      const currentEntry = prev[employee.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
+      return {
+        ...prev,
+        [employee.id]: {
+          ...currentEntry,
+          specialHours: modalSpecialHours
+        }
+      };
+    });
+  
+    setSpecialHoursModalState({ isOpen: false, employee: null });
+  };
+
+
+  const employeeInModal = specialHoursModalState.employee;
+  const entryForModal = employeeInModal ? laborEntries[employeeInModal.id] : null;
+  const totalHoursForModal = entryForModal 
+    ? Object.values(entryForModal.productiveHours).reduce((a, b) => a + (b || 0), 0) + 
+      Object.values(entryForModal.unproductiveHours).reduce((a, b) => a + (b || 0), 0)
+    : 0;
+
   return (
     <TooltipProvider>
     <Card>
@@ -658,6 +691,7 @@ export default function DailyLaborReport({
                     <TableRow>
                         <TableHead className="sticky left-0 bg-background z-10">{t('tableHeaderLegajo')}</TableHead>
                         <TableHead className="sticky left-[70px] bg-background z-10">{t('tableHeaderName')}</TableHead>
+                        <TableHead className="w-[220px]">{t('tableHeaderAbsence')}</TableHead>
                         {activePhases.map(phase => (
                             <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
                         ))}
@@ -665,10 +699,7 @@ export default function DailyLaborReport({
                             <TableHead key={uht.id} className="w-[120px] text-center">{uht.name}</TableHead>
                         ))}
                         <TableHead className="w-[120px] text-center font-bold text-foreground">{t('tableHeaderTotalHours')}</TableHead>
-                        {initialSpecialHourTypes.map(sht => (
-                            <TableHead key={sht.id} className="w-[110px] text-center">{sht.name}</TableHead>
-                        ))}
-                        <TableHead className="w-[220px]">{t('tableHeaderAbsence')}</TableHead>
+                        <TableHead className="w-[150px] text-center">{t('tableHeaderSpecialHours')}</TableHead>
                         <TableHead className="w-[100px] text-right">{t('tableHeaderActions')}</TableHead>
                     </TableRow>
                     </TableHeader>
@@ -682,6 +713,7 @@ export default function DailyLaborReport({
                         const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
                         const totalHours = totalProductive + totalUnproductive;
                         const hasHours = totalHours > 0;
+                        const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
 
                         const dailyEntries = laborData[formattedDate] || [];
                         const empEntry = dailyEntries.find(e => e.crewId === selectedCrewId && e.employeeId === emp.id)
@@ -696,29 +728,48 @@ export default function DailyLaborReport({
                         )}>
                             <TableCell className="font-mono sticky left-0 bg-background z-10">{emp.legajo}</TableCell>
                             <TableCell className="font-medium sticky left-[70px] bg-background z-10">
-                            <div className="flex items-center gap-2">
-                                {`${emp.apellido}, ${emp.nombre}`}
-                                {isManual && (
-                                <Tooltip>
-                                    <TooltipTrigger>
-                                    <UserPlus className="h-4 w-4 text-primary" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                    <p>{t('tooltipManuallyAdded')}</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                                )}
-                                {hasOvertimeWarning && (
-                                    <Tooltip>
-                                        <TooltipTrigger>
-                                            <AlertTriangle className="h-4 w-4 text-destructive" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          <p>{t('warningOvertime', { hours: totalHours })}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                )}
-                            </div>
+                              <div className="flex items-center gap-2">
+                                  {`${emp.apellido}, ${emp.nombre}`}
+                                  {isManual && (
+                                  <Tooltip>
+                                      <TooltipTrigger>
+                                      <UserPlus className="h-4 w-4 text-primary" />
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                      <p>{t('tooltipManuallyAdded')}</p>
+                                      </TooltipContent>
+                                  </Tooltip>
+                                  )}
+                                  {hasOvertimeWarning && (
+                                      <Tooltip>
+                                          <TooltipTrigger>
+                                              <AlertTriangle className="h-4 w-4 text-destructive" />
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>{t('warningOvertime', { hours: totalHours })}</p>
+                                          </TooltipContent>
+                                      </Tooltip>
+                                  )}
+                              </div>
+                            </TableCell>
+                             <TableCell>
+                                <Select
+                                    value={entry.absenceReason ?? "NONE"}
+                                    onValueChange={(value) => handleAbsenceChange(emp.id, value)}
+                                    disabled={isPending || hasHours}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={t('selectReasonPlaceholder')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="NONE">-</SelectItem>
+                                        {initialAbsenceTypes.map(reason => (
+                                            <SelectItem key={reason.id} value={reason.id}>
+                                                {reason.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </TableCell>
                             {activePhases.map(phase => (
                                 <TableCell key={phase.id}>
@@ -751,39 +802,25 @@ export default function DailyLaborReport({
                              <TableCell className="text-center font-bold">
                                 {totalHours > 0 ? totalHours : "-"}
                             </TableCell>
-                            {initialSpecialHourTypes.map(sht => (
-                                <TableCell key={sht.id}>
-                                <Input
-                                    type="number"
-                                    className="text-center"
-                                    placeholder="-"
-                                    value={entry.specialHours[sht.id] ?? ""}
-                                    onChange={(e) => handleSpecialHourChange(emp.id, sht.id, e.target.value)}
-                                    disabled={isPending || !hasHours}
-                                    step="0.5"
-                                    min="0"
-                                    max={totalHours || 0}
-                                />
-                                </TableCell>
-                            ))}
-                            <TableCell>
-                                <Select
-                                    value={entry.absenceReason ?? "NONE"}
-                                    onValueChange={(value) => handleAbsenceChange(emp.id, value)}
-                                    disabled={isPending || hasHours}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={t('selectReasonPlaceholder')} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="NONE">-</SelectItem>
-                                        {initialAbsenceTypes.map(reason => (
-                                            <SelectItem key={reason.id} value={reason.id}>
-                                                {reason.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                    <span className="font-medium">{totalSpecialHours > 0 ? totalSpecialHours : "-"}</span>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleOpenSpecialHoursModal(emp)}
+                                            disabled={isPending || hasAbsence || !hasHours}
+                                        >
+                                            <Sparkles className="h-4 w-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>{t('editSpecialHoursButtonSr', { name: `${emp.apellido}, ${emp.nombre}` })}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                </div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end items-center">
@@ -827,7 +864,7 @@ export default function DailyLaborReport({
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={6 + activePhases.length + initialSpecialHourTypes.length + initialUnproductiveHourTypes.length} className="h-24 text-center">
+                        <TableCell colSpan={7 + activePhases.length + initialUnproductiveHourTypes.length} className="h-24 text-center">
                             {t('noPersonnelAssigned')}
                         </TableCell>
                         </TableRow>
@@ -954,6 +991,53 @@ export default function DailyLaborReport({
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
+
+    <Dialog open={specialHoursModalState.isOpen} onOpenChange={(isOpen) => setSpecialHoursModalState({ isOpen, employee: isOpen ? specialHoursModalState.employee : null })}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('specialHoursModalTitle')}</DialogTitle>
+          <DialogDescription>
+            {t('specialHoursModalDescription', { 
+                name: `${specialHoursModalState.employee?.apellido}, ${specialHoursModalState.employee?.nombre}`,
+                date: displayDate
+            })}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 grid gap-4">
+          <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
+             <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">{t('totalHoursLabel')}</p>
+                <p className="text-2xl font-bold">{totalHoursForModal} hs</p>
+             </div>
+             <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">{t('tableHeaderSpecialHours')}</p>
+                <p className="text-2xl font-bold">{Object.values(modalSpecialHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
+             </div>
+          </div>
+          {initialSpecialHourTypes.map(sht => (
+            <div key={sht.id} className="grid grid-cols-3 items-center gap-4">
+              <Label htmlFor={`special-hours-${sht.id}`} className="text-right">
+                {sht.name}
+              </Label>
+              <Input 
+                id={`special-hours-${sht.id}`}
+                type="number"
+                className="col-span-2"
+                value={modalSpecialHours[sht.id] ?? ""}
+                onChange={(e) => handleModalSpecialHourChange(sht.id, e.target.value)}
+                step="0.5"
+                min="0"
+                max={totalHoursForModal}
+              />
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setSpecialHoursModalState({ isOpen: false, employee: null })}>{t('cancelButton')}</Button>
+          <Button onClick={handleSaveSpecialHours}>{t('saveButton')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     </TooltipProvider>
   );
