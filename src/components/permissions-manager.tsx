@@ -46,7 +46,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, PlusCircle, CalendarIcon, Search } from "lucide-react";
-import type { Permission, Employee, PermissionStatus } from "@/types";
+import type { Permission, Employee, PermissionStatus, AbsenceType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addPermission } from "@/app/actions";
 import { format } from "date-fns";
@@ -56,17 +56,19 @@ import { Input } from "@/components/ui/input";
 interface PermissionsManagerProps {
   initialPermissions: Permission[];
   initialEmployees: Employee[];
+  initialAbsenceTypes: AbsenceType[];
 }
 
 const emptyForm = {
     employeeId: "",
+    absenceTypeId: "",
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
     status: "" as PermissionStatus | "",
     observations: "",
 };
 
-export default function PermissionsManager({ initialPermissions, initialEmployees }: PermissionsManagerProps) {
+export default function PermissionsManager({ initialPermissions, initialEmployees, initialAbsenceTypes }: PermissionsManagerProps) {
     const t = useTranslations('PermissionsManager');
     const locale = useLocale();
     const dateLocale = locale === 'es' ? es : enUS;
@@ -81,6 +83,10 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     const employeeMap = useMemo(() => {
         return new Map(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido} (L: ${emp.legajo})`]));
     }, [initialEmployees]);
+    
+    const absenceTypeMap = useMemo(() => {
+        return new Map(initialAbsenceTypes.map(at => [at.id, at.name]));
+    }, [initialAbsenceTypes]);
 
     const employeeOptions = useMemo(() => {
         return initialEmployees.map(emp => ({
@@ -88,6 +94,13 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
             label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo})`
         }));
     }, [initialEmployees]);
+    
+    const absenceTypeOptions = useMemo(() => {
+        return initialAbsenceTypes.map(at => ({
+            value: at.id,
+            label: `${at.name} (${at.code})`
+        }));
+    }, [initialAbsenceTypes]);
 
     const filteredPermissions = useMemo(() => {
         const today = new Date();
@@ -117,8 +130,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     };
 
     const handleSavePermission = () => {
-        const { employeeId, startDate, endDate, status } = formState;
-        if (!employeeId || !startDate || !endDate || !status) {
+        const { employeeId, startDate, endDate, status, absenceTypeId } = formState;
+        if (!employeeId || !startDate || !endDate || !status || !absenceTypeId) {
             toast({
                 title: t('toast.validationErrorTitle'),
                 description: t('toast.validationErrorDescription'),
@@ -138,6 +151,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
         
         const permissionData = {
             employeeId,
+            absenceTypeId,
             startDate: format(startDate, "yyyy-MM-dd"),
             endDate: format(endDate, "yyyy-MM-dd"),
             status,
@@ -214,6 +228,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>{t('tableHeaderEmployee')}</TableHead>
+                                    <TableHead>{t('tableHeaderReason')}</TableHead>
                                     <TableHead>{t('tableHeaderFrom')}</TableHead>
                                     <TableHead>{t('tableHeaderTo')}</TableHead>
                                     <TableHead>{t('tableHeaderStatus')}</TableHead>
@@ -225,6 +240,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                     filteredPermissions.map((perm) => (
                                         <TableRow key={perm.id}>
                                             <TableCell className="font-medium">{employeeMap.get(perm.employeeId) || t('employeeNotFound')}</TableCell>
+                                            <TableCell>{absenceTypeMap.get(perm.absenceTypeId) || 'N/A'}</TableCell>
                                             <TableCell>{format(new Date(perm.startDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: dateLocale })}</TableCell>
                                             <TableCell>{format(new Date(perm.endDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: dateLocale })}</TableCell>
                                             <TableCell>
@@ -238,7 +254,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-24 text-center">
+                                        <TableCell colSpan={6} className="h-24 text-center">
                                             {permissions.length === 0 
                                                 ? t('noPermissionsAdded') 
                                                 : t('noPermissionsWithFilter')
@@ -262,7 +278,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="space-y-2">
-                            <Label htmlFor="employeeId">{t('employeeLabel')} *</Label>
+                            <Label htmlFor="employeeId">{t('employeeLabel')}</Label>
                             <Combobox
                                 options={employeeOptions}
                                 value={formState.employeeId}
@@ -273,9 +289,20 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                 disabled={isPending}
                             />
                         </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="absenceTypeId">{t('absenceTypeLabel')}</Label>
+                            <Select onValueChange={(value) => handleInputChange('absenceTypeId', value)} value={formState.absenceTypeId} disabled={isPending}>
+                                <SelectTrigger><SelectValue placeholder={t('selectAbsenceTypePlaceholder')} /></SelectTrigger>
+                                <SelectContent>
+                                    {absenceTypeOptions.map(opt => (
+                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="startDate">{t('fromLabel')} *</Label>
+                                <Label htmlFor="startDate">{t('fromLabel')}</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-start text-left font-normal">
@@ -289,7 +316,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                 </Popover>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="endDate">{t('toLabel')} *</Label>
+                                <Label htmlFor="endDate">{t('toLabel')}</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-start text-left font-normal">
@@ -304,7 +331,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="status">{t('statusLabel')} *</Label>
+                            <Label htmlFor="status">{t('statusLabel')}</Label>
                             <Select onValueChange={(value: PermissionStatus) => handleInputChange('status', value)} value={formState.status} disabled={isPending}>
                                 <SelectTrigger><SelectValue placeholder={t('selectStatusPlaceholder')} /></SelectTrigger>
                                 <SelectContent>

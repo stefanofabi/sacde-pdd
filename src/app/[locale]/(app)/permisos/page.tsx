@@ -1,12 +1,13 @@
 
 import PermissionsManager from "@/components/permissions-manager";
 import { Toaster } from "@/components/ui/toaster";
-import { getPermissions, getEmployees } from "@/app/actions";
+import { getPermissions, getEmployees, getAbsenceTypes } from "@/app/actions";
 import { getTranslations } from "next-intl/server";
 
 export default async function PermisosPage() {
   const initialPermissions = await getPermissions();
   const initialEmployees = await getEmployees();
+  const initialAbsenceTypes = await getAbsenceTypes();
   const t = await getTranslations('PermisosPage');
 
   return (
@@ -24,6 +25,7 @@ export default async function PermisosPage() {
           <PermissionsManager 
             initialPermissions={initialPermissions}
             initialEmployees={initialEmployees}
+            initialAbsenceTypes={initialAbsenceTypes}
           />
         </div>
       </main>

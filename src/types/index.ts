@@ -67,6 +67,7 @@ export type PermissionStatus = "APROBADO POR RRHH" | "APROBADO POR SUPERVISOR" |
 export interface Permission {
   id: string;
   employeeId: string;
+  absenceTypeId: string;
   startDate: string; // ISO date string e.g. "2023-10-27"
   endDate: string; // ISO date string e.g. "2023-10-27"
   status: PermissionStatus;

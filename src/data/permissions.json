@@ -1,3 +1,4 @@
+
 [
   {
     "employeeId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
@@ -5,7 +6,8 @@
     "endDate": "2025-07-10",
     "status": "APROBADO POR RRHH",
     "observations": "",
-    "id": "4f24e592-7244-400c-a165-f6527cb69bb1"
+    "id": "4f24e592-7244-400c-a165-f6527cb69bb1",
+    "absenceTypeId": "permiso"
   },
   {
     "employeeId": "emp-001",
@@ -13,6 +15,7 @@
     "endDate": "2025-07-01",
     "status": "APROBADO POR SUPERVISOR",
     "observations": "APRUEBA FEDERICO PARADA\n",
-    "id": "1d54ccdc-dba1-4f95-8481-50a2305cefd5"
+    "id": "1d54ccdc-dba1-4f95-8481-50a2305cefd5",
+    "absenceTypeId": "permiso"
   }
 ]

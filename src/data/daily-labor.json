@@ -75,6 +75,16 @@
       "unproductiveHours": {},
       "specialHours": {},
       "manual": false
+    },
+    {
+      "id": "be72f0c5-8e94-4a09-af07-e9a879f3f0f0",
+      "crewId": "crew-3",
+      "employeeId": "emp-002",
+      "absenceReason": "enfermedad",
+      "productiveHours": {},
+      "unproductiveHours": {},
+      "specialHours": {},
+      "manual": true
     }
   ]
 }

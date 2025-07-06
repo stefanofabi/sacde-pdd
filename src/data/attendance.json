@@ -53,5 +53,14 @@
       "sent": true,
       "sentAt": "2025-07-05T11:15:53.279Z"
     }
+  ],
+  "2025-07-06": [
+    {
+      "id": "fa3896cd-f5da-4521-aef7-3282e5cddc07",
+      "crewId": "crew-1",
+      "responsibleId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
+      "sent": true,
+      "sentAt": "2025-07-06T14:47:44.029Z"
+    }
   ]
 }
