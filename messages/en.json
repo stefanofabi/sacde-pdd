@@ -290,7 +290,8 @@
     "editUnproductiveHoursButtonSr": "Edit unproductive hours for {name}",
     "unproductiveHoursModalTitle": "Log Unproductive Hours",
     "unproductiveHoursModalDescription": "Log unproductive hours for {name} on {date}.",
-    "totalProductiveHoursLabel": "Total Productive Hours"
+    "totalProductiveHoursLabel": "Total Productive Hours",
+    "tooltipPermissionApplied": "Absence automatically suggested based on an approved permission."
   },
   "EmployeesManager": {
     "cardTitle": "Employee List",

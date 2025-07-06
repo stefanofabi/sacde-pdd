@@ -64,7 +64,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
-import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry } from "@/types";
+import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry, Permission } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
@@ -79,6 +79,7 @@ interface DailyLaborReportProps {
   initialPhases: Phase[];
   initialSpecialHourTypes: SpecialHourType[];
   initialUnproductiveHourTypes: UnproductiveHourType[];
+  initialPermissions: Permission[];
 }
 
 interface LaborEntryState {
@@ -97,7 +98,8 @@ export default function DailyLaborReport({
   initialAbsenceTypes, 
   initialPhases,
   initialSpecialHourTypes,
-  initialUnproductiveHourTypes
+  initialUnproductiveHourTypes,
+  initialPermissions,
 }: DailyLaborReportProps) {
   const t = useTranslations('DailyLaborReport');
   const locale = useLocale();
@@ -220,6 +222,25 @@ export default function DailyLaborReport({
         .sort((a, b) => a.name.localeCompare(b.name));
   }, [selectedCrew, selectedDate, phaseMap]);
 
+  const permissionsForDate = useMemo(() => {
+    if (!formattedDate || !initialPermissions) return new Map<string, string>();
+    
+    const date = new Date(formattedDate + 'T00:00:00');
+    const permissionsMap = new Map<string, string>();
+
+    initialPermissions.forEach(perm => {
+        const startDate = new Date(perm.startDate + 'T00:00:00');
+        const endDate = new Date(perm.endDate + 'T00:00:00');
+        const isApproved = perm.status === "APROBADO POR RRHH" || perm.status === "APROBADO POR SUPERVISOR";
+
+        if (isApproved && date >= startDate && date <= endDate) {
+            permissionsMap.set(perm.employeeId, perm.absenceTypeId);
+        }
+    });
+
+    return permissionsMap;
+}, [formattedDate, initialPermissions]);
+
 
   const { isNotified, notifiedAt } = useMemo(() => {
     const status = notificationData[formattedDate]?.[selectedCrewId];
@@ -247,14 +268,13 @@ export default function DailyLaborReport({
 
           if (entriesForEmp.length > 0) {
               const firstEntry = entriesForEmp[0];
-              // New format
               if ('productiveHours' in firstEntry && firstEntry.productiveHours) {
                   const entry = firstEntry as DailyLaborEntry;
                   initialEntryState.productiveHours = entry.productiveHours;
                   initialEntryState.unproductiveHours = entry.unproductiveHours;
                   initialEntryState.specialHours = entry.specialHours;
                   initialEntryState.absenceReason = entry.absenceReason;
-              } else { // Legacy format
+              } else { 
                   const legacyEntries = entriesForEmp as LegacyDailyLaborEntry[];
                   legacyEntries.forEach(e => {
                       if (e.phaseId && e.hours) {
@@ -266,6 +286,11 @@ export default function DailyLaborReport({
                   });
                   initialEntryState.specialHours = firstEntry.specialHours ?? {};
               }
+          } else {
+            const permissionAbsenceId = permissionsForDate.get(emp.id);
+            if (permissionAbsenceId) {
+              initialEntryState.absenceReason = permissionAbsenceId;
+            }
           }
           newLaborEntries[emp.id] = initialEntryState;
       });
@@ -273,7 +298,7 @@ export default function DailyLaborReport({
     } else {
       setLaborEntries({});
     }
-  }, [formattedDate, selectedCrewId, laborData, allPersonnelForTable]);
+  }, [formattedDate, selectedCrewId, laborData, allPersonnelForTable, permissionsForDate]);
 
   const handleAbsenceChange = (
       employeeId: string, 
@@ -756,6 +781,10 @@ export default function DailyLaborReport({
                         
                         const hasOvertimeWarning = totalHours > 12;
 
+                        const permissionAbsenceId = permissionsForDate.get(emp.id);
+                        const isAbsenceFromPermission = !!permissionAbsenceId && entry.absenceReason === permissionAbsenceId;
+
+
                         return (
                         <TableRow key={emp.id} className={cn(
                             isManual ? "bg-accent/50" : "",
@@ -788,23 +817,35 @@ export default function DailyLaborReport({
                               </div>
                             </TableCell>
                              <TableCell>
-                                <Select
-                                    value={entry.absenceReason ?? "NONE"}
-                                    onValueChange={(value) => handleAbsenceChange(emp.id, value)}
-                                    disabled={isPending || hasHours}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={t('selectReasonPlaceholder')} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="NONE">-</SelectItem>
-                                        {initialAbsenceTypes.map(reason => (
-                                            <SelectItem key={reason.id} value={reason.id}>
-                                                {reason.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <div className="flex items-center gap-2">
+                                  <Select
+                                      value={entry.absenceReason ?? "NONE"}
+                                      onValueChange={(value) => handleAbsenceChange(emp.id, value)}
+                                      disabled={isPending || hasHours}
+                                  >
+                                      <SelectTrigger>
+                                          <SelectValue placeholder={t('selectReasonPlaceholder')} />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                          <SelectItem value="NONE">-</SelectItem>
+                                          {initialAbsenceTypes.map(reason => (
+                                              <SelectItem key={reason.id} value={reason.id}>
+                                                  {reason.name}
+                                              </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                  </Select>
+                                  {isAbsenceFromPermission && (
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <Info className="h-4 w-4 text-primary" />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>{t('tooltipPermissionApplied')}</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
                             </TableCell>
                             {activePhases.map(phase => (
                                 <TableCell key={phase.id}>

@@ -1,19 +1,34 @@
 
 import DailyLaborReport from "@/components/daily-labor-report";
 import { Toaster } from "@/components/ui/toaster";
-import { getCrews, getEmployees, getDailyLabor, getObras, getDailyLaborNotifications, getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTypes } from "@/app/actions";
+import { getCrews, getEmployees, getDailyLabor, getObras, getDailyLaborNotifications, getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTypes, getPermissions } from "@/app/actions";
 import { getTranslations } from "next-intl/server";
 
 export default async function PartesDiariosPage() {
-  const initialCrews = await getCrews();
-  const initialEmployees = await getEmployees();
-  const initialLaborData = await getDailyLabor();
-  const initialObras = await getObras();
-  const initialNotificationData = await getDailyLaborNotifications();
-  const initialAbsenceTypes = await getAbsenceTypes();
-  const initialPhases = await getPhases();
-  const initialSpecialHourTypes = await getSpecialHourTypes();
-  const initialUnproductiveHourTypes = await getUnproductiveHourTypes();
+  const [
+    initialCrews,
+    initialEmployees,
+    initialLaborData,
+    initialObras,
+    initialNotificationData,
+    initialAbsenceTypes,
+    initialPhases,
+    initialSpecialHourTypes,
+    initialUnproductiveHourTypes,
+    initialPermissions
+  ] = await Promise.all([
+    getCrews(),
+    getEmployees(),
+    getDailyLabor(),
+    getObras(),
+    getDailyLaborNotifications(),
+    getAbsenceTypes(),
+    getPhases(),
+    getSpecialHourTypes(),
+    getUnproductiveHourTypes(),
+    getPermissions()
+  ]);
+
   const t = await getTranslations('PartesDiariosPage');
 
   return (
@@ -38,6 +53,7 @@ export default async function PartesDiariosPage() {
             initialPhases={initialPhases}
             initialSpecialHourTypes={initialSpecialHourTypes}
             initialUnproductiveHourTypes={initialUnproductiveHourTypes}
+            initialPermissions={initialPermissions}
           />
         </div>
       </main>
