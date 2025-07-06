@@ -1,6 +1,6 @@
 'use client';
 
-import { Link } from 'next-intl/navigation';
+import * as NextIntlNavigation from 'next-intl/navigation';
 import * as React from 'react';
 
 import {
@@ -22,23 +22,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarHeader>
           <div className="flex h-16 items-center justify-center px-4">
              {/* Logo for expanded sidebar */}
-             <Link href="/" className="w-full group-data-[collapsible=icon]:hidden">
+             <NextIntlNavigation.Link href="/" className="w-full group-data-[collapsible=icon]:hidden">
                 <div 
                     data-ai-hint="logo company"
                     className="w-[180px] h-[45px] bg-muted rounded flex items-center justify-center text-muted-foreground"
                 >
                     Logo
                 </div>
-             </Link>
+             </NextIntlNavigation.Link>
              {/* Icon for collapsed sidebar */}
-             <Link href="/" className="hidden h-10 w-10 items-center justify-center group-data-[collapsible=icon]:flex">
+             <NextIntlNavigation.Link href="/" className="hidden h-10 w-10 items-center justify-center group-data-[collapsible=icon]:flex">
                  <div 
                     data-ai-hint="logo company"
                     className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground text-xs"
                  >
                     L
                  </div>
-            </Link>
+            </NextIntlNavigation.Link>
           </div>
         </SidebarHeader>
         <SidebarContent>
