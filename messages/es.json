@@ -64,7 +64,17 @@
     "projects": "Obras",
     "permissions": "Permisos",
     "settings": "Ajustes",
-    "statistics": "Estadísticas"
+    "statistics": "Estadísticas",
+    "logout": "Cerrar Sesión"
+  },
+  "LoginPage": {
+    "title": "Iniciar Sesión",
+    "description": "Ingrese sus credenciales para acceder al sistema.",
+    "emailLabel": "Email",
+    "passwordLabel": "Contraseña",
+    "buttonText": "Ingresar",
+    "errorToastTitle": "Error de inicio de sesión",
+    "errorToastDescription": "Credenciales inválidas. Intente de nuevo."
   },
   "ThemeToggle": {
     "srToggleTheme": "Cambiar tema",

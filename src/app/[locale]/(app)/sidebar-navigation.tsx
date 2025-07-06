@@ -21,72 +21,29 @@ export function SidebarNavigation() {
         return pathname.startsWith(path);
     };
 
+    const navItems = [
+      { href: "/cuadrillas", icon: Users, translationKey: "crews" },
+      { href: "/empleados", icon: IdCard, translationKey: "employees" },
+      { href: "/asistencias", icon: CalendarClock, translationKey: "attendance" },
+      { href: "/partes-diarios", icon: ClipboardList, translationKey: "dailyReports" },
+      { href: "/obras", icon: Briefcase, translationKey: "projects" },
+      { href: "/estadisticas", icon: BarChart3, translationKey: "statistics" },
+      { href: "/permisos", icon: UserCheck, translationKey: "permissions" },
+      { href: "/ajustes", icon: Settings, translationKey: "settings" },
+    ];
+
     return (
         <SidebarMenu className="mt-4 gap-y-2">
-            <SidebarMenuItem>
-              <Link href="/cuadrillas">
-                <SidebarMenuButton isActive={isActive('/cuadrillas')}>
-                  <Users />
-                  {t('crews')}
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/empleados">
-                <SidebarMenuButton isActive={isActive('/empleados')}>
-                  <IdCard />
-                  {t('employees')}
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/asistencias">
-                <SidebarMenuButton isActive={isActive('/asistencias')}>
-                  <CalendarClock />
-                  {t('attendance')}
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/partes-diarios">
-                <SidebarMenuButton isActive={isActive('/partes-diarios')}>
-                  <ClipboardList />
-                  {t('dailyReports')}
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/obras">
-                <SidebarMenuButton isActive={isActive('/obras')}>
-                  <Briefcase />
-                  {t('projects')}
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <Link href="/estadisticas">
-                <SidebarMenuButton isActive={isActive('/estadisticas')}>
-                  <BarChart3 />
-                  {t('statistics')}
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/permisos">
-                <SidebarMenuButton isActive={isActive('/permisos')}>
-                  <UserCheck />
-                  {t('permissions')}
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <Link href="/ajustes">
-                <SidebarMenuButton isActive={isActive('/ajustes')}>
-                  <Settings />
-                  {t('settings')}
-                </SidebarMenuButton>
-              </Link>
-            </SidebarMenuItem>
+            {navItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <Link href={item.href}>
+                  <SidebarMenuButton isActive={isActive(item.href)}>
+                    <item.icon />
+                    {t(item.translationKey)}
+                  </SidebarMenuButton>
+                </Link>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
     );
 }

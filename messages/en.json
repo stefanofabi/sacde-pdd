@@ -64,7 +64,17 @@
     "projects": "Projects",
     "permissions": "Permissions",
     "settings": "Settings",
-    "statistics": "Statistics"
+    "statistics": "Statistics",
+    "logout": "Logout"
+  },
+  "LoginPage": {
+    "title": "Sign In",
+    "description": "Enter your credentials to access the system.",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "buttonText": "Sign In",
+    "errorToastTitle": "Login Error",
+    "errorToastDescription": "Invalid credentials. Please try again."
   },
   "ThemeToggle": {
     "srToggleTheme": "Toggle theme",
