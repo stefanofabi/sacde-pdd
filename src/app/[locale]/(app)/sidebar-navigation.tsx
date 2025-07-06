@@ -1,23 +1,17 @@
 
 'use client';
 
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
-import { useTranslations, useLocale } from 'next-intl';
+import { Link, usePathname, useTranslations } from 'next-intl';
 import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 
 export function SidebarNavigation() {
-    const pathnameWithLocale = usePathname();
+    const pathname = usePathname();
     const t = useTranslations('Sidebar');
-    const locale = useLocale();
 
     const isActive = (path: string) => {
-        const pathWithoutLocale = pathnameWithLocale.startsWith(`/${locale}`)
-            ? pathnameWithLocale.substring(`/${locale}`.length)
-            : pathnameWithLocale;
-            
-        const finalPathname = pathWithoutLocale === '' ? '/' : pathWithoutLocale;
+        // The pathname returned by `usePathname` from `next-intl` is already locale-free
+        const finalPathname = pathname === '' ? '/' : pathname;
 
         if (path === '/') return finalPathname === path;
         

@@ -1,12 +1,6 @@
-import type {Metadata} from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { ThemeProvider } from '@/components/theme-provider';
-
-export const metadata: Metadata = {
-  title: 'Parte Digital - Sacde',
-  description: 'Plataforma de Parte Digital para Sacde',
-};
 
 export default async function LocaleLayout({
   children,
@@ -20,13 +14,13 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem
-        disableTransitionOnChange
-      >
-        {children}
-      </ThemeProvider>
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
     </NextIntlClientProvider>
   );
 }
