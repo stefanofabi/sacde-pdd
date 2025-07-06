@@ -583,9 +583,20 @@ export default function DailyLaborReport({
   };
 
   useEffect(() => {
-    setSelectedCrewId("");
+    if (selectedObraId) {
+        const crewsForObra = initialCrews.filter(c => c.obraId === selectedObraId);
+        if (crewsForObra.length > 1) {
+            setSelectedCrewId("all");
+        } else if (crewsForObra.length === 1) {
+            setSelectedCrewId(crewsForObra[0].id);
+        } else {
+            setSelectedCrewId("");
+        }
+    } else {
+        setSelectedCrewId("");
+    }
     setLaborEntries({});
-  }, [selectedObraId]);
+  }, [selectedObraId, initialCrews]);
 
   // Special Hours Modal Logic
   const handleOpenSpecialHoursModal = (employee: Employee) => {
@@ -730,12 +741,6 @@ export default function DailyLaborReport({
             disabled={!selectedObraId || isPending}
             className="w-full sm:w-[250px]"
           />
-          {selectedCrewId && selectedCrewId !== 'all' && crewOptions.some(o => o.value === 'all') && (
-             <Button variant="outline" onClick={() => setSelectedCrewId('all')} disabled={isPending}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t('listView.backButton')}
-            </Button>
-          )}
         </div>
         
         {selectedCrewId === 'all' && selectedObraId ? (
@@ -1031,20 +1036,26 @@ export default function DailyLaborReport({
                 </Table>
                 </div>
                 <div className="flex justify-between mt-4 p-4 border-t">
-                <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending}>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    {t('addEmployeeButton')}
-                </Button>
-                <div className="flex gap-2">
-                    <Button onClick={handleSave} disabled={isPending || !selectedCrewId}>
-                        {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                        {t('saveReportButton')}
+                    <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending}>
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        {t('addEmployeeButton')}
                     </Button>
-                    <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId}>
-                        <Send className="mr-2 h-4 w-4" />
-                        {t('notifyReportButton')}
-                    </Button>
-                </div>
+                    <div className="flex gap-2">
+                        {selectedCrewId && selectedCrewId !== 'all' && crewOptions.some(o => o.value === 'all') && (
+                            <Button variant="outline" onClick={() => setSelectedCrewId('all')} disabled={isPending}>
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                {t('listView.backButton')}
+                            </Button>
+                        )}
+                        <Button onClick={handleSave} disabled={isPending || !selectedCrewId}>
+                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            {t('saveReportButton')}
+                        </Button>
+                        <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId}>
+                            <Send className="mr-2 h-4 w-4" />
+                            {t('notifyReportButton')}
+                        </Button>
+                    </div>
                 </div>
             </fieldset>
           </div>
