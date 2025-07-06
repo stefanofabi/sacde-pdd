@@ -540,6 +540,22 @@ export async function addPermission(newPermission: Omit<Permission, 'id'>): Prom
     return permissionWithId;
 }
 
+export async function updatePermission(permissionId: string, updatedData: Partial<Omit<Permission, 'id'>>): Promise<Permission> {
+    const permissions = await getPermissions();
+    const permissionIndex = permissions.findIndex(p => p.id === permissionId);
+
+    if (permissionIndex === -1) {
+        throw new Error('El permiso a actualizar no fue encontrado.');
+    }
+    
+    const updatedPermission = { ...permissions[permissionIndex], ...updatedData };
+    const updatedPermissions = [...permissions];
+    updatedPermissions[permissionIndex] = updatedPermission;
+
+    await writeData(permissionsFilePath, updatedPermissions);
+    return updatedPermission;
+}
+
 export async function deletePermission(permissionId: string): Promise<void> {
     const permissions = await getPermissions();
     const updatedPermissions = permissions.filter(p => p.id !== permissionId);

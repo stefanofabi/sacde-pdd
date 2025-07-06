@@ -45,10 +45,10 @@ import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PlusCircle, CalendarIcon, Search, Trash2 } from "lucide-react";
+import { Loader2, PlusCircle, CalendarIcon, Search, Trash2, Pencil } from "lucide-react";
 import type { Permission, Employee, PermissionStatus, AbsenceType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addPermission, deletePermission } from "@/app/actions";
+import { addPermission, deletePermission, updatePermission } from "@/app/actions";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
@@ -89,6 +89,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     const [searchTerm, setSearchTerm] = useState("");
     const [activityFilter, setActivityFilter] = useState<"all" | "active" | "inactive">("all");
     const [permissionToDelete, setPermissionToDelete] = useState<Permission | null>(null);
+    const [editingPermission, setEditingPermission] = useState<Permission | null>(null);
     const [isPending, startTransition] = useTransition();
 
     const employeeMap = useMemo(() => {
@@ -139,6 +140,24 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     const handleInputChange = (field: keyof typeof emptyForm, value: any) => {
         setFormState(prev => ({ ...prev, [field]: value }));
     };
+    
+    const handleOpenAddDialog = () => {
+        setEditingPermission(null);
+        setFormState(emptyForm);
+        setIsFormOpen(true);
+    };
+
+    const handleOpenEditDialog = (permission: Permission) => {
+        setEditingPermission(permission);
+        setFormState({
+            ...permission,
+            startDate: new Date(permission.startDate + 'T00:00:00'),
+            endDate: new Date(permission.endDate + 'T00:00:00'),
+            observations: permission.observations || '',
+        });
+        setIsFormOpen(true);
+    };
+
 
     const handleSavePermission = () => {
         const { employeeId, startDate, endDate, status, absenceTypeId } = formState;
@@ -171,17 +190,26 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
 
         startTransition(async () => {
             try {
-                const newPermission = await addPermission(permissionData);
-                setPermissions(prev => [...prev, newPermission]);
-                toast({
-                    title: t('toast.permissionAddedTitle'),
-                    description: t('toast.permissionAddedDescription'),
-                });
+                if (editingPermission) {
+                    const updatedPermission = await updatePermission(editingPermission.id, permissionData);
+                    setPermissions(prev => prev.map(p => p.id === updatedPermission.id ? updatedPermission : p));
+                    toast({
+                        title: t('toast.permissionUpdatedTitle'),
+                        description: t('toast.permissionUpdatedDescription'),
+                    });
+                } else {
+                    const newPermission = await addPermission(permissionData);
+                    setPermissions(prev => [...prev, newPermission]);
+                    toast({
+                        title: t('toast.permissionAddedTitle'),
+                        description: t('toast.permissionAddedDescription'),
+                    });
+                }
                 setIsFormOpen(false);
-                setFormState(emptyForm);
+                setEditingPermission(null);
             } catch (error) {
                 toast({
-                    title: t('toast.addErrorTitle'),
+                    title: editingPermission ? t('toast.updateErrorTitle') : t('toast.addErrorTitle'),
                     description: error instanceof Error ? error.message : t('toast.unexpectedError'),
                     variant: "destructive",
                 });
@@ -249,7 +277,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                     <SelectItem value="inactive">{t('activityFilters.inactive')}</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Button onClick={() => { setFormState(emptyForm); setIsFormOpen(true); }}>
+                            <Button onClick={handleOpenAddDialog}>
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 {t('addPermissionButton')}
                             </Button>
@@ -285,7 +313,16 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="max-w-xs truncate" title={perm.observations}>{perm.observations}</TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="text-right space-x-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleOpenEditDialog(perm)}
+                                                    disabled={isPending}
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                    <span className="sr-only">{t('editSr', { employeeName: employeeMap.get(perm.employeeId) || "" })}</span>
+                                                </Button>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -315,12 +352,12 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                 </CardContent>
             </Card>
 
-            <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+            <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingPermission(null); }}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>{t('addPermissionDialogTitle')}</DialogTitle>
+                        <DialogTitle>{editingPermission ? t('editPermissionDialogTitle') : t('addPermissionDialogTitle')}</DialogTitle>
                         <DialogDescription>
-                            {t('addPermissionDialogDescription')}
+                            {editingPermission ? t('editPermissionDialogDescription') : t('addPermissionDialogDescription')}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -403,7 +440,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                         <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>{t('cancelButton')}</Button></DialogClose>
                         <Button type="submit" onClick={handleSavePermission} disabled={isPending}>
                             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {t('savePermissionButton')}
+                            {editingPermission ? t('saveChangesButton') : t('savePermissionButton')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
