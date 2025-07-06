@@ -61,7 +61,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry, Permission } from "@/types";
@@ -261,7 +261,7 @@ export default function DailyLaborReport({
 
 
   const { isNotified, notifiedAt } = useMemo(() => {
-    if (!selectedCrewId) return { isNotified: false, notifiedAt: null };
+    if (!selectedCrewId || selectedCrewId === 'all') return { isNotified: false, notifiedAt: null };
     const status = notificationData[formattedDate]?.[selectedCrewId];
     return {
       isNotified: status?.notified || false,
@@ -699,7 +699,7 @@ export default function DailyLaborReport({
         <div className="flex flex-wrap items-center gap-4">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full sm:w-[280px] justify-start text-left font-normal">
+              <Button variant="outline" className="w-full sm:w-[280px] justify-start text-left font-normal" disabled={isPending}>
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {displayDate}
               </Button>
@@ -709,7 +709,7 @@ export default function DailyLaborReport({
             </PopoverContent>
           </Popover>
 
-          <Select value={selectedObraId} onValueChange={setSelectedObraId}>
+          <Select value={selectedObraId} onValueChange={setSelectedObraId} disabled={isPending}>
             <SelectTrigger className="w-full sm:w-[250px]">
               <SelectValue placeholder={t('selectProjectPlaceholder')} />
             </SelectTrigger>
@@ -727,9 +727,15 @@ export default function DailyLaborReport({
             placeholder={t('selectCrewPlaceholder')}
             searchPlaceholder={t('searchCrewPlaceholder')}
             emptyMessage={t('noCrewsForProject')}
-            disabled={!selectedObraId}
+            disabled={!selectedObraId || isPending}
             className="w-full sm:w-[250px]"
           />
+          {selectedCrewId && selectedCrewId !== 'all' && crewOptions.some(o => o.value === 'all') && (
+             <Button variant="outline" onClick={() => setSelectedCrewId('all')} disabled={isPending}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {t('listView.backButton')}
+            </Button>
+          )}
         </div>
         
         {selectedCrewId === 'all' && selectedObraId ? (

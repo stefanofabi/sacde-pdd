@@ -302,7 +302,8 @@
       "statusNotified": "Notificado",
       "statusPending": "Pendiente",
       "statusNotStarted": "No Iniciado",
-      "noReports": "No hay partes para mostrar para esta obra y fecha."
+      "noReports": "No hay partes para mostrar para esta obra y fecha.",
+      "backButton": "Volver al Listado"
     }
   },
   "EmployeesManager": {

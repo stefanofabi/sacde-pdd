@@ -302,7 +302,8 @@
       "statusNotified": "Notified",
       "statusPending": "Pending",
       "statusNotStarted": "Not Started",
-      "noReports": "No reports to show for this project and date."
+      "noReports": "No reports to show for this project and date.",
+      "backButton": "Back to List"
     }
   },
   "EmployeesManager": {
