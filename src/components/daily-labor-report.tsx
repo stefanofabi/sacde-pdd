@@ -68,6 +68,7 @@ import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotif
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
 
 interface DailyLaborReportProps {
   initialCrews: Crew[];
@@ -104,6 +105,8 @@ export default function DailyLaborReport({
   const t = useTranslations('DailyLaborReport');
   const locale = useLocale();
   const dateLocale = locale === 'es' ? es : enUS;
+  const { user } = useAuth();
+
 
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();

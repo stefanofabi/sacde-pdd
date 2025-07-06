@@ -87,6 +87,18 @@ export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]
     return readData<UnproductiveHourType[]>(unproductiveHourTypesFilePath);
 }
 
+export async function authenticateUser(email: string, password?: string): Promise<Employee | null> {
+    const employees = await getEmployees();
+    const employee = employees.find(emp => emp.correo?.toLowerCase() === email.toLowerCase());
+
+    // For this prototype, we'll accept any user with the password "password"
+    if (employee && password === 'password') {
+        return employee;
+    }
+
+    return null;
+}
+
 export async function addUnproductiveHourType(newType: Omit<UnproductiveHourType, 'id'>): Promise<UnproductiveHourType> {
     const types = await getUnproductiveHourTypes();
     if (types.some(t => t.code.toLowerCase() === newType.code.toLowerCase())) {
@@ -566,3 +578,5 @@ export async function deletePermission(permissionId: string): Promise<void> {
 
     await writeData(permissionsFilePath, updatedPermissions);
 }
+
+    

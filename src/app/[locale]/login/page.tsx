@@ -19,23 +19,21 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate API call. For this prototype, any email with 'password' works.
-    setTimeout(() => {
-      if (password === 'password' && email) {
-        login(email);
-      } else {
-        toast({
-          title: t('errorToastTitle'),
-          description: t('errorToastDescription'),
-          variant: "destructive",
-        });
-        setIsLoading(false);
-      }
-    }, 1000);
+    const success = await login(email, password);
+    
+    if (!success) {
+      toast({
+        title: t('errorToastTitle'),
+        description: t('errorToastDescription'),
+        variant: "destructive",
+      });
+      setIsLoading(false);
+    }
+    // On success, the auth context will redirect.
   };
 
   return (

@@ -1,17 +1,16 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-
-interface User {
-  email: string;
-}
+import type { Employee } from '@/types';
+import { authenticateUser } from '@/app/actions';
 
 interface AuthContextType {
-  user: User | null;
+  user: Employee | null;
   isAuthenticated: boolean;
-  login: (email: string) => void;
+  login: (email: string, password?: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
 }
@@ -19,7 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const locale = useLocale();
@@ -38,11 +37,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (email: string) => {
-    const userData = { email };
-    localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
-    router.push(`/${locale}/asistencias`);
+  const login = async (email: string, password?: string): Promise<boolean> => {
+    // For this prototype, the password is 'password' for everyone
+    const employee = await authenticateUser(email, 'password');
+    
+    if (employee) {
+      localStorage.setItem('user', JSON.stringify(employee));
+      setUser(employee);
+
+      // Redirect based on role
+      switch (employee.role) {
+        case 'crew_manager':
+          router.push(`/${locale}/cuadrillas`);
+          break;
+        case 'admin':
+          router.push(`/${locale}/estadisticas`);
+          break;
+        default:
+          router.push(`/${locale}/partes-diarios`);
+          break;
+      }
+      return true;
+    }
+    return false;
   };
 
   const logout = () => {

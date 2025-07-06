@@ -1,36 +1,34 @@
+
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useLocale, useTranslations } from 'next-intl';
+import { usePathname, Link } from 'next-intl/navigation';
+import { useTranslations, useLocale } from 'next-intl';
 import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { useAuth } from '@/context/auth-context';
 
 export function SidebarNavigation() {
-    const fullPathname = usePathname();
-    const locale = useLocale();
+    const pathname = usePathname();
     const t = useTranslations('Sidebar');
-
-    // Manually remove the locale prefix to get the active path
-    const pathname = fullPathname.startsWith(`/${locale}`)
-        ? fullPathname.slice(`/${locale}`.length) || '/'
-        : fullPathname;
+    const { user } = useAuth();
 
     const isActive = (path: string) => {
         if (path === '/') return pathname === path;
         return pathname.startsWith(path);
     };
 
-    const navItems = [
-      { href: "/cuadrillas", icon: Users, translationKey: "crews" },
-      { href: "/empleados", icon: IdCard, translationKey: "employees" },
-      { href: "/asistencias", icon: CalendarClock, translationKey: "attendance" },
-      { href: "/partes-diarios", icon: ClipboardList, translationKey: "dailyReports" },
-      { href: "/obras", icon: Briefcase, translationKey: "projects" },
-      { href: "/estadisticas", icon: BarChart3, translationKey: "statistics" },
-      { href: "/permisos", icon: UserCheck, translationKey: "permissions" },
-      { href: "/ajustes", icon: Settings, translationKey: "settings" },
+    const allNavItems = [
+      { href: "/cuadrillas", icon: Users, translationKey: "crews", roles: ['admin', 'crew_manager'] },
+      { href: "/empleados", icon: IdCard, translationKey: "employees", roles: ['admin'] },
+      { href: "/asistencias", icon: CalendarClock, translationKey: "attendance", roles: ['admin', 'foreman', 'tallyman', 'project_manager', 'management_control'] },
+      { href: "/partes-diarios", icon: ClipboardList, translationKey: "dailyReports", roles: ['admin', 'foreman', 'tallyman', 'project_manager', 'management_control'] },
+      { href: "/obras", icon: Briefcase, translationKey: "projects", roles: ['admin'] },
+      { href: "/estadisticas", icon: BarChart3, translationKey: "statistics", roles: ['admin'] },
+      { href: "/permisos", icon: UserCheck, translationKey: "permissions", roles: ['admin'] },
+      { href: "/ajustes", icon: Settings, translationKey: "settings", roles: ['admin'] },
     ];
+    
+    const navItems = allNavItems.filter(item => user?.role && item.roles.includes(user.role));
 
     return (
         <SidebarMenu className="mt-4 gap-y-2">

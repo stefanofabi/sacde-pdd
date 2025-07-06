@@ -1,4 +1,5 @@
 
+
 export interface Obra {
   id: string;
   identifier: string;
@@ -46,6 +47,7 @@ export type AttendanceData = Record<string, DailyAttendance>;
 
 export type EmployeeCondition = "jornal" | "mensual";
 export type EmployeeStatus = "activo" | "suspendido" | "baja";
+export type EmployeeRole = 'admin' | 'crew_manager' | 'foreman' | 'tallyman' | 'project_manager' | 'management_control' | 'unassigned';
 
 export interface Employee {
   id: string;
@@ -58,6 +60,7 @@ export interface Employee {
   denominacionPosicion: string;
   condicion: EmployeeCondition;
   estado: EmployeeStatus;
+  role: EmployeeRole;
   celular?: string;
   correo?: string;
 }
@@ -118,10 +121,34 @@ export interface LegacyDailyLaborEntry {
 
 export type DailyLaborData = Record<string, (DailyLaborEntry | LegacyDailyLaborEntry)[]>;
 
-export interface DailyLaborNotificationStatus {
-  notified: boolean;
-  notifiedAt: string | null;
+export type ApprovalStatus = 
+  | 'PENDING_FOREMAN'
+  | 'PENDING_CONTROL'
+  | 'PENDING_PM'
+  | 'APPROVED'
+  | 'REJECTED';
+
+export interface ApprovalEvent {
+    status: ApprovalStatus;
+    updatedAt: string;
+    updatedBy: string; // employeeId
+    rejectionReason?: string;
+}
+export interface DailyLaborApproval {
+  status: ApprovalStatus;
+  rejectionReason?: string;
+  history: ApprovalEvent[];
 }
 
-// dateKey -> crewId -> status
-export type DailyLaborNotificationData = Record<string, Record<string, DailyLaborNotificationStatus>>;
+// dateKey -> crewId -> Approval
+export type DailyLaborApprovalData = Record<string, Record<string, DailyLaborApproval>>;
+
+// This is obsolete and will be replaced by the Approval system
+export interface DailyLaborNotificationData {
+  [dateKey: string]: {
+      [crewId: string]: {
+          notified: boolean;
+          notifiedAt: string;
+      };
+  };
+}
