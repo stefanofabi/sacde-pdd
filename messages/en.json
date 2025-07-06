@@ -293,7 +293,17 @@
     "totalProductiveHoursLabel": "Total Productive Hours",
     "tooltipPermissionApplied": "Absence automatically suggested based on an approved permission.",
     "allCrews": "All Crews",
-    "tableHeaderCrew": "Crew"
+    "listView": {
+      "tableHeaderCrew": "Crew",
+      "tableHeaderForeman": "Foreman",
+      "tableHeaderStatus": "Status",
+      "tableHeaderActions": "Actions",
+      "editButton": "View / Edit",
+      "statusNotified": "Notified",
+      "statusPending": "Pending",
+      "statusNotStarted": "Not Started",
+      "noReports": "No reports to show for this project and date."
+    }
   },
   "EmployeesManager": {
     "cardTitle": "Employee List",
