@@ -3,7 +3,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -45,13 +45,23 @@ import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, PlusCircle, CalendarIcon, Search } from "lucide-react";
+import { Loader2, PlusCircle, CalendarIcon, Search, Trash2 } from "lucide-react";
 import type { Permission, Employee, PermissionStatus, AbsenceType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addPermission } from "@/app/actions";
+import { addPermission, deletePermission } from "@/app/actions";
 import { format } from "date-fns";
 import { es, enUS } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface PermissionsManagerProps {
   initialPermissions: Permission[];
@@ -78,6 +88,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     const [formState, setFormState] = useState(emptyForm);
     const [searchTerm, setSearchTerm] = useState("");
     const [activityFilter, setActivityFilter] = useState<"all" | "active" | "inactive">("all");
+    const [permissionToDelete, setPermissionToDelete] = useState<Permission | null>(null);
     const [isPending, startTransition] = useTransition();
 
     const employeeMap = useMemo(() => {
@@ -178,6 +189,29 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
         });
     };
 
+    const handleDeletePermission = () => {
+        if (!permissionToDelete) return;
+
+        startTransition(async () => {
+            try {
+                await deletePermission(permissionToDelete.id);
+                setPermissions(prev => prev.filter(p => p.id !== permissionToDelete.id));
+                toast({
+                    title: t('toast.permissionDeletedTitle'),
+                    description: t('toast.permissionDeletedDescription'),
+                });
+            } catch (error) {
+                toast({
+                    title: t('toast.deleteErrorTitle'),
+                    description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+                    variant: "destructive",
+                });
+            } finally {
+                setPermissionToDelete(null);
+            }
+        });
+    };
+
     const permissionStatusOptions = [
       { value: "APROBADO POR SUPERVISOR", label: t('statusOptions.approvedBySupervisor')},
       { value: "APROBADO POR RRHH", label: t('statusOptions.approvedByHR') },
@@ -233,6 +267,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                     <TableHead>{t('tableHeaderTo')}</TableHead>
                                     <TableHead>{t('tableHeaderStatus')}</TableHead>
                                     <TableHead>{t('tableHeaderObservations')}</TableHead>
+                                    <TableHead className="text-right">{t('tableHeaderActions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -250,11 +285,23 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="max-w-xs truncate" title={perm.observations}>{perm.observations}</TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-destructive hover:bg-destructive/10"
+                                                    onClick={() => setPermissionToDelete(perm)}
+                                                    disabled={isPending}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                    <span className="sr-only">{t('deleteSr', { employeeName: employeeMap.get(perm.employeeId) || "" })}</span>
+                                                </Button>
+                                            </TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="h-24 text-center">
+                                        <TableCell colSpan={7} className="h-24 text-center">
                                             {permissions.length === 0 
                                                 ? t('noPermissionsAdded') 
                                                 : t('noPermissionsWithFilter')
@@ -361,6 +408,32 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={!!permissionToDelete} onOpenChange={(open) => !open && setPermissionToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {t('deleteDialogDescription', { 
+                                employeeName: permissionToDelete ? employeeMap.get(permissionToDelete.employeeId) : '',
+                                reason: permissionToDelete ? absenceTypeMap.get(permissionToDelete.absenceTypeId) : ''
+                            })}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPermissionToDelete(null)} disabled={isPending}>
+                            {t('cancelButton')}
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeletePermission}
+                            disabled={isPending}
+                            className={buttonVariants({ variant: "destructive" })}
+                        >
+                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('deleteDialogConfirmButton')}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }

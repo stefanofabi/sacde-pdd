@@ -539,3 +539,14 @@ export async function addPermission(newPermission: Omit<Permission, 'id'>): Prom
     await writeData(permissionsFilePath, updatedPermissions);
     return permissionWithId;
 }
+
+export async function deletePermission(permissionId: string): Promise<void> {
+    const permissions = await getPermissions();
+    const updatedPermissions = permissions.filter(p => p.id !== permissionId);
+
+    if (updatedPermissions.length === permissions.length) {
+        throw new Error('El permiso a eliminar no fue encontrado.');
+    }
+
+    await writeData(permissionsFilePath, updatedPermissions);
+}

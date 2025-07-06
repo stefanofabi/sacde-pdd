@@ -422,6 +422,7 @@
     "tableHeaderTo": "To",
     "tableHeaderStatus": "Status",
     "tableHeaderObservations": "Observations",
+    "tableHeaderActions": "Actions",
     "employeeNotFound": "Employee not found",
     "noPermissionsAdded": "No permissions added.",
     "noPermissionsWithFilter": "No permissions found with the applied filters.",
@@ -441,6 +442,10 @@
     "observationsPlaceholder": "Add observations...",
     "cancelButton": "Cancel",
     "savePermissionButton": "Save Permission",
+    "deleteSr": "Delete permission for {employeeName}",
+    "deleteDialogTitle": "Are you absolutely sure?",
+    "deleteDialogDescription": "This action cannot be undone. It will permanently delete the permission for \"{employeeName}\" for the reason \"{reason}\".",
+    "deleteDialogConfirmButton": "Yes, delete permission",
     "activityFilters": {
       "all": "All",
       "active": "Active",
@@ -458,7 +463,10 @@
       "permissionAddedTitle": "Permission Added",
       "permissionAddedDescription": "The permission for the employee has been successfully registered.",
       "addErrorTitle": "Error Adding Permission",
-      "unexpectedError": "An unexpected error occurred."
+      "unexpectedError": "An unexpected error occurred.",
+      "permissionDeletedTitle": "Permission Deleted",
+      "permissionDeletedDescription": "The permission has been successfully deleted.",
+      "deleteErrorTitle": "Error Deleting"
     }
   },
   "AbsenceTypesManager": {

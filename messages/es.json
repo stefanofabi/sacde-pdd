@@ -422,6 +422,7 @@
     "tableHeaderTo": "Hasta",
     "tableHeaderStatus": "Estado",
     "tableHeaderObservations": "Observaciones",
+    "tableHeaderActions": "Acciones",
     "employeeNotFound": "Empleado no encontrado",
     "noPermissionsAdded": "No hay permisos cargados.",
     "noPermissionsWithFilter": "No se encontraron permisos con los filtros aplicados.",
@@ -441,6 +442,10 @@
     "observationsPlaceholder": "Añadir observaciones...",
     "cancelButton": "Cancelar",
     "savePermissionButton": "Guardar Permiso",
+    "deleteSr": "Eliminar permiso para {employeeName}",
+    "deleteDialogTitle": "¿Está absolutamente seguro?",
+    "deleteDialogDescription": "Esta acción no se puede deshacer. Se eliminará permanentemente el permiso para \"{employeeName}\" por el motivo \"{reason}\".",
+    "deleteDialogConfirmButton": "Sí, eliminar permiso",
     "activityFilters": {
       "all": "Todos",
       "active": "Activos",
@@ -458,7 +463,10 @@
       "permissionAddedTitle": "Permiso cargado",
       "permissionAddedDescription": "El permiso para el empleado ha sido registrado con éxito.",
       "addErrorTitle": "Error al cargar permiso",
-      "unexpectedError": "Ocurrió un error inesperado."
+      "unexpectedError": "Ocurrió un error inesperado.",
+      "permissionDeletedTitle": "Permiso eliminado",
+      "permissionDeletedDescription": "El permiso ha sido eliminado con éxito.",
+      "deleteErrorTitle": "Error al eliminar"
     }
   },
   "AbsenceTypesManager": {
