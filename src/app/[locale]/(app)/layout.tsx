@@ -1,7 +1,7 @@
 'use client';
 
+import { Link } from 'next-intl/navigation';
 import * as React from 'react';
-import Link from 'next/link';
 
 import {
   SidebarProvider,

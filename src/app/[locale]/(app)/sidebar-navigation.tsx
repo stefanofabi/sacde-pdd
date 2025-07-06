@@ -1,8 +1,6 @@
-
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next-intl/navigation';
+import { Link, usePathname } from 'next-intl/navigation';
 import { useTranslations } from 'next-intl';
 import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
