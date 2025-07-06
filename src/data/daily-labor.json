@@ -86,5 +86,19 @@
       "specialHours": {},
       "manual": true
     }
+  ],
+  "2025-07-06": [
+    {
+      "id": "f6668bc2-1c82-4009-b16c-70745a1bd083",
+      "crewId": "crew-3",
+      "employeeId": "6d9f287b-ee8d-4318-becc-11dca83f0102",
+      "absenceReason": null,
+      "productiveHours": {
+        "5222a0bc-15b2-447b-9553-76d2186c3b4e": 12
+      },
+      "unproductiveHours": {},
+      "specialHours": {},
+      "manual": false
+    }
   ]
 }

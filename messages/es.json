@@ -291,7 +291,9 @@
     "unproductiveHoursModalTitle": "Registrar Horas Improductivas",
     "unproductiveHoursModalDescription": "Registre las horas improductivas para {name} en la fecha {date}.",
     "totalProductiveHoursLabel": "Horas Productivas Totales",
-    "tooltipPermissionApplied": "Ausencia sugerida automáticamente por un permiso aprobado."
+    "tooltipPermissionApplied": "Ausencia sugerida automáticamente por un permiso aprobado.",
+    "allCrews": "Todas las Cuadrillas",
+    "tableHeaderCrew": "Cuadrilla"
   },
   "EmployeesManager": {
     "cardTitle": "Lista de Empleados",

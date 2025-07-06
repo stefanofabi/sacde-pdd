@@ -142,6 +142,7 @@ export default function DailyLaborReport({
   const employeeMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, emp])), [initialEmployees]);
   const obraMap = useMemo(() => new Map(initialObras.map(o => [o.id, o.name])), [initialObras]);
   const phaseMap = useMemo(() => new Map(initialPhases.map(p => [p.id, p])), [initialPhases]);
+  const crewMap = useMemo(() => new Map(initialCrews.map(c => [c.id, c])), [initialCrews]);
 
 
   const obrasWithCrews = useMemo(() => {
@@ -149,10 +150,15 @@ export default function DailyLaborReport({
     return initialObras.filter(obra => obraIdsWithCrews.has(obra.id));
   }, [initialCrews, initialObras]);
   
-  const crewsForSelectedObra = useMemo(() => {
+  const crewOptions = useMemo(() => {
     if (!selectedObraId) return [];
-    return initialCrews.filter(c => c.obraId === selectedObraId);
-  }, [initialCrews, selectedObraId]);
+    const crews = initialCrews.filter(c => c.obraId === selectedObraId);
+    const options = crews.map(c => ({ value: c.id, label: c.name }));
+     if (crews.length > 0) {
+        options.unshift({ value: 'all', label: t('allCrews') });
+    }
+    return options;
+  }, [initialCrews, selectedObraId, t]);
 
   const availableCrewsForMove = useMemo(() => {
     return initialCrews
@@ -164,37 +170,76 @@ export default function DailyLaborReport({
   }, [initialCrews, selectedCrewId, notificationData, formattedDate, obraMap, t]);
 
   const selectedCrew = useMemo(() => {
+    if (selectedCrewId === 'all') return null;
     return initialCrews.find(c => c.id === selectedCrewId);
   }, [initialCrews, selectedCrewId]);
+  
+  const isAllCrewsSelected = selectedCrewId === 'all';
 
-  const personnelForSelectedCrew = useMemo(() => {
-    if (!selectedCrew) return [];
-    return (selectedCrew.employeeIds || []).map(id => employeeMap.get(id)).filter(Boolean) as Employee[];
-  }, [selectedCrew, employeeMap]);
+  const personnelForTable = useMemo(() => {
+    if (!selectedObraId || !selectedCrewId) return [];
+    
+    const crewsInScope = isAllCrewsSelected 
+        ? initialCrews.filter(c => c.obraId === selectedObraId)
+        : (selectedCrew ? [selectedCrew] : []);
 
-  const manuallyAddedPersonnel = useMemo(() => {
+    const personnel = new Map<string, Employee>();
+
+    crewsInScope.forEach(crew => {
+        (crew.employeeIds || []).forEach(empId => {
+            const emp = employeeMap.get(empId);
+            if (emp) personnel.set(emp.id, emp);
+        });
+    });
+
     const dailyEntries = laborData[formattedDate] || [];
-    const manualIdsForCrew = dailyEntries
-      .filter(e => e.crewId === selectedCrewId && 'manual' in e && e.manual)
-      .map(e => e.employeeId);
-    return [...new Set(manualIdsForCrew)].map(id => employeeMap.get(id)).filter(Boolean) as Employee[];
-  }, [laborData, formattedDate, selectedCrewId, employeeMap]);
+    const crewIdsInScope = new Set(crewsInScope.map(c => c.id));
 
-  const allPersonnelForTable = useMemo(() => {
-    const combined = [...personnelForSelectedCrew, ...manuallyAddedPersonnel];
-    const uniqueIds = new Set<string>();
-    return combined.filter(emp => {
-      if (uniqueIds.has(emp.id)) {
-        return false;
-      }
-      uniqueIds.add(emp.id);
-      return true;
-    }).sort((a,b) => a.apellido.localeCompare(b.apellido));
-  }, [personnelForSelectedCrew, manuallyAddedPersonnel]);
+    dailyEntries.forEach(entry => {
+        if (crewIdsInScope.has(entry.crewId) && 'manual' in entry && entry.manual) {
+            const emp = employeeMap.get(entry.employeeId);
+            if (emp) personnel.set(emp.id, emp);
+        }
+    });
+
+    return Array.from(personnel.values()).sort((a,b) => a.apellido.localeCompare(b.apellido));
+  }, [selectedCrewId, selectedObraId, isAllCrewsSelected, selectedCrew, initialCrews, employeeMap, laborData, formattedDate]);
+  
+  const employeeCrewMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!selectedObraId) return map;
+
+    const crewsInScope = isAllCrewsSelected
+        ? initialCrews.filter(c => c.obraId === selectedObraId)
+        : (selectedCrew ? [selectedCrew] : []);
+
+    crewsInScope.forEach(crew => {
+        (crew.employeeIds || []).forEach(empId => {
+            map.set(empId, crew.name);
+        });
+    });
+
+    const dailyEntries = laborData[formattedDate] || [];
+    dailyEntries.forEach(entry => {
+        const crew = crewMap.get(entry.crewId);
+        if (crew && crew.obraId === selectedObraId) {
+            map.set(entry.employeeId, crew.name);
+        }
+    });
+
+    return map;
+}, [selectedObraId, initialCrews, laborData, formattedDate, isAllCrewsSelected, selectedCrew, crewMap]);
+
 
   const availableEmployeesForManualAdd = useMemo(() => {
-    const crewMemberIds = new Set(selectedCrew?.employeeIds || []);
-    const manuallyAddedIds = new Set(manuallyAddedPersonnel.map(e => e.id));
+    if (isAllCrewsSelected || !selectedCrew) return [];
+
+    const crewMemberIds = new Set(selectedCrew.employeeIds || []);
+    const manuallyAddedIds = new Set(
+        (laborData[formattedDate] || [])
+            .filter(e => e.crewId === selectedCrewId && 'manual' in e && e.manual)
+            .map(e => e.employeeId)
+    );
 
     return initialEmployees
       .filter(emp => 
@@ -204,23 +249,34 @@ export default function DailyLaborReport({
         !manuallyAddedIds.has(emp.id)
       )
       .map(emp => ({ value: emp.id, label: `${emp.apellido}, ${emp.nombre} (L: ${emp.legajo})` }));
-  }, [initialEmployees, selectedCrew, manuallyAddedPersonnel]);
+  }, [initialEmployees, selectedCrew, laborData, formattedDate, isAllCrewsSelected, selectedCrewId]);
 
   const activePhases = useMemo(() => {
-    if (!selectedCrew || !selectedDate) return [];
+    if (!selectedDate) return [];
     const date = new Date(selectedDate);
     date.setUTCHours(0,0,0,0);
     
-    return (selectedCrew.assignedPhases || [])
-        .filter(p => {
+    const relevantCrews = isAllCrewsSelected
+        ? initialCrews.filter(c => c.obraId === selectedObraId)
+        : (selectedCrew ? [selectedCrew] : []);
+    
+    const allPhaseIds = new Set<string>();
+
+    relevantCrews.forEach(crew => {
+        (crew.assignedPhases || []).forEach(p => {
             const startDate = new Date(p.startDate);
             const endDate = new Date(p.endDate);
-            return date >= startDate && date <= endDate;
-        })
-        .map(p => phaseMap.get(p.phaseId))
+            if (date >= startDate && date <= endDate) {
+                allPhaseIds.add(p.phaseId);
+            }
+        });
+    });
+    
+    return Array.from(allPhaseIds)
+        .map(pId => phaseMap.get(pId))
         .filter((p): p is Phase => !!p)
         .sort((a, b) => a.name.localeCompare(b.name));
-  }, [selectedCrew, selectedDate, phaseMap]);
+  }, [selectedCrew, selectedCrewId, selectedObraId, selectedDate, phaseMap, initialCrews, isAllCrewsSelected]);
 
   const permissionsForDate = useMemo(() => {
     if (!formattedDate || !initialPermissions) return new Map<string, string>();
@@ -243,62 +299,67 @@ export default function DailyLaborReport({
 
 
   const { isNotified, notifiedAt } = useMemo(() => {
+    if (isAllCrewsSelected || !selectedCrewId) return { isNotified: false, notifiedAt: null };
     const status = notificationData[formattedDate]?.[selectedCrewId];
     return {
       isNotified: status?.notified || false,
       notifiedAt: status?.notifiedAt ? format(new Date(status.notifiedAt), 'Pp', { locale: dateLocale }) : null,
     }
-  }, [notificationData, formattedDate, selectedCrewId, dateLocale]);
+  }, [notificationData, formattedDate, selectedCrewId, dateLocale, isAllCrewsSelected]);
   
   useEffect(() => {
-    if (formattedDate && selectedCrewId && allPersonnelForTable.length > 0) {
-      const dailyEntries = laborData[formattedDate] || [];
-      const crewEntries = dailyEntries.filter(entry => entry.crewId === selectedCrewId);
-      
-      const newLaborEntries: Record<string, LaborEntryState> = {};
-      
-      allPersonnelForTable.forEach(emp => {
-          const entriesForEmp = crewEntries.filter(e => e.employeeId === emp.id);
-          const initialEntryState: LaborEntryState = {
-              productiveHours: {},
-              unproductiveHours: {},
-              absenceReason: null,
-              specialHours: {},
-          };
+    if (formattedDate && selectedCrewId && personnelForTable.length > 0) {
+        const dailyEntries = laborData[formattedDate] || [];
+        const crewIdsInScope = isAllCrewsSelected
+            ? new Set(initialCrews.filter(c => c.obraId === selectedObraId).map(c => c.id))
+            : new Set([selectedCrewId]);
 
-          if (entriesForEmp.length > 0) {
-              const firstEntry = entriesForEmp[0];
-              if ('productiveHours' in firstEntry && firstEntry.productiveHours) {
-                  const entry = firstEntry as DailyLaborEntry;
-                  initialEntryState.productiveHours = entry.productiveHours;
-                  initialEntryState.unproductiveHours = entry.unproductiveHours;
-                  initialEntryState.specialHours = entry.specialHours;
-                  initialEntryState.absenceReason = entry.absenceReason;
-              } else { 
-                  const legacyEntries = entriesForEmp as LegacyDailyLaborEntry[];
-                  legacyEntries.forEach(e => {
-                      if (e.phaseId && e.hours) {
-                          initialEntryState.productiveHours[e.phaseId] = e.hours;
-                      }
-                      if (e.absenceReason) {
-                          initialEntryState.absenceReason = e.absenceReason;
-                      }
-                  });
-                  initialEntryState.specialHours = firstEntry.specialHours ?? {};
-              }
-          } else {
-            const permissionAbsenceId = permissionsForDate.get(emp.id);
-            if (permissionAbsenceId) {
-              initialEntryState.absenceReason = permissionAbsenceId;
+        const crewEntries = dailyEntries.filter(entry => crewIdsInScope.has(entry.crewId));
+
+        const newLaborEntries: Record<string, LaborEntryState> = {};
+
+        personnelForTable.forEach(emp => {
+            const entriesForEmp = crewEntries.filter(e => e.employeeId === emp.id);
+            const initialEntryState: LaborEntryState = {
+                productiveHours: {},
+                unproductiveHours: {},
+                absenceReason: null,
+                specialHours: {},
+            };
+
+            if (entriesForEmp.length > 0) {
+                const firstEntry = entriesForEmp[0];
+                if ('productiveHours' in firstEntry && firstEntry.productiveHours) {
+                    const entry = firstEntry as DailyLaborEntry;
+                    initialEntryState.productiveHours = entry.productiveHours;
+                    initialEntryState.unproductiveHours = entry.unproductiveHours;
+                    initialEntryState.specialHours = entry.specialHours;
+                    initialEntryState.absenceReason = entry.absenceReason;
+                } else {
+                    const legacyEntries = entriesForEmp as LegacyDailyLaborEntry[];
+                    legacyEntries.forEach(e => {
+                        if (e.phaseId && e.hours) {
+                            initialEntryState.productiveHours[e.phaseId] = e.hours;
+                        }
+                        if (e.absenceReason) {
+                            initialEntryState.absenceReason = e.absenceReason;
+                        }
+                    });
+                    initialEntryState.specialHours = firstEntry.specialHours ?? {};
+                }
+            } else {
+                const permissionAbsenceId = permissionsForDate.get(emp.id);
+                if (permissionAbsenceId) {
+                    initialEntryState.absenceReason = permissionAbsenceId;
+                }
             }
-          }
-          newLaborEntries[emp.id] = initialEntryState;
-      });
-      setLaborEntries(newLaborEntries);
+            newLaborEntries[emp.id] = initialEntryState;
+        });
+        setLaborEntries(newLaborEntries);
     } else {
-      setLaborEntries({});
+        setLaborEntries({});
     }
-  }, [formattedDate, selectedCrewId, laborData, allPersonnelForTable, permissionsForDate]);
+}, [formattedDate, selectedCrewId, selectedObraId, laborData, personnelForTable, isAllCrewsSelected, initialCrews, permissionsForDate]);
 
   const handleAbsenceChange = (
       employeeId: string, 
@@ -349,7 +410,7 @@ export default function DailyLaborReport({
   }
 
   const handleSave = () => {
-    if (!formattedDate || !selectedCrewId) {
+    if (!formattedDate || !selectedCrewId || isAllCrewsSelected) {
       toast({
         title: t('toast.selectionRequiredTitle'),
         description: t('toast.selectionRequiredDescription'),
@@ -360,7 +421,7 @@ export default function DailyLaborReport({
 
     const payloadToSave: Omit<DailyLaborEntry, 'id' | 'crewId'>[] = [];
     
-    allPersonnelForTable.forEach(emp => {
+    personnelForTable.forEach(emp => {
       const stateEntry = laborEntries[emp.id];
       if (!stateEntry) return;
 
@@ -410,7 +471,7 @@ export default function DailyLaborReport({
   };
 
   const handleNotify = () => {
-    if (!formattedDate || !selectedCrewId) return;
+    if (!formattedDate || !selectedCrewId || isAllCrewsSelected) return;
 
     startTransition(async () => {
         try {
@@ -441,7 +502,7 @@ export default function DailyLaborReport({
   };
 
   const handleOpenNotifyDialog = () => {
-    if (!selectedCrewId || !allPersonnelForTable) {
+    if (!selectedCrewId || isAllCrewsSelected || !personnelForTable) {
         toast({
             title: t('toast.error'),
             description: t('toast.selectCrewToNotify'),
@@ -450,7 +511,7 @@ export default function DailyLaborReport({
         return;
     }
 
-    const personnelWithoutNovelty = allPersonnelForTable.filter(emp => {
+    const personnelWithoutNovelty = personnelForTable.filter(emp => {
         const entry = laborEntries[emp.id];
         if (!entry) return true;
         const totalProductive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
@@ -460,7 +521,7 @@ export default function DailyLaborReport({
         return !hasHours && !hasAbsence;
     });
     
-    const personnelWithHoursAndNoPhase = allPersonnelForTable.filter(emp => {
+    const personnelWithHoursAndNoPhase = personnelForTable.filter(emp => {
       const entry = laborEntries[emp.id];
       if (!entry) return false;
       const totalProductive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
@@ -502,7 +563,7 @@ export default function DailyLaborReport({
   };
 
   const handleMoveEmployee = () => {
-    if (!employeeToMove || !destinationCrewId || !selectedCrewId || !formattedDate) return;
+    if (!employeeToMove || !destinationCrewId || !selectedCrewId || !formattedDate || isAllCrewsSelected) return;
     
     startTransition(async () => {
         try {
@@ -531,7 +592,7 @@ export default function DailyLaborReport({
 };
 
   const handleAddManualEmployee = () => {
-    if (employeeToAdd) {
+    if (employeeToAdd && selectedCrewId && !isAllCrewsSelected) {
         startTransition(async () => {
             const newEntry: DailyLaborEntry = {
                 id: crypto.randomUUID(),
@@ -555,6 +616,7 @@ export default function DailyLaborReport({
   };
 
   const handleRemoveManualEmployee = (employeeId: string) => {
+    if (isAllCrewsSelected) return;
     startTransition(async () => {
        const updatedEntries = (laborData[formattedDate] || []).filter(e => !(e.crewId === selectedCrewId && e.employeeId === employeeId));
        const newLaborData = { ...laborData, [formattedDate]: updatedEntries };
@@ -680,7 +742,7 @@ export default function DailyLaborReport({
         <div className="flex flex-wrap items-center gap-4">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[280px] justify-start text-left font-normal">
+              <Button variant="outline" className="w-full sm:w-[280px] justify-start text-left font-normal">
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 {displayDate}
               </Button>
@@ -702,7 +764,7 @@ export default function DailyLaborReport({
           </Select>
 
           <Combobox
-            options={crewsForSelectedObra.map(c => ({ value: c.id, label: c.name }))}
+            options={crewOptions}
             value={selectedCrewId}
             onValueChange={setSelectedCrewId}
             placeholder={t('selectCrewPlaceholder')}
@@ -746,13 +808,14 @@ export default function DailyLaborReport({
               </div>
             )}
 
-            <fieldset disabled={isNotified}>
+            <fieldset disabled={isNotified || isAllCrewsSelected}>
                 <div className="relative w-full overflow-auto">
                 <Table>
                     <TableHeader>
                     <TableRow>
                         <TableHead className="sticky left-0 bg-background z-10">{t('tableHeaderLegajo')}</TableHead>
                         <TableHead className="sticky left-[70px] bg-background z-10 min-w-[200px]">{t('tableHeaderName')}</TableHead>
+                        {isAllCrewsSelected && <TableHead>{t('tableHeaderCrew')}</TableHead>}
                         <TableHead className="w-[220px]">{t('tableHeaderAbsence')}</TableHead>
                         {activePhases.map(phase => (
                             <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
@@ -764,8 +827,8 @@ export default function DailyLaborReport({
                     </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {allPersonnelForTable.length > 0 ? (
-                        allPersonnelForTable.map(emp => {
+                    {personnelForTable.length > 0 ? (
+                        personnelForTable.map(emp => {
                         const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
                         const hasAbsence = !!entry.absenceReason;
                         
@@ -784,17 +847,18 @@ export default function DailyLaborReport({
                         const permissionAbsenceId = permissionsForDate.get(emp.id);
                         const isAbsenceFromPermission = !!permissionAbsenceId && entry.absenceReason === permissionAbsenceId;
 
+                        const crewName = isAllCrewsSelected ? (employeeCrewMap.get(emp.id) || 'N/A') : '';
 
                         return (
                         <TableRow key={emp.id} className={cn(
-                            isManual ? "bg-accent/50" : "",
+                            !isAllCrewsSelected && isManual ? "bg-accent/50" : "",
                             hasOvertimeWarning ? "bg-destructive/10" : ""
                         )}>
                             <TableCell className="font-mono sticky left-0 bg-background z-10">{emp.legajo}</TableCell>
                             <TableCell className="font-medium sticky left-[70px] bg-background z-10">
                               <div className="flex items-center gap-2">
                                   {`${emp.apellido}, ${emp.nombre}`}
-                                  {isManual && (
+                                  {!isAllCrewsSelected && isManual && (
                                   <Tooltip>
                                       <TooltipTrigger>
                                       <UserPlus className="h-4 w-4 text-primary" />
@@ -816,6 +880,7 @@ export default function DailyLaborReport({
                                   )}
                               </div>
                             </TableCell>
+                            {isAllCrewsSelected && <TableCell>{crewName}</TableCell>}
                              <TableCell>
                                 <div className="flex items-center gap-2">
                                   <Select
@@ -946,7 +1011,7 @@ export default function DailyLaborReport({
                         )})
                     ) : (
                         <TableRow>
-                        <TableCell colSpan={8 + activePhases.length} className="h-24 text-center">
+                        <TableCell colSpan={9 + activePhases.length + (isAllCrewsSelected ? 1 : 0)} className="h-24 text-center">
                             {t('noPersonnelAssigned')}
                         </TableCell>
                         </TableRow>

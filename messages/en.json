@@ -291,7 +291,9 @@
     "unproductiveHoursModalTitle": "Log Unproductive Hours",
     "unproductiveHoursModalDescription": "Log unproductive hours for {name} on {date}.",
     "totalProductiveHoursLabel": "Total Productive Hours",
-    "tooltipPermissionApplied": "Absence automatically suggested based on an approved permission."
+    "tooltipPermissionApplied": "Absence automatically suggested based on an approved permission.",
+    "allCrews": "All Crews",
+    "tableHeaderCrew": "Crew"
   },
   "EmployeesManager": {
     "cardTitle": "Employee List",

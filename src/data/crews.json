@@ -45,7 +45,16 @@
     "apuntadorId": "emp-002",
     "jefeDeObraId": "emp-003",
     "controlGestionId": "emp-004",
-    "employeeIds": [],
-    "assignedPhases": []
+    "employeeIds": [
+      "6d9f287b-ee8d-4318-becc-11dca83f0102"
+    ],
+    "assignedPhases": [
+      {
+        "id": "db0ca356-0a41-49ff-b8ad-0a57b25dfc9a",
+        "phaseId": "5222a0bc-15b2-447b-9553-76d2186c3b4e",
+        "startDate": "2025-07-01",
+        "endDate": "2025-07-31"
+      }
+    ]
   }
 ]
