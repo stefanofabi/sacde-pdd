@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Link } from 'next-intl/navigation';
+import Link from 'next/link';
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import {
