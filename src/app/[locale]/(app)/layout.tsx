@@ -46,7 +46,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar>
         <SidebarHeader>
           <div className="flex h-16 items-center justify-center px-4">
-             <Link href="/" className="w-full group-data-[collapsible=icon]:hidden">
+             <Link href={`/${locale}/`} className="w-full group-data-[collapsible=icon]:hidden">
                 <div 
                     data-ai-hint="logo company"
                     className="w-[180px] h-[45px] bg-muted rounded flex items-center justify-center text-muted-foreground"
@@ -54,7 +54,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     Logo
                 </div>
              </Link>
-             <Link href="/" className="hidden h-10 w-10 items-center justify-center group-data-[collapsible=icon]:flex">
+             <Link href={`/${locale}/`} className="hidden h-10 w-10 items-center justify-center group-data-[collapsible=icon]:flex">
                  <div 
                     data-ai-hint="logo company"
                     className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground text-xs"
@@ -69,7 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </SidebarContent>
         <SidebarFooter className="flex-col gap-2 p-2">
             <div className="text-center text-xs text-sidebar-foreground/70 mb-2 group-data-[collapsible=icon]:hidden">
-              {user?.email}
+              {user?.correo}
             </div>
             <Button variant="ghost" onClick={logout} className="w-full justify-start gap-2">
               <LogOut />

@@ -1,3 +1,4 @@
+
 [
   {
     "id": "6d9f287b-ee8d-4318-becc-11dca83f0102",
@@ -10,7 +11,6 @@
     "denominacionPosicion": "Admin",
     "condicion": "mensual",
     "estado": "activo",
-    "role": "admin",
     "celular": "5492995302372",
     "correo": "sfabi@sacde.com.ar"
   },
@@ -24,7 +24,6 @@
     "denominacionPosicion": "Capataz",
     "condicion": "mensual",
     "estado": "activo",
-    "role": "foreman",
     "cuil": "",
     "celular": "",
     "correo": "foreman@sacde.com.ar"
@@ -36,13 +35,12 @@
     "nombre": "Ayelen",
     "fechaIngreso": "2022-05-20",
     "obraId": "obra-2",
-    "denominacionPosicion": "Apuntador",
+    "denominacionPosicion": "Adm. Cuadrillas",
     "condicion": "jornal",
     "estado": "activo",
-    "role": "crew_manager",
     "cuil": "",
     "celular": "",
-    "correo": "tallyman@sacde.com.ar"
+    "correo": "crew_manager@sacde.com.ar"
   },
   {
     "id": "emp-003",
@@ -54,7 +52,6 @@
     "denominacionPosicion": "Jefe de Obra",
     "condicion": "mensual",
     "estado": "activo",
-    "role": "project_manager",
     "cuil": "",
     "celular": "",
     "correo": "project_manager@sacde.com.ar"
@@ -69,7 +66,6 @@
     "denominacionPosicion": "Control y Gestion",
     "condicion": "mensual",
     "estado": "activo",
-    "role": "management_control",
     "cuil": "",
     "celular": "",
     "correo": "management_control@sacde.com.ar"
@@ -82,11 +78,10 @@
     "nombre": "Mario",
     "fechaIngreso": "2025-07-01",
     "obraId": "b2dc6f78-c20f-40b1-803c-006dd471424b",
-    "denominacionPosicion": "Adm. Cuadrillas",
+    "denominacionPosicion": "Recursos Humanos",
     "condicion": "mensual",
     "estado": "activo",
-    "role": "recursos_humanos",
     "celular": "",
-    "correo": "crew_manager@sacde.com.ar"
+    "correo": "hr@sacde.com.ar"
   }
 ]

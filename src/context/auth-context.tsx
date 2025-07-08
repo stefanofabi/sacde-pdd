@@ -4,11 +4,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from 'next-intl';
-import type { Employee } from '@/types';
+import type { Employee, User } from '@/types';
 import { authenticateUser } from '@/app/actions';
 
+type AuthenticatedUser = Employee & { role: User['role'] };
+
 interface AuthContextType {
-  user: Employee | null;
+  user: AuthenticatedUser | null;
   isAuthenticated: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
   logout: () => void;
@@ -18,7 +20,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Employee | null>(null);
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const locale = useLocale();
@@ -38,15 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
-    // For this prototype, the password is 'password' for everyone
-    const employee = await authenticateUser(email, 'password');
+    const authenticatedUser = await authenticateUser(email, 'password');
     
-    if (employee) {
-      localStorage.setItem('user', JSON.stringify(employee));
-      setUser(employee);
+    if (authenticatedUser) {
+      localStorage.setItem('user', JSON.stringify(authenticatedUser));
+      setUser(authenticatedUser);
 
-      // Redirect based on role
-      switch (employee.role) {
+      switch (authenticatedUser.role) {
         case 'crew_manager':
           router.push(`/${locale}/cuadrillas`);
           break;

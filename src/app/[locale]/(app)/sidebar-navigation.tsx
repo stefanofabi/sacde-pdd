@@ -2,14 +2,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname as useNextPathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3, UserCog } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/auth-context';
 
 export function SidebarNavigation() {
-    const nextPathname = useNextPathname();
+    const nextPathname = usePathname();
     const locale = useLocale();
     
     // Remove locale prefix from pathname to get the base path
@@ -45,7 +45,7 @@ export function SidebarNavigation() {
         <SidebarMenu className="mt-4 gap-y-2">
             {navItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href}>
+                <Link href={`/${locale}${item.href}`}>
                   <SidebarMenuButton isActive={isActive(item.href)}>
                     <item.icon />
                     {t(item.translationKey)}

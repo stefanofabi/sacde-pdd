@@ -3,10 +3,11 @@
 
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType, User } from '@/types';
 import { format, subDays } from 'date-fns';
 
 const dataDir = path.join(process.cwd(), 'src', 'data');
+const usersFilePath = path.join(dataDir, 'users.json');
 const crewsFilePath = path.join(dataDir, 'crews.json');
 const attendanceFilePath = path.join(dataDir, 'attendance.json');
 const obrasFilePath = path.join(dataDir, 'obras.json');
@@ -26,7 +27,7 @@ async function readData<T>(filePath: string): Promise<T> {
     return JSON.parse(data);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types') || filePath.includes('phases') || filePath.includes('special-hour-types') || filePath.includes('unproductive-hour-types')) return [] as T;
+      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types') || filePath.includes('phases') || filePath.includes('special-hour-types') || filePath.includes('unproductive-hour-types') || filePath.includes('users')) return [] as T;
       if (filePath.includes('attendance') || filePath.includes('daily-labor') || filePath.includes('daily-labor-notifications')) return {} as T;
     }
     console.error(`Error reading file ${filePath}:`, error);
@@ -41,6 +42,10 @@ async function writeData<T>(filePath: string, data: T): Promise<void> {
     console.error(`Error writing file ${filePath}:`, error);
     throw new Error('Could not write data file.');
   }
+}
+
+export async function getUsers(): Promise<User[]> {
+  return readData<User[]>(usersFilePath);
 }
 
 export async function getCrews(): Promise<Crew[]> {
@@ -87,13 +92,16 @@ export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]
     return readData<UnproductiveHourType[]>(unproductiveHourTypesFilePath);
 }
 
-export async function authenticateUser(email: string, password?: string): Promise<Employee | null> {
-    const employees = await getEmployees();
-    const employee = employees.find(emp => emp.correo?.toLowerCase() === email.toLowerCase());
+export async function authenticateUser(email: string, password?: string): Promise<(Employee & { role: User['role'] }) | null> {
+    const users = await getUsers();
+    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
-    // For this prototype, we'll accept any user with the password "password"
-    if (employee && password === 'password') {
-        return employee;
+    if (user && password === 'password') {
+        const employees = await getEmployees();
+        const employee = employees.find(emp => emp.id === user.employeeId);
+        if (employee) {
+            return { ...employee, role: user.role };
+        }
     }
 
     return null;
@@ -348,9 +356,6 @@ export async function addEmployee(newEmployee: Omit<Employee, 'id'>): Promise<Em
     if (employees.some(emp => emp.legajo === newEmployee.legajo)) {
         throw new Error('Ya existe un empleado con el mismo legajo.');
     }
-    if (newEmployee.correo && employees.some(emp => emp.correo?.toLowerCase() === newEmployee.correo?.toLowerCase())) {
-        throw new Error('Ya existe un empleado con este correo electrónico.');
-    }
     const employeeWithId = { ...newEmployee, id: crypto.randomUUID() };
     const updatedEmployees = [...employees, employeeWithId];
     await writeData(employeesFilePath, updatedEmployees);
@@ -370,12 +375,6 @@ export async function updateEmployee(employeeId: string, updatedData: Partial<Om
             throw new Error('Ya existe otro empleado con el mismo legajo.');
         }
     }
-    
-    if (updatedData.correo && updatedData.correo !== employees[employeeIndex].correo) {
-        if (employees.some(emp => emp.correo?.toLowerCase() === updatedData.correo?.toLowerCase() && emp.id !== employeeId)) {
-            throw new Error('Ya existe un empleado con este correo electrónico.');
-        }
-    }
 
     const updatedEmployee = { ...employees[employeeIndex], ...updatedData };
     const updatedEmployees = [...employees];
@@ -384,7 +383,6 @@ export async function updateEmployee(employeeId: string, updatedData: Partial<Om
     await writeData(employeesFilePath, updatedEmployees);
     return updatedEmployee;
 }
-
 
 export async function deleteCrew(crewId: string): Promise<void> {
     const crews = await getCrews();
@@ -415,7 +413,6 @@ export async function deleteEmployee(employeeId: string): Promise<void> {
     
     await writeData(employeesFilePath, updatedEmployees);
 }
-
 
 export async function addObra(newObra: Omit<Obra, 'id'>): Promise<Obra> {
     const obras = await getObras();
@@ -588,4 +585,33 @@ export async function deletePermission(permissionId: string): Promise<void> {
     await writeData(permissionsFilePath, updatedPermissions);
 }
 
+export async function addUser(newUser: Omit<User, 'id'>): Promise<User> {
+    const users = await getUsers();
+    if (users.some(u => u.email.toLowerCase() === newUser.email.toLowerCase())) {
+        throw new Error('Ya existe un usuario con este correo electrónico.');
+    }
+    const userWithId = { ...newUser, id: crypto.randomUUID() };
+    const updatedUsers = [...users, userWithId];
+    await writeData(usersFilePath, updatedUsers);
+    return userWithId;
+}
+
+export async function updateUser(userId: string, updatedData: Partial<Omit<User, 'id'>>): Promise<User> {
+    const users = await getUsers();
+    const userIndex = users.findIndex(u => u.id === userId);
+
+    if (userIndex === -1) {
+        throw new Error('El usuario a actualizar no fue encontrado.');
+    }
     
+    if (updatedData.email && users.some(u => u.email.toLowerCase() === updatedData.email!.toLowerCase() && u.id !== userId)) {
+        throw new Error('Ya existe otro usuario con este correo electrónico.');
+    }
+
+    const updatedUser = { ...users[userIndex], ...updatedData };
+    const updatedUsers = [...users];
+    updatedUsers[userIndex] = updatedUser;
+
+    await writeData(usersFilePath, updatedUsers);
+    return updatedUser;
+}

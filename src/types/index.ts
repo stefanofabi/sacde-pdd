@@ -1,4 +1,10 @@
 
+export interface User {
+  id: string;
+  email: string;
+  role: EmployeeRole;
+  employeeId: string;
+}
 
 export interface Obra {
   id: string;
@@ -60,7 +66,6 @@ export interface Employee {
   denominacionPosicion: string;
   condicion: EmployeeCondition;
   estado: EmployeeStatus;
-  role: EmployeeRole;
   celular?: string;
   correo?: string;
 }
