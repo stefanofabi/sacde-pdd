@@ -12,6 +12,10 @@
     "title": "Gestión de Empleados",
     "description": "Añada, vea y gestione los empleados de Sacde."
   },
+  "UsuariosPage": {
+    "title": "Gestión de Usuarios",
+    "description": "Modifique los roles y datos de los usuarios del sistema."
+  },
   "ObrasPage": {
     "title": "Gestión de Obras",
     "description": "Añada, vea y gestione las obras de Sacde."
@@ -59,6 +63,7 @@
   "Sidebar": {
     "crews": "Cuadrillas",
     "employees": "Empleados",
+    "users": "Usuarios",
     "attendance": "Asistencias",
     "dailyReports": "Partes Diarios",
     "projects": "Obras",
@@ -215,6 +220,40 @@
     "removePhaseSr": "Quitar fase {name}",
     "phaseDateValidation": "La fecha de fin no puede ser anterior a la de inicio.",
     "selectDatePlaceholder": "Seleccione una fecha"
+  },
+  "UsersManager": {
+    "cardTitle": "Lista de Usuarios",
+    "cardDescription": "Busque usuarios y gestione sus roles y permisos.",
+    "searchPlaceholder": "Buscar por nombre o email...",
+    "tableHeaderName": "Nombre y Apellido",
+    "tableHeaderEmail": "Email",
+    "tableHeaderRole": "Rol",
+    "tableHeaderActions": "Acciones",
+    "editSr": "Editar {name}",
+    "noUsersFound": "No se encontraron usuarios.",
+    "noUsersWithFilter": "No se encontraron usuarios con el filtro aplicado.",
+    "editUserDialogTitle": "Editar Usuario",
+    "editUserDialogDescription": "Modifique el rol y los datos personales del usuario.",
+    "personalInfoTitle": "Información del Usuario",
+    "roleLabel": "Rol del Sistema",
+    "selectRolePlaceholder": "Seleccionar un rol",
+    "cancelButton": "Cancelar",
+    "saveChangesButton": "Guardar Cambios",
+    "toast": {
+      "userUpdatedTitle": "Usuario Actualizado",
+      "userUpdatedDescription": "El usuario \"{name}\" ha sido actualizado.",
+      "updateErrorTitle": "Error al Actualizar",
+      "unexpectedError": "Ocurrió un error inesperado."
+    },
+    "roles": {
+      "admin": "Administrador",
+      "crew_manager": "Administrador de Cuadrillas",
+      "foreman": "Capataz",
+      "tallyman": "Apuntador",
+      "project_manager": "Jefe de Obra",
+      "management_control": "Control y Gestión",
+      "unassigned": "Sin Asignar"
+    }
   },
   "DailyLaborReport": {
     "cardTitle": "Carga de Horas por Empleado",

@@ -12,6 +12,10 @@
     "title": "Employee Management",
     "description": "Add, view, and manage Sacde employees."
   },
+  "UsuariosPage": {
+    "title": "User Management",
+    "description": "Modify user roles and system data."
+  },
   "ObrasPage": {
     "title": "Project Management",
     "description": "Add, view, and manage Sacde projects."
@@ -59,6 +63,7 @@
   "Sidebar": {
     "crews": "Crews",
     "employees": "Employees",
+    "users": "Users",
     "attendance": "Attendance",
     "dailyReports": "Daily Reports",
     "projects": "Projects",
@@ -215,6 +220,40 @@
     "removePhaseSr": "Remove phase {name}",
     "phaseDateValidation": "End date cannot be earlier than start date.",
     "selectDatePlaceholder": "Select a date"
+  },
+  "UsersManager": {
+    "cardTitle": "User List",
+    "cardDescription": "Search for users and manage their roles and permissions.",
+    "searchPlaceholder": "Search by name or email...",
+    "tableHeaderName": "Full Name",
+    "tableHeaderEmail": "Email",
+    "tableHeaderRole": "Role",
+    "tableHeaderActions": "Actions",
+    "editSr": "Edit {name}",
+    "noUsersFound": "No users found.",
+    "noUsersWithFilter": "No users found with the applied filter.",
+    "editUserDialogTitle": "Edit User",
+    "editUserDialogDescription": "Modify the user's role and personal data.",
+    "personalInfoTitle": "User Information",
+    "roleLabel": "System Role",
+    "selectRolePlaceholder": "Select a role",
+    "cancelButton": "Cancel",
+    "saveChangesButton": "Save Changes",
+    "toast": {
+      "userUpdatedTitle": "User Updated",
+      "userUpdatedDescription": "User \"{name}\" has been updated.",
+      "updateErrorTitle": "Error Updating",
+      "unexpectedError": "An unexpected error occurred."
+    },
+    "roles": {
+      "admin": "Administrator",
+      "crew_manager": "Crew Manager",
+      "foreman": "Foreman",
+      "tallyman": "Tallyman",
+      "project_manager": "Project Manager",
+      "management_control": "Management & Control",
+      "unassigned": "Unassigned"
+    }
   },
   "DailyLaborReport": {
     "cardTitle": "Employee Hour Logging",

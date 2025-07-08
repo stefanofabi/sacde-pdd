@@ -1,0 +1,249 @@
+
+"use client";
+
+import { useState, useTransition, useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Search, Pencil } from "lucide-react";
+import type { Employee, EmployeeRole } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { updateEmployee } from "@/app/actions";
+import { Separator } from "@/components/ui/separator";
+
+interface UsersManagerProps {
+  initialUsers: Employee[];
+}
+
+export default function UsersManager({ initialUsers }: UsersManagerProps) {
+  const t = useTranslations('UsersManager');
+  const { toast } = useToast();
+  
+  const [users, setUsers] = useState<Employee[]>(initialUsers);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<Employee | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [formState, setFormState] = useState<Partial<Employee>>({});
+  const [isPending, startTransition] = useTransition();
+
+  const filteredUsers = useMemo(() => {
+    const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
+    if (!lowerCaseSearchTerm) {
+      return users;
+    }
+    return users.filter((user) => {
+      const fullName = `${user.nombre} ${user.apellido}`.toLowerCase();
+      const email = (user.correo || '').toLowerCase();
+      return fullName.includes(lowerCaseSearchTerm) || email.includes(lowerCaseSearchTerm);
+    });
+  }, [users, searchTerm]);
+
+  const handleOpenEditDialog = (user: Employee) => {
+    setEditingUser(user);
+    setFormState({
+      apellido: user.apellido,
+      nombre: user.nombre,
+      role: user.role,
+    });
+    setIsFormDialogOpen(true);
+  };
+
+  const handleSaveUser = () => {
+    if (!editingUser) return;
+
+    startTransition(async () => {
+      try {
+        const updatedUser = await updateEmployee(editingUser.id, formState);
+        setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+        toast({
+          title: t('toast.userUpdatedTitle'),
+          description: t('toast.userUpdatedDescription', { name: `${updatedUser.nombre} ${updatedUser.apellido}` }),
+        });
+        setIsFormDialogOpen(false);
+        setEditingUser(null);
+      } catch (error) {
+        toast({
+          title: t('toast.updateErrorTitle'),
+          description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+          variant: "destructive",
+        });
+      }
+    });
+  };
+
+  const roleOptions: { value: EmployeeRole; label: string }[] = [
+    { value: 'admin', label: t('roles.admin') },
+    { value: 'crew_manager', label: t('roles.crew_manager') },
+    { value: 'foreman', label: t('roles.foreman') },
+    { value: 'tallyman', label: t('roles.tallyman') },
+    { value: 'project_manager', label: t('roles.project_manager') },
+    { value: 'management_control', label: t('roles.management_control') },
+    { value: 'unassigned', label: t('roles.unassigned') },
+  ];
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <CardTitle>{t('cardTitle')}</CardTitle>
+              <CardDescription>{t('cardDescription')}</CardDescription>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={t('searchPlaceholder')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full sm:w-[250px]"
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('tableHeaderName')}</TableHead>
+                  <TableHead>{t('tableHeaderEmail')}</TableHead>
+                  <TableHead>{t('tableHeaderRole')}</TableHead>
+                  <TableHead className="text-right w-[120px]">{t('tableHeaderActions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.length > 0 ? (
+                  filteredUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{`${user.apellido}, ${user.nombre}`}</TableCell>
+                      <TableCell>{user.correo || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{roleOptions.find(r => r.value === user.role)?.label || user.role}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenEditDialog(user)}
+                          disabled={isPending}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">{t('editSr', { name: user.nombre })}</span>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      {users.length === 0 ? t('noUsersFound') : t('noUsersWithFilter')}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Dialog open={isFormDialogOpen} onOpenChange={(open) => { setIsFormDialogOpen(open); if (!open) setEditingUser(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('editUserDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('editUserDialogDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div>
+              <h3 className="mb-4 text-lg font-medium leading-none">{t('personalInfoTitle')}</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Nombre</Label>
+                  <Input 
+                    value={formState.nombre || ''} 
+                    onChange={(e) => setFormState(prev => ({ ...prev, nombre: e.target.value }))} 
+                    className="col-span-3"
+                    disabled={isPending}
+                  />
+                </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Apellido</Label>
+                  <Input 
+                    value={formState.apellido || ''} 
+                    onChange={(e) => setFormState(prev => ({ ...prev, apellido: e.target.value }))} 
+                    className="col-span-3"
+                    disabled={isPending}
+                  />
+                </div>
+              </div>
+            </div>
+            <Separator />
+            <div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="role" className="text-right">{t('roleLabel')}</Label>
+                  <Select 
+                    onValueChange={(value: EmployeeRole) => setFormState(prev => ({ ...prev, role: value }))} 
+                    value={formState.role} 
+                    disabled={isPending}
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder={t('selectRolePlaceholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {roleOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary" disabled={isPending}>{t('cancelButton')}</Button>
+            </DialogClose>
+            <Button type="submit" onClick={handleSaveUser} disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('saveChangesButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

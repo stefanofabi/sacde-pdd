@@ -100,5 +100,31 @@
       "specialHours": {},
       "manual": false
     }
+  ],
+  "2025-07-08": [
+    {
+      "id": "bdaa5cf4-6c2d-4bba-b300-dc6ac7c9de6c",
+      "crewId": "crew-1",
+      "employeeId": "emp-002",
+      "absenceReason": null,
+      "productiveHours": {
+        "47a0fe61-c09d-492e-a5a5-8039b4c64e66": 4
+      },
+      "unproductiveHours": {},
+      "specialHours": {},
+      "manual": false
+    },
+    {
+      "id": "d972939b-d7a8-4dea-bc05-18496ae158f0",
+      "crewId": "crew-1",
+      "employeeId": "7ff9adcf-39db-4250-a0d5-c26e5ad80f53",
+      "absenceReason": null,
+      "productiveHours": {
+        "47a0fe61-c09d-492e-a5a5-8039b4c64e66": 3
+      },
+      "unproductiveHours": {},
+      "specialHours": {},
+      "manual": false
+    }
   ]
 }

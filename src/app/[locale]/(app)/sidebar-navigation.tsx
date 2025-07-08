@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname as useNextPathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
-import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3 } from 'lucide-react';
+import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3, UserCog } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/auth-context';
 
@@ -30,6 +30,7 @@ export function SidebarNavigation() {
     const allNavItems = [
       { href: "/cuadrillas", icon: Users, translationKey: "crews", roles: ['admin', 'crew_manager'] },
       { href: "/empleados", icon: IdCard, translationKey: "employees", roles: ['admin'] },
+      { href: "/usuarios", icon: UserCog, translationKey: "users", roles: ['admin'] },
       { href: "/asistencias", icon: CalendarClock, translationKey: "attendance", roles: ['admin', 'foreman', 'tallyman', 'project_manager', 'management_control'] },
       { href: "/partes-diarios", icon: ClipboardList, translationKey: "dailyReports", roles: ['admin', 'foreman', 'tallyman', 'project_manager', 'management_control'] },
       { href: "/obras", icon: Briefcase, translationKey: "projects", roles: ['admin'] },
