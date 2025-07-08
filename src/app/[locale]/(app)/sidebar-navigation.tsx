@@ -2,19 +2,28 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next-intl/navigation';
+import { usePathname as useNextPathname } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/auth-context';
 
 export function SidebarNavigation() {
-    const pathname = usePathname();
+    const nextPathname = useNextPathname();
+    const locale = useLocale();
+    
+    // Remove locale prefix from pathname to get the base path
+    const pathname = nextPathname.startsWith(`/${locale}`) 
+        ? nextPathname.substring(`/${locale}`.length) || '/' 
+        : nextPathname;
+
     const t = useTranslations('Sidebar');
     const { user } = useAuth();
 
     const isActive = (path: string) => {
+        // Handle root path separately
         if (path === '/') return pathname === path;
+        // Check if the current path starts with the link's path
         return pathname.startsWith(path);
     };
 
