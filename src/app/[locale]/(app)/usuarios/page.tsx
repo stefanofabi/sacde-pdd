@@ -1,12 +1,13 @@
 
 import UsersManager from "@/components/users-manager";
 import { Toaster } from "@/components/ui/toaster";
-import { getEmployees } from "@/app/actions";
+import { getEmployees, getObras } from "@/app/actions";
 import { getTranslations } from "next-intl/server";
 import { UserCog } from "lucide-react";
 
 export default async function UsuariosPage() {
   const initialEmployees = await getEmployees();
+  const initialObras = await getObras();
   const t = await getTranslations('UsuariosPage');
 
   return (
@@ -22,7 +23,7 @@ export default async function UsuariosPage() {
               {t('description')}
             </p>
           </header>
-          <UsersManager initialUsers={initialEmployees} />
+          <UsersManager initialUsers={initialEmployees} initialObras={initialObras} />
         </div>
       </main>
       <Toaster />

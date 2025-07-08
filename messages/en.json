@@ -239,11 +239,22 @@
     "selectRolePlaceholder": "Select a role",
     "cancelButton": "Cancel",
     "saveChangesButton": "Save Changes",
+    "addUserButton": "Add User",
+    "addUserDialogTitle": "Add New User",
+    "addUserDialogDescription": "Complete the data to register a new user in the system.",
+    "saveUserButton": "Save User",
     "toast": {
       "userUpdatedTitle": "User Updated",
       "userUpdatedDescription": "User \"{name}\" has been updated.",
       "updateErrorTitle": "Error Updating",
-      "unexpectedError": "An unexpected error occurred."
+      "unexpectedError": "An unexpected error occurred.",
+      "userAddedTitle": "User Created",
+      "userAddedDescription": "User \"{name}\" has been created.",
+      "addErrorTitle": "Error Creating User",
+      "validationErrorTitle": "Validation Error",
+      "validationErrorDescription": "You must complete all required fields (*).",
+      "legajoValidationError": "The file number must only contain numbers.",
+      "emailExistsError": "A user with that email already exists."
     },
     "roles": {
       "admin": "Administrator",

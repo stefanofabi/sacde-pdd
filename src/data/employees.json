@@ -78,14 +78,14 @@
     "id": "7ff9adcf-39db-4250-a0d5-c26e5ad80f53",
     "legajo": "11",
     "cuil": "",
-    "apellido": "Palomo",
-    "nombre": "Hugo",
+    "apellido": "Angeli",
+    "nombre": "Mario",
     "fechaIngreso": "2025-07-01",
     "obraId": "b2dc6f78-c20f-40b1-803c-006dd471424b",
     "denominacionPosicion": "Adm. Cuadrillas",
     "condicion": "mensual",
     "estado": "activo",
-    "role": "crew_manager",
+    "role": "recursos_humanos",
     "celular": "",
     "correo": "crew_manager@sacde.com.ar"
   }

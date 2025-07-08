@@ -238,7 +238,7 @@ export async function moveEmployeeBetweenCrews(
   }
   const destinationNotified = notifications[dateKey]?.[destinationCrewId]?.notified;
   if (destinationNotified) {
-    throw new Error('El parte de destino ya ha sido notificado y no puede recibir empleados.');
+    throw new Error('El parte de destino ya puede recibir empleados.');
   }
 
   const dailyEntries = dailyLabor[dateKey] || [];
@@ -256,8 +256,8 @@ export async function moveEmployeeBetweenCrews(
     crewId: destinationCrewId,
     productiveHours: {},
     unproductiveHours: {},
-    specialHours: {},
     absenceReason: null,
+    specialHours: {},
     manual: true,
   };
   
@@ -348,6 +348,9 @@ export async function addEmployee(newEmployee: Omit<Employee, 'id'>): Promise<Em
     if (employees.some(emp => emp.legajo === newEmployee.legajo)) {
         throw new Error('Ya existe un empleado con el mismo legajo.');
     }
+    if (newEmployee.correo && employees.some(emp => emp.correo?.toLowerCase() === newEmployee.correo?.toLowerCase())) {
+        throw new Error('Ya existe un empleado con este correo electrónico.');
+    }
     const employeeWithId = { ...newEmployee, id: crypto.randomUUID() };
     const updatedEmployees = [...employees, employeeWithId];
     await writeData(employeesFilePath, updatedEmployees);
@@ -365,6 +368,12 @@ export async function updateEmployee(employeeId: string, updatedData: Partial<Om
     if (updatedData.legajo && updatedData.legajo !== employees[employeeIndex].legajo) {
         if (employees.some(emp => emp.legajo === updatedData.legajo && emp.id !== employeeId)) {
             throw new Error('Ya existe otro empleado con el mismo legajo.');
+        }
+    }
+    
+    if (updatedData.correo && updatedData.correo !== employees[employeeIndex].correo) {
+        if (employees.some(emp => emp.correo?.toLowerCase() === updatedData.correo?.toLowerCase() && emp.id !== employeeId)) {
+            throw new Error('Ya existe un empleado con este correo electrónico.');
         }
     }
 

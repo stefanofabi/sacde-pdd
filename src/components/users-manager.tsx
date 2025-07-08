@@ -2,8 +2,8 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { useTranslations, useLocale } from "next-intl";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -28,6 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -38,25 +40,47 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Pencil } from "lucide-react";
-import type { Employee, EmployeeRole } from "@/types";
+import { Loader2, Search, Pencil, PlusCircle, CalendarIcon } from "lucide-react";
+import type { Employee, EmployeeRole, Obra, EmployeeCondition, EmployeeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { updateEmployee } from "@/app/actions";
+import { updateEmployee, addEmployee } from "@/app/actions";
 import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
+import { es, enUS } from "date-fns/locale";
 
 interface UsersManagerProps {
   initialUsers: Employee[];
+  initialObras: Obra[];
 }
 
-export default function UsersManager({ initialUsers }: UsersManagerProps) {
+const emptyAddForm = {
+    legajo: "",
+    cuil: "",
+    apellido: "",
+    nombre: "",
+    fechaIngreso: undefined as Date | undefined,
+    obraId: "",
+    denominacionPosicion: "",
+    condicion: "" as EmployeeCondition | "",
+    estado: "" as EmployeeStatus | "",
+    celular: "",
+    correo: "",
+    role: "unassigned" as EmployeeRole
+};
+
+export default function UsersManager({ initialUsers, initialObras }: UsersManagerProps) {
   const t = useTranslations('UsersManager');
+  const locale = useLocale();
+  const dateLocale = locale === 'es' ? es : enUS;
   const { toast } = useToast();
   
   const [users, setUsers] = useState<Employee[]>(initialUsers);
-  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [formState, setFormState] = useState<Partial<Employee>>({});
+  const [editFormState, setEditFormState] = useState<Partial<Employee>>({});
+  const [addFormState, setAddFormState] = useState(emptyAddForm);
   const [isPending, startTransition] = useTransition();
 
   const filteredUsers = useMemo(() => {
@@ -70,34 +94,97 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
       return fullName.includes(lowerCaseSearchTerm) || email.includes(lowerCaseSearchTerm);
     });
   }, [users, searchTerm]);
+  
+  const handleInputChange = (form: 'edit' | 'add', field: keyof Employee, value: any) => {
+    if (form === 'edit') {
+      setEditFormState(prev => ({ ...prev, [field]: value }));
+    } else {
+      setAddFormState(prev => ({ ...prev, [field]: value }));
+    }
+  };
 
   const handleOpenEditDialog = (user: Employee) => {
     setEditingUser(user);
-    setFormState({
+    setEditFormState({
       apellido: user.apellido,
       nombre: user.nombre,
       role: user.role,
+      correo: user.correo,
     });
-    setIsFormDialogOpen(true);
+    setIsEditDialogOpen(true);
   };
+  
+  const handleOpenAddDialog = () => {
+    setAddFormState(emptyAddForm);
+    setIsAddDialogOpen(true);
+  }
 
   const handleSaveUser = () => {
     if (!editingUser) return;
 
     startTransition(async () => {
       try {
-        const updatedUser = await updateEmployee(editingUser.id, formState);
+        const updatedUser = await updateEmployee(editingUser.id, editFormState);
         setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
         toast({
           title: t('toast.userUpdatedTitle'),
           description: t('toast.userUpdatedDescription', { name: `${updatedUser.nombre} ${updatedUser.apellido}` }),
         });
-        setIsFormDialogOpen(false);
+        setIsEditDialogOpen(false);
         setEditingUser(null);
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : t('toast.unexpectedError');
         toast({
           title: t('toast.updateErrorTitle'),
-          description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+    });
+  };
+  
+  const handleAddUser = () => {
+    const { legajo, apellido, nombre, obraId, denominacionPosicion, condicion, estado, fechaIngreso, correo } = addFormState;
+    const requiredFields = ['legajo', 'apellido', 'nombre', 'obraId', 'denominacionPosicion', 'condicion', 'estado', 'fechaIngreso', 'correo', 'role'];
+    const missingField = requiredFields.some(field => !addFormState[field as keyof typeof addFormState]);
+
+    if (missingField) {
+      toast({
+        title: t('UsersManager.toast.validationErrorTitle'),
+        description: t('UsersManager.toast.validationErrorDescription'),
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!/^\d+$/.test(legajo)) {
+        toast({
+            title: t('UsersManager.toast.validationErrorTitle'),
+            description: t('UsersManager.toast.legajoValidationError'),
+            variant: "destructive",
+        });
+        return;
+    }
+    
+    const userData = {
+        ...addFormState,
+        fechaIngreso: format(addFormState.fechaIngreso!, "yyyy-MM-dd"),
+    };
+
+    startTransition(async () => {
+      try {
+        const newUser = await addEmployee(userData);
+        setUsers((prev) => [...prev, newUser]);
+        toast({
+          title: t('UsersManager.toast.userAddedTitle'),
+          description: t('UsersManager.toast.userAddedDescription', { name: `${newUser.nombre} ${newUser.apellido}` }),
+        });
+        setIsAddDialogOpen(false);
+      } catch (error) {
+         const errorMessage = error instanceof Error ? error.message : t('toast.unexpectedError');
+        toast({
+          title: t('UsersManager.toast.addErrorTitle'),
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -124,14 +211,20 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
               <CardTitle>{t('cardTitle')}</CardTitle>
               <CardDescription>{t('cardDescription')}</CardDescription>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t('searchPlaceholder')}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-[250px]"
-              />
+            <div className="flex items-center gap-2">
+                <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder={t('searchPlaceholder')}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full sm:w-[250px]"
+                />
+                </div>
+                 <Button onClick={handleOpenAddDialog}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    {t('addUserButton')}
+                </Button>
             </div>
           </div>
         </CardHeader>
@@ -181,7 +274,7 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
         </CardContent>
       </Card>
       
-      <Dialog open={isFormDialogOpen} onOpenChange={(open) => { setIsFormDialogOpen(open); if (!open) setEditingUser(null); }}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) setEditingUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t('editUserDialogTitle')}</DialogTitle>
@@ -194,8 +287,8 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right">Nombre</Label>
                   <Input 
-                    value={formState.nombre || ''} 
-                    onChange={(e) => setFormState(prev => ({ ...prev, nombre: e.target.value }))} 
+                    value={editFormState.nombre || ''} 
+                    onChange={(e) => handleInputChange('edit', 'nombre', e.target.value)} 
                     className="col-span-3"
                     disabled={isPending}
                   />
@@ -203,8 +296,18 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
                  <div className="grid grid-cols-4 items-center gap-4">
                   <Label className="text-right">Apellido</Label>
                   <Input 
-                    value={formState.apellido || ''} 
-                    onChange={(e) => setFormState(prev => ({ ...prev, apellido: e.target.value }))} 
+                    value={editFormState.apellido || ''} 
+                    onChange={(e) => handleInputChange('edit', 'apellido', e.target.value)} 
+                    className="col-span-3"
+                    disabled={isPending}
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-right">Email</Label>
+                  <Input 
+                    type="email"
+                    value={editFormState.correo || ''} 
+                    onChange={(e) => handleInputChange('edit', 'correo', e.target.value)} 
                     className="col-span-3"
                     disabled={isPending}
                   />
@@ -216,8 +319,8 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
                <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="role" className="text-right">{t('roleLabel')}</Label>
                   <Select 
-                    onValueChange={(value: EmployeeRole) => setFormState(prev => ({ ...prev, role: value }))} 
-                    value={formState.role} 
+                    onValueChange={(value: EmployeeRole) => handleInputChange('edit', 'role', value)} 
+                    value={editFormState.role} 
                     disabled={isPending}
                   >
                     <SelectTrigger className="col-span-3">
@@ -241,6 +344,114 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
             <Button type="submit" onClick={handleSaveUser} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('saveChangesButton')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{t('addUserDialogTitle')}</DialogTitle>
+            <DialogDescription>{t('addUserDialogDescription')}</DialogDescription>
+          </DialogHeader>
+           <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-6">
+            <div>
+              <h3 className="mb-4 text-lg font-medium leading-none">{t('EmployeesManager.personalInfoTitle')}</h3>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="legajo" className="text-right">{t('EmployeesManager.legajoLabel')} *</Label>
+                  <Input id="legajo" value={addFormState.legajo} onChange={(e) => handleInputChange('add', 'legajo', e.target.value)} className="col-span-3" placeholder="Ej. 12345" disabled={isPending} />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="cuil" className="text-right">{t('EmployeesManager.cuilLabel')}</Label>
+                  <Input id="cuil" value={addFormState.cuil} onChange={(e) => handleInputChange('add', 'cuil', e.target.value)} className="col-span-3" placeholder="Ej. 20-12345678-9" disabled={isPending}/>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="apellido" className="text-right">{t('EmployeesManager.lastNameLabel')} *</Label>
+                  <Input id="apellido" value={addFormState.apellido} onChange={(e) => handleInputChange('add', 'apellido', e.target.value)} className="col-span-3" placeholder="Pérez" disabled={isPending}/>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="nombre" className="text-right">{t('EmployeesManager.firstNameLabel')} *</Label>
+                  <Input id="nombre" value={addFormState.nombre} onChange={(e) => handleInputChange('add', 'nombre', e.target.value)} className="col-span-3" placeholder="Juan" disabled={isPending}/>
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className="mb-4 text-lg font-medium leading-none">{t('EmployeesManager.workInfoTitle')}</h3>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="correo" className="text-right">{t('EmployeesManager.emailLabel')} *</Label>
+                    <Input id="correo" type="email" value={addFormState.correo} onChange={(e) => handleInputChange('add', 'correo', e.target.value)} className="col-span-3" placeholder="usuario@sacde.com" disabled={isPending}/>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="role" className="text-right">{t('roleLabel')} *</Label>
+                    <Select onValueChange={(value: EmployeeRole) => handleInputChange('add', 'role', value)} value={addFormState.role} disabled={isPending}>
+                        <SelectTrigger className="col-span-3"><SelectValue placeholder={t('selectRolePlaceholder')} /></SelectTrigger>
+                        <SelectContent>
+                            {roleOptions.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="fechaIngreso" className="text-right">{t('EmployeesManager.hireDateLabel')} *</Label>
+                  <Popover>
+                      <PopoverTrigger asChild>
+                          <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {addFormState.fechaIngreso ? format(addFormState.fechaIngreso, 'PPP', { locale: dateLocale }) : <span>{t('EmployeesManager.selectDatePlaceholder')}</span>}
+                          </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={addFormState.fechaIngreso} onSelect={(date) => handleInputChange('add', 'fechaIngreso', date)} initialFocus locale={dateLocale} /></PopoverContent>
+                  </Popover>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="obraId" className="text-right">{t('EmployeesManager.projectLabel')} *</Label>
+                   <Select onValueChange={(value) => handleInputChange('add', 'obraId', value)} value={addFormState.obraId} disabled={isPending}>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder={t('EmployeesManager.selectProjectPlaceholder')} /></SelectTrigger>
+                    <SelectContent>{initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="denominacionPosicion" className="text-right">{t('EmployeesManager.positionLabel')} *</Label>
+                  <Input id="denominacionPosicion" value={addFormState.denominacionPosicion} onChange={(e) => handleInputChange('add', 'denominacionPosicion', e.target.value)} className="col-span-3" placeholder={t('EmployeesManager.positionPlaceholder')} disabled={isPending}/>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="condicion" className="text-right">{t('EmployeesManager.conditionLabel')} *</Label>
+                   <Select onValueChange={(value: EmployeeCondition) => handleInputChange('add', 'condicion', value)} value={addFormState.condicion} disabled={isPending}>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder={t('EmployeesManager.selectConditionPlaceholder')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="jornal">{t('EmployeesManager.conditions.jornal')}</SelectItem>
+                      <SelectItem value="mensual">{t('EmployeesManager.conditions.mensual')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="estado" className="text-right">{t('EmployeesManager.statusLabel')} *</Label>
+                   <Select onValueChange={(value: EmployeeStatus) => handleInputChange('add', 'estado', value)} value={addFormState.estado} disabled={isPending}>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder={t('EmployeesManager.selectStatusPlaceholder')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="activo">{t('EmployeesManager.statuses.activo')}</SelectItem>
+                      <SelectItem value="suspendido">{t('EmployeesManager.statuses.suspendido')}</SelectItem>
+                      <SelectItem value="baja">{t('EmployeesManager.statuses.baja')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                 <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="celular" className="text-right">{t('EmployeesManager.cellPhoneLabel')}</Label>
+                    <Input id="celular" value={addFormState.celular} onChange={(e) => handleInputChange('add', 'celular', e.target.value)} className="col-span-3" placeholder="Ej. 1122334455" disabled={isPending}/>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>{t('cancelButton')}</Button></DialogClose>
+            <Button type="submit" onClick={handleAddUser} disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t('saveUserButton')}
             </Button>
           </DialogFooter>
         </DialogContent>

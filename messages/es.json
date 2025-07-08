@@ -239,11 +239,22 @@
     "selectRolePlaceholder": "Seleccionar un rol",
     "cancelButton": "Cancelar",
     "saveChangesButton": "Guardar Cambios",
+    "addUserButton": "Agregar Usuario",
+    "addUserDialogTitle": "Agregar Nuevo Usuario",
+    "addUserDialogDescription": "Complete los datos para registrar un nuevo usuario en el sistema.",
+    "saveUserButton": "Guardar Usuario",
     "toast": {
       "userUpdatedTitle": "Usuario Actualizado",
       "userUpdatedDescription": "El usuario \"{name}\" ha sido actualizado.",
       "updateErrorTitle": "Error al Actualizar",
-      "unexpectedError": "Ocurrió un error inesperado."
+      "unexpectedError": "Ocurrió un error inesperado.",
+      "userAddedTitle": "Usuario Creado",
+      "userAddedDescription": "El usuario \"{name}\" ha sido creado.",
+      "addErrorTitle": "Error al Crear Usuario",
+      "validationErrorTitle": "Error de validación",
+      "validationErrorDescription": "Debe completar todos los campos obligatorios (*).",
+      "legajoValidationError": "El legajo solo debe contener números.",
+      "emailExistsError": "Ya existe un usuario con ese correo electrónico."
     },
     "roles": {
       "admin": "Administrador",
