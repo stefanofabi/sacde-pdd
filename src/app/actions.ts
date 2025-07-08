@@ -92,11 +92,11 @@ export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]
     return readData<UnproductiveHourType[]>(unproductiveHourTypesFilePath);
 }
 
-export async function authenticateUser(email: string, password?: string): Promise<(Employee & { role: User['role'] }) | null> {
+export async function getUserByEmail(email: string): Promise<(Employee & { role: User['role'] }) | null> {
     const users = await getUsers();
     const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
-    if (user && password === 'password') {
+    if (user) {
         const employees = await getEmployees();
         const employee = employees.find(emp => emp.id === user.employeeId);
         if (employee) {
