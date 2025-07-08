@@ -29,13 +29,13 @@ export function SidebarNavigation() {
 
     const allNavItems = [
       { href: "/cuadrillas", icon: Users, translationKey: "crews", roles: ['admin', 'crew_manager'] },
-      { href: "/empleados", icon: IdCard, translationKey: "employees", roles: ['admin'] },
+      { href: "/empleados", icon: IdCard, translationKey: "employees", roles: ['admin', 'recursos_humanos'] },
       { href: "/usuarios", icon: UserCog, translationKey: "users", roles: ['admin'] },
       { href: "/asistencias", icon: CalendarClock, translationKey: "attendance", roles: ['admin', 'foreman', 'tallyman', 'project_manager', 'management_control'] },
       { href: "/partes-diarios", icon: ClipboardList, translationKey: "dailyReports", roles: ['admin', 'foreman', 'tallyman', 'project_manager', 'management_control'] },
       { href: "/obras", icon: Briefcase, translationKey: "projects", roles: ['admin'] },
-      { href: "/estadisticas", icon: BarChart3, translationKey: "statistics", roles: ['admin'] },
-      { href: "/permisos", icon: UserCheck, translationKey: "permissions", roles: ['admin'] },
+      { href: "/estadisticas", icon: BarChart3, translationKey: "statistics", roles: ['admin', 'recursos_humanos'] },
+      { href: "/permisos", icon: UserCheck, translationKey: "permissions", roles: ['admin', 'recursos_humanos'] },
       { href: "/ajustes", icon: Settings, translationKey: "settings", roles: ['admin'] },
     ];
     

@@ -53,6 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         case 'admin':
           router.push(`/${locale}/estadisticas`);
           break;
+        case 'recursos_humanos':
+          router.push(`/${locale}/empleados`);
+          break;
         default:
           router.push(`/${locale}/partes-diarios`);
           break;

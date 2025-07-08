@@ -111,6 +111,7 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
     { value: 'tallyman', label: t('roles.tallyman') },
     { value: 'project_manager', label: t('roles.project_manager') },
     { value: 'management_control', label: t('roles.management_control') },
+    { value: 'recursos_humanos', label: t('roles.recursos_humanos') },
     { value: 'unassigned', label: t('roles.unassigned') },
   ];
 

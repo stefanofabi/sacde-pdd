@@ -1,4 +1,3 @@
-
 [
   {
     "id": "6d9f287b-ee8d-4318-becc-11dca83f0102",
@@ -18,8 +17,8 @@
   {
     "id": "emp-001",
     "legajo": "12345",
-    "apellido": "Pérez",
-    "nombre": "Juan",
+    "apellido": "Rodriguez",
+    "nombre": "Carlos",
     "fechaIngreso": "2023-01-15",
     "obraId": "obra-1",
     "denominacionPosicion": "Capataz",
@@ -33,14 +32,14 @@
   {
     "id": "emp-002",
     "legajo": "67890",
-    "apellido": "García",
-    "nombre": "Maria",
+    "apellido": "Reyes",
+    "nombre": "Ayelen",
     "fechaIngreso": "2022-05-20",
     "obraId": "obra-2",
     "denominacionPosicion": "Apuntador",
     "condicion": "jornal",
     "estado": "activo",
-    "role": "tallyman",
+    "role": "crew_manager",
     "cuil": "",
     "celular": "",
     "correo": "tallyman@sacde.com.ar"
@@ -48,8 +47,8 @@
   {
     "id": "emp-003",
     "legajo": "11111",
-    "apellido": "Rodriguez",
-    "nombre": "Carlos",
+    "apellido": "Pasquier",
+    "nombre": "Leandro",
     "fechaIngreso": "2021-03-10",
     "obraId": "obra-1",
     "denominacionPosicion": "Jefe de Obra",
@@ -63,8 +62,8 @@
   {
     "id": "emp-004",
     "legajo": "22222",
-    "apellido": "Lopez",
-    "nombre": "Ana",
+    "apellido": "Bernal",
+    "nombre": "Leonel",
     "fechaIngreso": "2024-02-01",
     "obraId": "obra-3",
     "denominacionPosicion": "Control y Gestion",
