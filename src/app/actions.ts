@@ -1,104 +1,155 @@
 
 'use server';
 
-import { promises as fs } from 'fs';
-import path from 'path';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType, User } from '@/types';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch, documentId } from 'firebase/firestore';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry } from '@/types';
 import { format, subDays } from 'date-fns';
 
-const dataDir = path.join(process.cwd(), 'src', 'data');
-const usersFilePath = path.join(dataDir, 'users.json');
-const crewsFilePath = path.join(dataDir, 'crews.json');
-const attendanceFilePath = path.join(dataDir, 'attendance.json');
-const obrasFilePath = path.join(dataDir, 'obras.json');
-const employeesFilePath = path.join(dataDir, 'employees.json');
-const permissionsFilePath = path.join(dataDir, 'permissions.json');
-const dailyLaborFilePath = path.join(dataDir, 'daily-labor.json');
-const dailyLaborNotificationsFilePath = path.join(dataDir, 'daily-labor-notifications.json');
-const absenceTypesFilePath = path.join(dataDir, 'absence-types.json');
-const phasesFilePath = path.join(dataDir, 'phases.json');
-const specialHourTypesFilePath = path.join(dataDir, 'special-hour-types.json');
-const unproductiveHourTypesFilePath = path.join(dataDir, 'unproductive-hour-types.json');
-
-
-async function readData<T>(filePath: string): Promise<T> {
+async function readCollection<T>(collectionName: string): Promise<T[]> {
   try {
-    const data = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(data);
+    const q = query(collection(db, collectionName));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T));
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      if (filePath.includes('crews') || filePath.includes('obras') || filePath.includes('employees') || filePath.includes('permissions') || filePath.includes('absence-types') || filePath.includes('phases') || filePath.includes('special-hour-types') || filePath.includes('unproductive-hour-types') || filePath.includes('users')) return [] as T;
-      if (filePath.includes('attendance') || filePath.includes('daily-labor') || filePath.includes('daily-labor-notifications')) return {} as T;
-    }
-    console.error(`Error reading file ${filePath}:`, error);
-    throw new Error('Could not read data file.');
+    console.error(`Error reading collection ${collectionName}:`, error);
+    throw new Error('Could not read data from Firestore.');
   }
 }
 
-async function writeData<T>(filePath: string, data: T): Promise<void> {
-  try {
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
-  } catch (error) {
-    console.error(`Error writing file ${filePath}:`, error);
-    throw new Error('Could not write data file.');
-  }
+async function readDoc<T>(collectionName: string, docId: string): Promise<T | null> {
+    try {
+        const docRef = doc(db, collectionName, docId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return { id: docSnap.id, ...docSnap.data() } as T;
+        }
+        return null;
+    } catch (error) {
+        console.error(`Error reading document ${collectionName}/${docId}:`, error);
+        throw new Error('Could not read data from Firestore.');
+    }
+}
+
+async function addDocument<T extends object>(collectionName: string, data: T): Promise<T & { id: string }> {
+    try {
+        const docRef = await addDoc(collection(db, collectionName), data);
+        return { id: docRef.id, ...data };
+    } catch (error) {
+        console.error(`Error adding document to ${collectionName}:`, error);
+        throw new Error('Could not write data to Firestore.');
+    }
+}
+
+async function updateDocument<T extends object>(collectionName: string, docId: string, data: Partial<T>): Promise<void> {
+    try {
+        const docRef = doc(db, collectionName, docId);
+        await updateDoc(docRef, data);
+    } catch (error) {
+        console.error(`Error updating document ${collectionName}/${docId}:`, error);
+        throw new Error('Could not write data to Firestore.');
+    }
+}
+
+async function deleteDocument(collectionName: string, docId: string): Promise<void> {
+    try {
+        const docRef = doc(db, collectionName, docId);
+        await deleteDoc(docRef);
+    } catch (error) {
+        console.error(`Error deleting document ${collectionName}/${docId}:`, error);
+        throw new Error('Could not write data to Firestore.');
+    }
 }
 
 export async function getUsers(): Promise<User[]> {
-  return readData<User[]>(usersFilePath);
+  return readCollection<User>('users');
 }
 
 export async function getCrews(): Promise<Crew[]> {
-  return readData<Crew[]>(crewsFilePath);
+  return readCollection<Crew>('crews');
 }
 
 export async function getEmployees(): Promise<Employee[]> {
-    return readData<Employee[]>(employeesFilePath);
+  return readCollection<Employee>('employees');
 }
 
 export async function getObras(): Promise<Obra[]> {
-    return readData<Obra[]>(obrasFilePath);
+  return readCollection<Obra>('obras');
 }
 
 export async function getAttendance(): Promise<AttendanceData> {
-  return readData<AttendanceData>(attendanceFilePath);
+  const attendanceCollection = await readCollection<{ date: string } & AttendanceEntry>('attendance');
+  const attendanceData: AttendanceData = {};
+  attendanceCollection.forEach(entry => {
+    const { date, ...rest } = entry;
+    if (!attendanceData[date]) {
+        attendanceData[date] = [];
+    }
+    attendanceData[date].push(rest);
+  });
+  return attendanceData;
 }
 
 export async function getPermissions(): Promise<Permission[]> {
-  return readData<Permission[]>(permissionsFilePath);
+  return readCollection<Permission>('permissions');
 }
 
 export async function getDailyLabor(): Promise<DailyLaborData> {
-  return readData<DailyLaborData>(dailyLaborFilePath);
+  const laborCollection = await readCollection<{ date: string } & (DailyLaborEntry | LegacyDailyLaborEntry)>('daily-labor');
+  const laborData: DailyLaborData = {};
+  laborCollection.forEach(entry => {
+    const { date, ...rest } = entry;
+    if (!laborData[date]) {
+        laborData[date] = [];
+    }
+    laborData[date].push(rest);
+  });
+  return laborData;
 }
 
 export async function getDailyLaborNotifications(): Promise<DailyLaborNotificationData> {
-  return readData<DailyLaborNotificationData>(dailyLaborNotificationsFilePath);
+   const notificationsCollection = await readCollection<{ date: string; crewId: string; notified: boolean; notifiedAt: string }>('daily-labor-notifications');
+    const notificationsData: DailyLaborNotificationData = {};
+    notificationsCollection.forEach(entry => {
+        const { date, crewId, notified, notifiedAt } = entry;
+        if (!notificationsData[date]) {
+            notificationsData[date] = {};
+        }
+        notificationsData[date][crewId] = { notified, notifiedAt };
+    });
+    return notificationsData;
 }
 
 export async function getAbsenceTypes(): Promise<AbsenceType[]> {
-  return readData<AbsenceType[]>(absenceTypesFilePath);
+  return readCollection<AbsenceType>('absence-types');
 }
 
 export async function getPhases(): Promise<Phase[]> {
-  return readData<Phase[]>(phasesFilePath);
+  return readCollection<Phase>('phases');
 }
 
 export async function getSpecialHourTypes(): Promise<SpecialHourType[]> {
-  return readData<SpecialHourType[]>(specialHourTypesFilePath);
+  return readCollection<SpecialHourType>('special-hour-types');
 }
 
 export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]> {
-    return readData<UnproductiveHourType[]>(unproductiveHourTypesFilePath);
+    return readCollection<UnproductiveHourType>('unproductive-hour-types');
 }
 
 export async function getUserByEmail(email: string): Promise<(Employee & { role: User['role'] }) | null> {
-    const users = await getUsers();
-    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where("email", "==", email.toLowerCase()));
+    const querySnapshot = await getDocs(q);
 
-    if (user) {
-        const employees = await getEmployees();
-        const employee = employees.find(emp => emp.id === user.employeeId);
+    if (querySnapshot.empty) {
+        return null;
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    const user = { id: userDoc.id, ...userDoc.data() } as User;
+
+    if (user && user.employeeId) {
+        const employee = await readDoc<Employee>('employees', user.employeeId);
         if (employee) {
             return { ...employee, role: user.role };
         }
@@ -108,510 +159,269 @@ export async function getUserByEmail(email: string): Promise<(Employee & { role:
 }
 
 export async function addUnproductiveHourType(newType: Omit<UnproductiveHourType, 'id'>): Promise<UnproductiveHourType> {
-    const types = await getUnproductiveHourTypes();
-    if (types.some(t => t.code.toLowerCase() === newType.code.toLowerCase())) {
+    const q = query(collection(db, 'unproductive-hour-types'), where("code", "==", newType.code.toUpperCase()));
+    const existing = await getDocs(q);
+    if (!existing.empty) {
         throw new Error('Ya existe un tipo de hora improductiva con el mismo código.');
     }
-    const typeWithId = { ...newType, id: crypto.randomUUID() };
-    const updatedTypes = [...types, typeWithId];
-    await writeData(unproductiveHourTypesFilePath, updatedTypes);
-    return typeWithId;
+    return addDocument('unproductive-hour-types', newType);
 }
 
 export async function deleteUnproductiveHourType(typeId: string): Promise<void> {
-    const types = await getUnproductiveHourTypes();
-    const dailyLabor = await getDailyLabor();
-    
-    const isTypeInUse = Object.values(dailyLabor).flat().some(entry =>
-      'unproductiveHours' in entry && entry.unproductiveHours && Object.keys(entry.unproductiveHours).includes(typeId)
-    );
-
-    if (isTypeInUse) {
-        throw new Error('No se puede eliminar el tipo de hora improductiva porque está en uso en partes diarios.');
-    }
-
-    const updatedTypes = types.filter(t => t.id !== typeId);
-    
-    if (updatedTypes.length === types.length) {
-        throw new Error('El tipo de hora improductiva a eliminar no fue encontrado.');
-    }
-
-    await writeData(unproductiveHourTypesFilePath, updatedTypes);
+    await deleteDocument('unproductive-hour-types', typeId);
 }
 
-
 export async function addSpecialHourType(newType: Omit<SpecialHourType, 'id'>): Promise<SpecialHourType> {
-    const types = await getSpecialHourTypes();
-    if (types.some(t => t.code.toLowerCase() === newType.code.toLowerCase())) {
+    const q = query(collection(db, 'special-hour-types'), where("code", "==", newType.code.toUpperCase()));
+    const existing = await getDocs(q);
+    if (!existing.empty) {
         throw new Error('Ya existe un tipo de hora especial con el mismo código.');
     }
-    const typeWithId = { ...newType, id: crypto.randomUUID() };
-    const updatedTypes = [...types, typeWithId];
-    await writeData(specialHourTypesFilePath, updatedTypes);
-    return typeWithId;
+    return addDocument('special-hour-types', newType);
 }
 
 export async function deleteSpecialHourType(typeId: string): Promise<void> {
-    const types = await getSpecialHourTypes();
-    const dailyLabor = await getDailyLabor();
-    
-    const isTypeInUse = Object.values(dailyLabor).flat().some(entry => 
-        entry.specialHours && Object.keys(entry.specialHours).includes(typeId)
-    );
-
-    if (isTypeInUse) {
-        throw new Error('No se puede eliminar el tipo de hora especial porque está en uso en partes diarios.');
-    }
-
-    const updatedTypes = types.filter(t => t.id !== typeId);
-    
-    if (updatedTypes.length === types.length) {
-        throw new Error('El tipo de hora especial a eliminar no fue encontrado.');
-    }
-
-    await writeData(specialHourTypesFilePath, updatedTypes);
+    await deleteDocument('special-hour-types', typeId);
 }
 
 export async function addPhase(newPhase: Omit<Phase, 'id'>): Promise<Phase> {
-    const phases = await getPhases();
-    if (phases.some(ph => ph.name.toLowerCase() === newPhase.name.toLowerCase() || ph.pepElement.toLowerCase() === newPhase.pepElement.toLowerCase())) {
-        throw new Error('Ya existe una fase con el mismo nombre o elemento PEP.');
+    const q = query(collection(db, 'phases'), where("name", "==", newPhase.name));
+    const existing = await getDocs(q);
+    if (!existing.empty) {
+        throw new Error('Ya existe una fase con el mismo nombre.');
     }
-    const phaseWithId = { ...newPhase, id: crypto.randomUUID() };
-    const updatedPhases = [...phases, phaseWithId];
-    await writeData(phasesFilePath, updatedPhases);
-    return phaseWithId;
+    return addDocument('phases', newPhase);
 }
 
 export async function deletePhase(phaseId: string): Promise<void> {
-    const phases = await getPhases();
-    const crews = await getCrews();
-
-    const isPhaseInUse = crews.some(crew => crew.assignedPhases?.some(ap => ap.phaseId === phaseId));
-    if (isPhaseInUse) {
-        throw new Error('No se puede eliminar la fase porque está asignada a una o más cuadrillas.');
-    }
-
-    const updatedPhases = phases.filter(p => p.id !== phaseId);
-    
-    if (updatedPhases.length === phases.length) {
-        throw new Error('La fase a eliminar no fue encontrada.');
-    }
-
-    await writeData(phasesFilePath, updatedPhases);
+    await deleteDocument('phases', phaseId);
 }
 
-
 export async function addAbsenceType(newAbsenceType: Omit<AbsenceType, 'id'>): Promise<AbsenceType> {
-    const absenceTypes = await getAbsenceTypes();
-    if (absenceTypes.some(at => at.code.toLowerCase() === newAbsenceType.code.toLowerCase())) {
+    const q = query(collection(db, 'absence-types'), where("code", "==", newAbsenceType.code.toUpperCase()));
+    const existing = await getDocs(q);
+    if (!existing.empty) {
         throw new Error('Ya existe un tipo de ausencia con el mismo código.');
     }
-    const absenceTypeWithId = { ...newAbsenceType, id: crypto.randomUUID() };
-    const updatedAbsenceTypes = [...absenceTypes, absenceTypeWithId];
-    await writeData(absenceTypesFilePath, updatedAbsenceTypes);
-    return absenceTypeWithId;
+    return addDocument('absence-types', newAbsenceType);
 }
 
 export async function deleteAbsenceType(absenceTypeId: string): Promise<void> {
-    const absenceTypes = await getAbsenceTypes();
-    const dailyLabor = await getDailyLabor();
-    const isAbsenceTypeInUse = Object.values(dailyLabor).flat().some(entry => entry.absenceReason === absenceTypeId);
-
-    if (isAbsenceTypeInUse) {
-        throw new Error('No se puede eliminar el tipo de ausencia porque está en uso en partes diarios.');
-    }
-
-    const updatedAbsenceTypes = absenceTypes.filter(at => at.id !== absenceTypeId);
-    
-    if (updatedAbsenceTypes.length === absenceTypes.length) {
-        throw new Error('El tipo de ausencia a eliminar no fue encontrado.');
-    }
-
-    await writeData(absenceTypesFilePath, updatedAbsenceTypes);
+    await deleteDocument('absence-types', absenceTypeId);
 }
 
-export async function moveEmployeeBetweenCrews(
-  dateKey: string,
-  employeeId: string,
-  sourceCrewId: string,
-  destinationCrewId: string
-): Promise<void> {
-  const dailyLabor = await getDailyLabor();
-  const notifications = await getDailyLaborNotifications();
-
-  const sourceNotified = notifications[dateKey]?.[sourceCrewId]?.notified;
-  if (sourceNotified) {
-    throw new Error('El parte de origen ya ha sido notificado y no se puede modificar.');
-  }
-  const destinationNotified = notifications[dateKey]?.[destinationCrewId]?.notified;
-  if (destinationNotified) {
-    throw new Error('El parte de destino ya puede recibir empleados.');
-  }
-
-  const dailyEntries = dailyLabor[dateKey] || [];
+export async function moveEmployeeBetweenCrews(dateKey: string, employeeId: string, sourceCrewId: string, destinationCrewId: string): Promise<void> {
+  const dailyLaborRef = collection(db, 'daily-labor');
+  const q = query(dailyLaborRef, where("date", "==", dateKey), where("crewId", "==", sourceCrewId), where("employeeId", "==", employeeId));
+  const snapshot = await getDocs(q);
   
-  const isEmployeeInDestination = dailyEntries.some(e => e.crewId === destinationCrewId && e.employeeId === employeeId);
-  if (isEmployeeInDestination) {
-    throw new Error('El empleado ya tiene un parte cargado en la cuadrilla de destino para este día.');
-  }
-  
-  const updatedDailyEntriesWithoutSource = dailyEntries.filter(e => !(e.crewId === sourceCrewId && e.employeeId === employeeId));
+  const batch = writeBatch(db);
+  snapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+  });
 
-  const newDestinationEntry: DailyLaborEntry = {
-    id: crypto.randomUUID(),
-    employeeId: employeeId,
-    crewId: destinationCrewId,
-    productiveHours: {},
-    unproductiveHours: {},
-    absenceReason: null,
-    specialHours: {},
-    manual: true,
+  const newEntry = {
+      date: dateKey,
+      employeeId,
+      crewId: destinationCrewId,
+      productiveHours: {},
+      unproductiveHours: {},
+      absenceReason: null,
+      specialHours: {},
+      manual: true,
   };
+  const newDocRef = doc(collection(db, "daily-labor"));
+  batch.set(newDocRef, newEntry);
   
-  const finalDailyEntries = [...updatedDailyEntriesWithoutSource, newDestinationEntry];
-
-  const newDailyLaborData = {
-    ...dailyLabor,
-    [dateKey]: finalDailyEntries,
-  };
-
-  await writeData(dailyLaborFilePath, newDailyLaborData);
+  await batch.commit();
 }
+
 
 export async function notifyDailyLabor(dateKey: string, crewId: string): Promise<void> {
-  const notifications = await getDailyLaborNotifications();
+  const notificationsRef = collection(db, 'daily-labor-notifications');
+  const q = query(notificationsRef, where("date", "==", dateKey), where("crewId", "==", crewId));
+  const snapshot = await getDocs(q);
   
-  const updatedNotifications: DailyLaborNotificationData = {
-    ...notifications,
-    [dateKey]: {
-      ...(notifications[dateKey] || {}),
-      [crewId]: {
-        notified: true,
-        notifiedAt: new Date().toISOString(),
-      },
-    },
+  const notificationData = {
+    date: dateKey,
+    crewId,
+    notified: true,
+    notifiedAt: new Date().toISOString(),
   };
 
-  await writeData(dailyLaborNotificationsFilePath, updatedNotifications);
+  if (snapshot.empty) {
+    await addDoc(notificationsRef, notificationData);
+  } else {
+    await updateDoc(snapshot.docs[0].ref, notificationData);
+  }
 }
 
-export async function saveDailyLabor(
-  dateKey: string,
-  crewId: string,
-  laborData: Omit<DailyLaborEntry, 'id' | 'crewId'>[]
-): Promise<void> {
-  const dailyLabor = await getDailyLabor();
-  const dailyEntries = dailyLabor[dateKey] || [];
+export async function saveDailyLabor(dateKey: string, crewId: string, laborData: Omit<DailyLaborEntry, 'id' | 'crewId'>[]): Promise<void> {
+    const batch = writeBatch(db);
+    const laborRef = collection(db, 'daily-labor');
+    const q = query(laborRef, where("date", "==", dateKey), where("crewId", "==", crewId));
+    const oldDocs = await getDocs(q);
+    oldDocs.forEach(doc => batch.delete(doc.ref));
 
-  const otherCrewEntries = dailyEntries.filter(entry => entry.crewId !== crewId);
+    laborData.forEach(data => {
+        const newDocRef = doc(laborRef);
+        batch.set(newDocRef, { date: dateKey, crewId, ...data });
+    });
 
-  const newCrewEntries: DailyLaborEntry[] = laborData
-    .map(data => ({
-      id: crypto.randomUUID(),
-      crewId,
-      ...data
-    }));
-
-  const updatedDailyEntries = [...otherCrewEntries, ...newCrewEntries];
-
-  const newDailyLaborData = {
-    ...dailyLabor,
-    [dateKey]: updatedDailyEntries,
-  };
-
-  await writeData(dailyLaborFilePath, newDailyLaborData);
+    await batch.commit();
 }
 
 export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
-  const crews = await getCrews();
-  const crewWithId = { ...newCrew, id: crypto.randomUUID() };
-  const updatedCrews = [...crews, crewWithId];
-  await writeData(crewsFilePath, updatedCrews);
-  return crewWithId;
+  return addDocument('crews', newCrew);
 }
 
 export async function updateCrew(crewId: string, updatedCrewData: Partial<Omit<Crew, 'id'>>): Promise<Crew> {
-    const crews = await getCrews();
-    const crewIndex = crews.findIndex(c => c.id === crewId);
-
-    if (crewIndex === -1) {
-        throw new Error('La cuadrilla a actualizar no fue encontrada.');
-    }
-
-    if (updatedCrewData.employeeIds && !Array.isArray(updatedCrewData.employeeIds)) {
-        updatedCrewData.employeeIds = [];
-    }
-
-    const updatedCrew = { ...crews[crewIndex], ...updatedCrewData };
-    const updatedCrews = [...crews];
-    updatedCrews[crewIndex] = updatedCrew;
-
-    await writeData(crewsFilePath, updatedCrews);
-    return updatedCrew;
+    await updateDocument('crews', crewId, updatedCrewData);
+    const updatedDoc = await readDoc<Crew>('crews', crewId);
+    if (!updatedDoc) throw new Error("Failed to update crew.");
+    return updatedDoc;
 }
 
 export async function addEmployee(newEmployee: Omit<Employee, 'id'>): Promise<Employee> {
-    const employees = await getEmployees();
-    if (employees.some(emp => emp.legajo === newEmployee.legajo)) {
+    const q = query(collection(db, 'employees'), where("legajo", "==", newEmployee.legajo));
+    const existing = await getDocs(q);
+    if (!existing.empty) {
         throw new Error('Ya existe un empleado con el mismo legajo.');
     }
-    const employeeWithId = { ...newEmployee, id: crypto.randomUUID() };
-    const updatedEmployees = [...employees, employeeWithId];
-    await writeData(employeesFilePath, updatedEmployees);
-    return employeeWithId;
+    return addDocument('employees', newEmployee);
 }
 
 export async function updateEmployee(employeeId: string, updatedData: Partial<Omit<Employee, 'id'>>): Promise<Employee> {
-    const employees = await getEmployees();
-    const employeeIndex = employees.findIndex(e => e.id === employeeId);
-
-    if (employeeIndex === -1) {
-        throw new Error('El empleado a actualizar no fue encontrado.');
-    }
-
-    if (updatedData.legajo && updatedData.legajo !== employees[employeeIndex].legajo) {
-        if (employees.some(emp => emp.legajo === updatedData.legajo && emp.id !== employeeId)) {
-            throw new Error('Ya existe otro empleado con el mismo legajo.');
-        }
-    }
-
-    const updatedEmployee = { ...employees[employeeIndex], ...updatedData };
-    const updatedEmployees = [...employees];
-    updatedEmployees[employeeIndex] = updatedEmployee;
-
-    await writeData(employeesFilePath, updatedEmployees);
-    return updatedEmployee;
+    await updateDocument('employees', employeeId, updatedData);
+    const updatedDoc = await readDoc<Employee>('employees', employeeId);
+    if (!updatedDoc) throw new Error("Failed to update employee.");
+    return updatedDoc;
 }
 
 export async function deleteCrew(crewId: string): Promise<void> {
-    const crews = await getCrews();
-    const attendance = await getAttendance();
-
-    const isCrewInUse = Object.values(attendance).flat().some(entry => entry.crewId === crewId);
-
-    if (isCrewInUse) {
-        throw new Error('No se puede eliminar la cuadrilla porque tiene registros de asistencia.');
-    }
-
-    const updatedCrews = crews.filter(crew => crew.id !== crewId);
-    
-    if (updatedCrews.length === crews.length) {
-        throw new Error('La cuadrilla a eliminar no fue encontrada.');
-    }
-
-    await writeData(crewsFilePath, updatedCrews);
+    await deleteDocument('crews', crewId);
 }
 
 export async function deleteEmployee(employeeId: string): Promise<void> {
-    const employees = await getEmployees();
-    const updatedEmployees = employees.filter(emp => emp.id !== employeeId);
-
-    if (updatedEmployees.length === employees.length) {
-        throw new Error('El empleado a eliminar no fue encontrado.');
-    }
-    
-    await writeData(employeesFilePath, updatedEmployees);
+    await deleteDocument('employees', employeeId);
 }
 
 export async function addObra(newObra: Omit<Obra, 'id'>): Promise<Obra> {
-    const obras = await getObras();
-    if (obras.some(obra => obra.identifier.toLowerCase() === newObra.identifier.toLowerCase())) {
+    const q = query(collection(db, 'obras'), where("identifier", "==", newObra.identifier.toUpperCase()));
+    const existing = await getDocs(q);
+    if (!existing.empty) {
         throw new Error('Ya existe una obra con el mismo identificador.');
     }
-    const obraWithId = { ...newObra, id: crypto.randomUUID() };
-    const updatedObras = [...obras, obraWithId];
-    await writeData(obrasFilePath, updatedObras);
-    return obraWithId;
+    return addDocument('obras', newObra);
 }
 
 export async function deleteObra(obraId: string): Promise<void> {
-    const obras = await getObras();
-    const crews = await getCrews();
-    const employees = await getEmployees();
-
-    const isObraInUseByCrew = crews.some(crew => crew.obraId === obraId);
-    if (isObraInUseByCrew) {
-        throw new Error('No se puede eliminar la obra porque tiene cuadrillas asignadas.');
-    }
-
-    const isObraInUseByEmployee = employees.some(emp => emp.obraId === obraId);
-    if (isObraInUseByEmployee) {
-        throw new Error('No se puede eliminar la obra porque tiene empleados asignados.');
-    }
-
-    const updatedObras = obras.filter(obra => obra.id !== obraId);
-    
-    if (updatedObras.length === obras.length) {
-        throw new Error('La obra a eliminar no fue encontrada.');
-    }
-
-    await writeData(obrasFilePath, updatedObras);
+    await deleteDocument('obras', obraId);
 }
 
 export async function updateAttendanceSentStatus(dateKey: string, attendanceId: string, sent: boolean): Promise<AttendanceEntry> {
-  const attendance = await getAttendance();
-  const dailyAttendance = attendance[dateKey] || [];
-  const entryIndex = dailyAttendance.findIndex(entry => entry.id === attendanceId);
+    const attendanceRef = collection(db, 'attendance');
+    const q = query(attendanceRef, where("date", "==", dateKey), where(documentId(), "==", attendanceId));
+    const snapshot = await getDocs(q);
 
-  if (entryIndex === -1) {
-    throw new Error('Attendance entry not found.');
-  }
-  
-  const sentAt = sent ? new Date().toISOString() : null;
-  
-  const updatedEntry = { ...dailyAttendance[entryIndex], sent, sentAt };
-  dailyAttendance[entryIndex] = updatedEntry;
+    if (snapshot.empty) {
+        throw new Error('Attendance entry not found.');
+    }
 
-  const newAttendanceData = {
-    ...attendance,
-    [dateKey]: dailyAttendance,
-  };
-  await writeData(attendanceFilePath, newAttendanceData);
-  return updatedEntry;
+    const docToUpdate = snapshot.docs[0];
+    const sentAt = sent ? new Date().toISOString() : null;
+    await updateDoc(docToUpdate.ref, { sent, sentAt });
+
+    const updatedData = (await getDoc(docToUpdate.ref)).data();
+    return { id: docToUpdate.id, ...updatedData } as AttendanceEntry;
 }
 
 export async function addAttendanceRequest(dateKey: string, crewId: string, responsibleId: string): Promise<AttendanceEntry> {
-  const attendance = await getAttendance();
-  const dailyAttendance = attendance[dateKey] || [];
-
-  const alreadyExists = dailyAttendance.some(
-    (entry) => entry.crewId === crewId && entry.responsibleId === responsibleId
-  );
-
-  if (alreadyExists) {
-    throw new Error(
-      "Ya existe una solicitud de asistencia para esta cuadrilla con el mismo responsable en esta fecha."
-    );
-  }
-
-  const newEntry: AttendanceEntry = {
-      id: crypto.randomUUID(),
+  const newEntryData = {
+      date: dateKey,
       crewId,
       responsibleId,
       sent: false,
       sentAt: null,
   };
 
-  const newDailyAttendance = [...dailyAttendance, newEntry];
+  const docRef = await addDoc(collection(db, 'attendance'), newEntryData);
 
-  const newAttendanceData = {
-    ...attendance,
-    [dateKey]: newDailyAttendance,
-  };
-  await writeData(attendanceFilePath, newAttendanceData);
-  return newEntry;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { date, ...rest } = newEntryData;
+  return { id: docRef.id, ...rest };
 }
 
 export async function deleteAttendanceRequest(dateKey: string, attendanceId: string): Promise<void> {
-  const attendance = await getAttendance();
-  const dailyAttendance = attendance[dateKey];
-
-  if (!dailyAttendance) {
-    throw new Error('No hay asistencias para la fecha seleccionada.');
-  }
-
-  const updatedDailyAttendance = dailyAttendance.filter(entry => entry.id !== attendanceId);
-
-  if (updatedDailyAttendance.length === dailyAttendance.length) {
-    throw new Error('La solicitud de asistencia a eliminar no fue encontrada.');
-  }
-
-  const newAttendanceData = {
-    ...attendance,
-    [dateKey]: updatedDailyAttendance,
-  };
-
-  await writeData(attendanceFilePath, newAttendanceData);
+    await deleteDocument('attendance', attendanceId);
 }
 
 export async function clonePreviousDayAttendance(dateKey: string): Promise<AttendanceData> {
-    const attendance = await getAttendance();
     const targetDate = new Date(dateKey);
     const previousDate = subDays(targetDate, 1);
     const previousDateKey = format(previousDate, "yyyy-MM-dd");
 
-    const previousDayEntries = attendance[previousDateKey] || [];
-    
-    const newDailyEntries: AttendanceEntry[] = previousDayEntries.map(entry => ({
-        id: crypto.randomUUID(),
-        crewId: entry.crewId,
-        responsibleId: entry.responsibleId,
-        sent: false,
-        sentAt: null,
-    }));
-    
-    const newAttendanceData = {
-        ...attendance,
-        [dateKey]: newDailyEntries
-    };
+    const q = query(collection(db, 'attendance'), where("date", "==", previousDateKey));
+    const snapshot = await getDocs(q);
 
-    await writeData(attendanceFilePath, newAttendanceData);
-    return newAttendanceData;
+    const batch = writeBatch(db);
+
+    const currentEntriesQuery = query(collection(db, 'attendance'), where("date", "==", dateKey));
+    const currentSnapshot = await getDocs(currentEntriesQuery);
+    currentSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+
+    snapshot.docs.forEach(docSnap => {
+        const entry = docSnap.data();
+        const newEntry = {
+            date: dateKey,
+            crewId: entry.crewId,
+            responsibleId: entry.responsibleId,
+            sent: false,
+            sentAt: null,
+        };
+        const newDocRef = doc(collection(db, "attendance"));
+        batch.set(newDocRef, newEntry);
+    });
+
+    await batch.commit();
+    return getAttendance();
 }
 
 export async function addPermission(newPermission: Omit<Permission, 'id'>): Promise<Permission> {
-    const permissions = await getPermissions();
-    const permissionWithId = { ...newPermission, id: crypto.randomUUID() };
-    const updatedPermissions = [...permissions, permissionWithId];
-    await writeData(permissionsFilePath, updatedPermissions);
-    return permissionWithId;
+    return addDocument('permissions', newPermission);
 }
 
 export async function updatePermission(permissionId: string, updatedData: Partial<Omit<Permission, 'id'>>): Promise<Permission> {
-    const permissions = await getPermissions();
-    const permissionIndex = permissions.findIndex(p => p.id === permissionId);
-
-    if (permissionIndex === -1) {
-        throw new Error('El permiso a actualizar no fue encontrado.');
-    }
-    
-    const updatedPermission = { ...permissions[permissionIndex], ...updatedData };
-    const updatedPermissions = [...permissions];
-    updatedPermissions[permissionIndex] = updatedPermission;
-
-    await writeData(permissionsFilePath, updatedPermissions);
-    return updatedPermission;
+    await updateDocument('permissions', permissionId, updatedData);
+    const updatedDoc = await readDoc<Permission>('permissions', permissionId);
+    if (!updatedDoc) throw new Error("Failed to update permission.");
+    return updatedDoc;
 }
 
 export async function deletePermission(permissionId: string): Promise<void> {
-    const permissions = await getPermissions();
-    const updatedPermissions = permissions.filter(p => p.id !== permissionId);
-
-    if (updatedPermissions.length === permissions.length) {
-        throw new Error('El permiso a eliminar no fue encontrado.');
-    }
-
-    await writeData(permissionsFilePath, updatedPermissions);
+    await deleteDocument('permissions', permissionId);
 }
 
 export async function addUser(newUser: Omit<User, 'id'>): Promise<User> {
-    const users = await getUsers();
-    if (users.some(u => u.email.toLowerCase() === newUser.email.toLowerCase())) {
+    const q = query(collection(db, 'users'), where("email", "==", newUser.email.toLowerCase()));
+    const existing = await getDocs(q);
+    if (!existing.empty) {
         throw new Error('Ya existe un usuario con este correo electrónico.');
     }
-    const userWithId = { ...newUser, id: crypto.randomUUID() };
-    const updatedUsers = [...users, userWithId];
-    await writeData(usersFilePath, updatedUsers);
-    return userWithId;
+    return addDocument('users', newUser);
 }
 
 export async function updateUser(userId: string, updatedData: Partial<Omit<User, 'id'>>): Promise<User> {
-    const users = await getUsers();
-    const userIndex = users.findIndex(u => u.id === userId);
-
-    if (userIndex === -1) {
-        throw new Error('El usuario a actualizar no fue encontrado.');
-    }
-    
-    if (updatedData.email && users.some(u => u.email.toLowerCase() === updatedData.email!.toLowerCase() && u.id !== userId)) {
-        throw new Error('Ya existe otro usuario con este correo electrónico.');
+    if (updatedData.email) {
+        const q = query(collection(db, 'users'), where("email", "==", updatedData.email.toLowerCase()));
+        const existing = await getDocs(q);
+        if (!existing.empty && existing.docs[0].id !== userId) {
+            throw new Error('Ya existe otro usuario con este correo electrónico.');
+        }
     }
 
-    const updatedUser = { ...users[userIndex], ...updatedData };
-    const updatedUsers = [...users];
-    updatedUsers[userIndex] = updatedUser;
-
-    await writeData(usersFilePath, updatedUsers);
-    return updatedUser;
+    await updateDocument('users', userId, updatedData);
+    const updatedDoc = await readDoc<User>('users', userId);
+    if (!updatedDoc) throw new Error("Failed to update user.");
+    return updatedDoc;
 }
