@@ -1,8 +1,9 @@
 
 'use server';
 
-import { db } from '@/lib/firebase';
+import { db, auth as clientAuth } from '@/lib/firebase'; // Renamed to avoid confusion
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch, documentId } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry } from '@/types';
 import { format, subDays } from 'date-fns';
 
@@ -160,8 +161,6 @@ export async function getUserByEmail(email: string): Promise<(Employee & { role:
         return null;
     } catch (error) {
         console.error(`Error fetching user by email ${email}:`, error);
-        // This is where permission errors will be caught.
-        // We return null to indicate failure without crashing.
         return null;
     }
 }
@@ -417,6 +416,19 @@ export async function addUser(newUser: Omit<User, 'id'>): Promise<User> {
     if (!existing.empty) {
         throw new Error('Ya existe un usuario con este correo electrónico.');
     }
+
+    try {
+        // Create user in Firebase Auth with a default password
+        await createUserWithEmailAndPassword(clientAuth, newUser.email, "password");
+    } catch (error: any) {
+        // If user already exists in Auth, we can ignore this for dev purposes,
+        // but in production we'd handle this more gracefully.
+        if (error.code !== 'auth/email-already-in-use') {
+            throw new Error(`Error creating Firebase Auth user: ${error.message}`);
+        }
+    }
+
+    // Add user to Firestore 'users' collection
     return addDocument('users', newUser);
 }
 
@@ -429,10 +441,10 @@ export async function updateUser(userId: string, updatedData: Partial<Omit<User,
         }
     }
 
+    // Note: This does not update the email in Firebase Auth.
+    // That requires the Admin SDK or for the user to be logged in.
     await updateDocument('users', userId, updatedData);
     const updatedDoc = await readDoc<User>('users', userId);
     if (!updatedDoc) throw new Error("Failed to update user.");
     return updatedDoc;
 }
-
-    

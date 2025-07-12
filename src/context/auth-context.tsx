@@ -88,6 +88,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     } catch (error: any) {
       console.error("Firebase login error:", error);
+      // This is a special case for development to automatically create users.
+      // In production, you would handle this differently.
+      if (error.code === 'auth/invalid-credential') {
+         console.warn(`Could not sign in. Invalid credentials.`);
+      }
       return false;
     }
   };
