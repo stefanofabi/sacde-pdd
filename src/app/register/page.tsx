@@ -19,7 +19,6 @@ export default function RegisterPage() {
   const [formState, setFormState] = useState({
     nombre: '',
     apellido: '',
-    legajo: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -49,7 +48,6 @@ export default function RegisterPage() {
       await registerUser({
         nombre: formState.nombre,
         apellido: formState.apellido,
-        legajo: formState.legajo,
         email: formState.email,
         password: formState.password,
       });
@@ -90,10 +88,6 @@ export default function RegisterPage() {
                 <Label htmlFor="apellido">Apellido</Label>
                 <Input id="apellido" name="apellido" required value={formState.apellido} onChange={handleInputChange} disabled={isLoading} />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="legajo">Legajo</Label>
-              <Input id="legajo" name="legajo" required value={formState.legajo} onChange={handleInputChange} disabled={isLoading} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

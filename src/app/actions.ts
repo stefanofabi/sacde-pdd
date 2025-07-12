@@ -452,25 +452,18 @@ export async function updateUser(userId: string, updatedData: Partial<Omit<User,
 interface RegisterUserInput {
   nombre: string;
   apellido: string;
-  legajo: string;
   email: string;
   password: string;
 }
 
 export async function registerUser(input: RegisterUserInput): Promise<void> {
-    const { nombre, apellido, legajo, email, password } = input;
+    const { nombre, apellido, email, password } = input;
 
     // Check if user or employee already exists
     const userQuery = query(collection(db, 'users'), where("email", "==", email.toLowerCase()));
     const userSnapshot = await getDocs(userQuery);
     if (!userSnapshot.empty) {
         throw new Error('Ya existe un usuario con este correo electrónico.');
-    }
-
-    const employeeQuery = query(collection(db, 'employees'), where("legajo", "==", legajo));
-    const employeeSnapshot = await getDocs(employeeQuery);
-    if (!employeeSnapshot.empty) {
-        throw new Error('Ya existe un empleado con este legajo.');
     }
 
     // Create user in Firebase Auth
@@ -491,7 +484,7 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
     const newEmployeeData = {
         nombre,
         apellido,
-        legajo,
+        legajo: '',
         email,
         condicion: 'jornal' as const,
         estado: 'activo' as const,
