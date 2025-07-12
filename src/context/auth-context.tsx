@@ -3,7 +3,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
 import type { Employee, User } from '@/types';
 import { getUserByEmail } from '@/app/actions';
 import { auth } from '@/lib/firebase';
@@ -27,8 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const locale = useLocale();
-
+  
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
@@ -68,16 +66,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             switch (appUser.role) {
               case 'crew_manager':
-                router.push(`/${locale}/cuadrillas`);
+                router.push(`/cuadrillas`);
                 break;
               case 'admin':
-                router.push(`/${locale}/estadisticas`);
+                router.push(`/estadisticas`);
                 break;
               case 'recursos_humanos':
-                router.push(`/${locale}/empleados`);
+                router.push(`/empleados`);
+                break;
+              case 'invitado':
+                router.push(`/partes-diarios`);
                 break;
               default:
-                router.push(`/${locale}/partes-diarios`);
+                router.push(`/partes-diarios`);
                 break;
             }
             return true;
@@ -88,8 +89,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     } catch (error: any) {
       console.error("Firebase login error:", error);
-      // This is a special case for development to automatically create users.
-      // In production, you would handle this differently.
       if (error.code === 'auth/invalid-credential') {
          console.warn(`Could not sign in. Invalid credentials.`);
       }
@@ -106,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('user');
         setUser(null);
         setFirebaseUser(null);
-        router.push(`/${locale}/login`);
+        router.push(`/login`);
     }
   };
 

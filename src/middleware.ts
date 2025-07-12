@@ -1,18 +1,5 @@
-import createMiddleware from 'next-intl/middleware';
- 
-export default createMiddleware({
-  // A list of all locales that are supported
-  locales: ['en', 'es'],
- 
-  // Used when no locale matches
-  defaultLocale: 'es'
-});
- 
+// This file is no longer needed after removing next-intl.
+// We can remove it, but to be safe, let's just empty it.
 export const config = {
-  // Match all pathnames except for
-  // - api (API routes)
-  // - _next/static (static files)
-  // - _next/image (image optimization files)
-  // - favicon.ico (favicon file)
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)']
+  matcher: [],
 };
