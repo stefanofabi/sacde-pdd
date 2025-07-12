@@ -3,24 +3,19 @@
 
 import { useState, useEffect } from 'react';
 import UsersManager from "@/components/users-manager";
-import { getEmployees, getUsers } from "@/app/actions";
-import type { User, Employee } from '@/types';
+import { getUsers } from "@/app/actions";
+import type { User } from '@/types';
 import { UserCog, Loader2 } from "lucide-react";
 
 export default function UsuariosPage() {
   const [initialUsers, setInitialUsers] = useState<User[]>([]);
-  const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [users, employees] = await Promise.all([
-          getUsers(),
-          getEmployees()
-        ]);
+        const users = await getUsers();
         setInitialUsers(users);
-        setInitialEmployees(employees);
       } catch (error) {
         console.error("Failed to fetch user data:", error);
         // Optionally, show a toast or error message to the user
@@ -50,7 +45,7 @@ export default function UsuariosPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <UsersManager initialUsers={initialUsers} initialEmployees={initialEmployees} />
+            <UsersManager initialUsers={initialUsers} />
           )}
         </div>
       </main>

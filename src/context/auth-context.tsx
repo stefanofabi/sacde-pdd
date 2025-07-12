@@ -3,15 +3,13 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Employee, User } from '@/types';
-import { getUserByEmail, registerUser as appRegisterUser } from '@/app/actions';
+import type { User } from '@/types';
+import { getUserByEmail } from '@/app/actions';
 import { auth } from '@/lib/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
-
-type AuthenticatedUser = User & { nombre?: string, apellido?: string };
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
 
 interface AuthContextType {
-  user: AuthenticatedUser | null;
+  user: User | null;
   firebaseUser: FirebaseUser | null;
   isAuthenticated: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
@@ -22,7 +20,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();

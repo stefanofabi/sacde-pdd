@@ -3,7 +3,6 @@ export interface User {
   id: string;
   email: string;
   role: EmployeeRole;
-  employeeId: string;
 }
 
 export interface Obra {

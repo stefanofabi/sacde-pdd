@@ -137,7 +137,7 @@ export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]
     return readCollection<UnproductiveHourType>('unproductive-hour-types');
 }
 
-export async function getUserByEmail(email: string): Promise<(User & {nombre?: string, apellido?: string}) | null> {
+export async function getUserByEmail(email: string): Promise<User | null> {
     try {
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where("email", "==", email.toLowerCase()));
@@ -149,17 +149,7 @@ export async function getUserByEmail(email: string): Promise<(User & {nombre?: s
         }
 
         const userDoc = querySnapshot.docs[0];
-        const user = { id: userDoc.id, ...userDoc.data() } as User;
-
-        if (user && user.employeeId) {
-            const employee = await readDoc<Employee>('employees', user.employeeId);
-            if (employee) {
-                return { ...user, nombre: employee.nombre, apellido: employee.apellido };
-            }
-        }
-        
-        // Return user even if there is no linked employee
-        return user;
+        return { id: userDoc.id, ...userDoc.data() } as User;
     } catch (error) {
         console.error(`Error fetching user by email ${email}:`, error);
         return null;
@@ -481,7 +471,6 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
     // 3. Create User document in Firestore
     const newUserData = {
         email,
-        employeeId: '', // No employee linked on registration
         role: 'invitado' as EmployeeRole,
     };
     await addDocument('users', newUserData);

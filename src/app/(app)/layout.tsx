@@ -36,7 +36,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const displayName = user?.nombre && user?.apellido ? `${user.nombre} ${user.apellido}` : user?.email;
+  const displayName = user?.email;
 
   return (
     <SidebarProvider>
