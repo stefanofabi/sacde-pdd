@@ -1,11 +1,36 @@
 
+'use client';
+
+import { useState, useEffect } from 'react';
 import UsersManager from "@/components/users-manager";
 import { getEmployees, getUsers } from "@/app/actions";
-import { UserCog } from "lucide-react";
+import type { User, Employee } from '@/types';
+import { UserCog, Loader2 } from "lucide-react";
 
-export default async function UsuariosPage() {
-  const initialUsers = await getUsers();
-  const initialEmployees = await getEmployees();
+export default function UsuariosPage() {
+  const [initialUsers, setInitialUsers] = useState<User[]>([]);
+  const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [users, employees] = await Promise.all([
+          getUsers(),
+          getEmployees()
+        ]);
+        setInitialUsers(users);
+        setInitialEmployees(employees);
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+        // Optionally, show a toast or error message to the user
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
 
   return (
     <>
@@ -20,7 +45,13 @@ export default async function UsuariosPage() {
               Modifique los roles y datos de los usuarios del sistema.
             </p>
           </header>
-          <UsersManager initialUsers={initialUsers} initialEmployees={initialEmployees} />
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <UsersManager initialUsers={initialUsers} initialEmployees={initialEmployees} />
+          )}
         </div>
       </main>
     </>
