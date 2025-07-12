@@ -50,26 +50,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password?: string): Promise<boolean> => {
     if (!password) return false;
     
+    setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const fbUser = userCredential.user;
-      
-      if (fbUser && fbUser.email) {
-          const appUser = await getUserByEmail(fbUser.email);
-          if (appUser) {
-            setUser(appUser);
-            router.push(`/dashboard`);
-            return true;
-          }
-      }
-      // If appUser is not found after successful login, something is wrong.
-      await signOut(auth);
-      return false;
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged will handle the rest: setting user, loading state, and redirecting.
+      router.push('/dashboard');
+      return true;
     } catch (error: any) {
-      console.error("Firebase login error:", error);
-      if (error.code === 'auth/invalid-credential') {
-         console.warn(`Could not sign in. Invalid credentials.`);
-      }
+      console.error("Firebase login error:", error.code);
+      // The onAuthStateChanged listener will not fire on failure, so we need to stop loading here.
+      setLoading(false); 
       return false;
     }
   };
