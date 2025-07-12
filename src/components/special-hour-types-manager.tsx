@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -35,7 +34,6 @@ interface SpecialHourTypesManagerProps {
 }
 
 export default function SpecialHourTypesManager({ initialSpecialHourTypes }: SpecialHourTypesManagerProps) {
-  const t = useTranslations('SpecialHourTypesManager');
   const { toast } = useToast();
   const [allTypes, setAllTypes] = useState<SpecialHourType[]>(initialSpecialHourTypes.sort((a, b) => a.name.localeCompare(b.name)));
   const [newType, setNewType] = useState({ name: "", code: "" });
@@ -45,8 +43,8 @@ export default function SpecialHourTypesManager({ initialSpecialHourTypes }: Spe
   const handleAddType = () => {
     if (!newType.name.trim() || !newType.code.trim()) {
       toast({
-        title: t('toast.validationErrorTitle'),
-        description: t('toast.validationErrorDescription'),
+        title: "Error de validación",
+        description: "El nombre y el código del tipo no pueden estar vacíos.",
         variant: "destructive",
       });
       return;
@@ -57,13 +55,13 @@ export default function SpecialHourTypesManager({ initialSpecialHourTypes }: Spe
         setAllTypes((prev) => [...prev, addedType].sort((a, b) => a.name.localeCompare(b.name)));
         setNewType({ name: "", code: "" });
         toast({
-          title: t('toast.typeAddedTitle'),
-          description: t('toast.typeAddedDescription', { name: addedType.name }),
+          title: "Tipo agregado",
+          description: `El tipo "${addedType.name}" ha sido creado.`,
         });
       } catch (error) {
         toast({
-          title: t('toast.error'),
-          description: error instanceof Error ? error.message : t('toast.addErrorDescription'),
+          title: "Error",
+          description: error instanceof Error ? error.message : "No se pudo agregar el tipo.",
           variant: "destructive",
         });
       }
@@ -78,13 +76,13 @@ export default function SpecialHourTypesManager({ initialSpecialHourTypes }: Spe
         await deleteSpecialHourType(typeToDelete.id);
         setAllTypes((prev) => prev.filter((o) => o.id !== typeToDelete.id));
         toast({
-          title: t('toast.typeDeletedTitle'),
-          description: t('toast.typeDeletedDescription', { name: typeToDelete.name }),
+          title: "Tipo eliminado",
+          description: `El tipo "${typeToDelete.name}" ha sido eliminado con éxito.`,
         });
       } catch (error) {
         toast({
-          title: t('toast.deleteErrorTitle'),
-          description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+          title: "Error al eliminar",
+          description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
           variant: "destructive",
         });
       } finally {
@@ -97,31 +95,31 @@ export default function SpecialHourTypesManager({ initialSpecialHourTypes }: Spe
     <>
       <Card>
         <CardHeader>
-          <CardTitle>{t('cardTitle')}</CardTitle>
+          <CardTitle>Tipos de Horas Especiales</CardTitle>
           <CardDescription>
-            {t('cardDescription')}
+            Gestione los tipos de horas especiales que se pueden registrar en los partes diarios.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">{t('addNewTypeTitle')}</h3>
+              <h3 className="font-semibold">Agregar Nuevo Tipo de Hora Especial</h3>
               <div className="flex flex-col sm:flex-row items-end gap-2">
                 <div className="w-full sm:w-auto flex-1">
-                  <Label htmlFor="new-type-code" className="text-xs font-semibold">{t('codeLabel')}</Label>
+                  <Label htmlFor="new-type-code" className="text-xs font-semibold">Código</Label>
                   <Input
                     id="new-type-code"
-                    placeholder={t('codePlaceholder')}
+                    placeholder="Ej. HS-AND"
                     value={newType.code}
                     onChange={(e) => setNewType(prev => ({ ...prev, code: e.target.value }))}
                     disabled={isPending}
                   />
                 </div>
                 <div className="w-full sm:w-auto flex-[2]">
-                  <Label htmlFor="new-type-name" className="text-xs font-semibold">{t('nameLabel')}</Label>
+                  <Label htmlFor="new-type-name" className="text-xs font-semibold">Nombre del Tipo</Label>
                   <Input
                     id="new-type-name"
-                    placeholder={t('namePlaceholder')}
+                    placeholder="Ej. Horas Andamio"
                     value={newType.name}
                     onChange={(e) => setNewType(prev => ({ ...prev, name: e.target.value }))}
                     disabled={isPending}
@@ -134,12 +132,12 @@ export default function SpecialHourTypesManager({ initialSpecialHourTypes }: Spe
                 </div>
                 <Button onClick={handleAddType} disabled={isPending || !newType.name.trim() || !newType.code.trim()}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('addButton')}
+                  Agregar
                 </Button>
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">{t('existingTypesTitle', { count: allTypes.length })}</h3>
+              <h3 className="font-semibold">Tipos Existentes ({allTypes.length})</h3>
               <ScrollArea className="h-72 rounded-md border">
                 <div className="p-4">
                   {allTypes.length > 0 ? (
@@ -158,14 +156,14 @@ export default function SpecialHourTypesManager({ initialSpecialHourTypes }: Spe
                             disabled={isPending}
                           >
                             <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">{t('deleteSr', { name: type.name })}</span>
+                            <span className="sr-only">Eliminar {type.name}</span>
                           </Button>
                         </li>
                       ))}
                     </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground p-2 text-center">
-                      {t('noTypesCreated')}
+                      No hay tipos de horas especiales creados.
                     </p>
                   )}
                 </div>
@@ -178,21 +176,21 @@ export default function SpecialHourTypesManager({ initialSpecialHourTypes }: Spe
       <AlertDialog open={!!typeToDelete} onOpenChange={(open) => !open && setTypeToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
+                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {t('deleteDialogDescription', { name: typeToDelete?.name })}
+                    Esta acción no se puede deshacer. Se eliminará permanentemente el tipo de hora especial "{typeToDelete?.name}". Esta acción fallará si el tipo está en uso.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setTypeToDelete(null)} disabled={isPending}>
-                    {t('cancelButton')}
+                    Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={handleDeleteType} 
                   disabled={isPending}
                   className={buttonVariants({ variant: "destructive" })}
                 >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('deleteDialogConfirmButton')}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar tipo"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

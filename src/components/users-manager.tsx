@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -56,7 +55,6 @@ const emptyAddForm = {
 };
 
 export default function UsersManager({ initialUsers, initialEmployees }: UsersManagerProps) {
-  const t = useTranslations('UsersManager');
   const { toast } = useToast();
   
   const [users, setUsers] = useState<User[]>(initialUsers);
@@ -114,16 +112,16 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
         
         const employeeName = employeeMap.get(updatedUser.employeeId);
         toast({
-          title: t('toast.userUpdatedTitle'),
-          description: t('toast.userUpdatedDescription', { name: `${employeeName?.nombre} ${employeeName?.apellido}` }),
+          title: "Usuario Actualizado",
+          description: `El usuario "${employeeName?.nombre} ${employeeName?.apellido}" ha sido actualizado.`,
         });
         
         setIsEditDialogOpen(false);
         setEditingUser(null);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : t('toast.unexpectedError');
+        const errorMessage = error instanceof Error ? error.message : "Ocurrió un error inesperado.";
         toast({
-          title: t('toast.updateErrorTitle'),
+          title: "Error al Actualizar",
           description: errorMessage,
           variant: "destructive",
         });
@@ -135,8 +133,8 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
     const { employeeId, email, role } = addFormState;
     if (!employeeId || !email || !role) {
       toast({
-        title: t('toast.validationErrorTitle'),
-        description: t('toast.validationErrorDescription'),
+        title: "Error de validación",
+        description: "Debe completar todos los campos obligatorios (*).",
         variant: "destructive",
       });
       return;
@@ -148,14 +146,14 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
         setUsers((prev) => [...prev, newUser]);
         const employeeName = employeeMap.get(newUser.employeeId);
         toast({
-          title: t('toast.userAddedTitle'),
-          description: t('toast.userAddedDescription', { name: `${employeeName?.nombre} ${employeeName?.apellido}` }),
+          title: "Usuario Creado",
+          description: `El usuario "${employeeName?.nombre} ${employeeName?.apellido}" ha sido creado.`,
         });
         setIsAddDialogOpen(false);
       } catch (error) {
-         const errorMessage = error instanceof Error ? error.message : t('toast.unexpectedError');
+         const errorMessage = error instanceof Error ? error.message : "Ocurrió un error inesperado.";
         toast({
-          title: t('toast.addErrorTitle'),
+          title: "Error al Crear Usuario",
           description: errorMessage,
           variant: "destructive",
         });
@@ -164,14 +162,15 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
   };
 
   const roleOptions: { value: EmployeeRole; label: string }[] = [
-    { value: 'admin', label: t('roles.admin') },
-    { value: 'crew_manager', label: t('roles.crew_manager') },
-    { value: 'foreman', label: t('roles.foreman') },
-    { value: 'tallyman', label: t('roles.tallyman') },
-    { value: 'project_manager', label: t('roles.project_manager') },
-    { value: 'management_control', label: t('roles.management_control') },
-    { value: 'recursos_humanos', label: t('roles.recursos_humanos') },
-    { value: 'unassigned', label: t('roles.unassigned') },
+    { value: 'admin', label: "Administrador" },
+    { value: 'crew_manager', label: "Administrador de Cuadrillas" },
+    { value: 'foreman', label: "Capataz" },
+    { value: 'tallyman', label: "Apuntador" },
+    { value: 'project_manager', label: "Jefe de Obra" },
+    { value: 'management_control', label: "Control y Gestión" },
+    { value: 'recursos_humanos', label: "Recursos Humanos" },
+    { value: 'invitado', label: "Invitado" },
+    { value: 'unassigned', label: "Sin Asignar" },
   ];
 
   return (
@@ -180,14 +179,14 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <CardTitle>{t('cardTitle')}</CardTitle>
-              <CardDescription>{t('cardDescription')}</CardDescription>
+              <CardTitle>Lista de Usuarios</CardTitle>
+              <CardDescription>Busque usuarios y gestione sus roles y permisos.</CardDescription>
             </div>
             <div className="flex items-center gap-2">
                 <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder={t('searchPlaceholder')}
+                    placeholder="Buscar por nombre o email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 w-full sm:w-[250px]"
@@ -195,7 +194,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                 </div>
                  <Button onClick={handleOpenAddDialog}>
                     <PlusCircle className="mr-2 h-4 w-4" />
-                    {t('addUserButton')}
+                    Agregar Usuario
                 </Button>
             </div>
           </div>
@@ -205,10 +204,10 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('tableHeaderName')}</TableHead>
-                  <TableHead>{t('tableHeaderEmail')}</TableHead>
-                  <TableHead>{t('tableHeaderRole')}</TableHead>
-                  <TableHead className="text-right w-[120px]">{t('tableHeaderActions')}</TableHead>
+                  <TableHead>Nombre y Apellido</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Rol</TableHead>
+                  <TableHead className="text-right w-[120px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -230,7 +229,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                             disabled={isPending}
                             >
                             <Pencil className="h-4 w-4" />
-                            <span className="sr-only">{t('editSr', { name: employee ? employee.nombre : '' })}</span>
+                            <span className="sr-only">Editar {employee ? employee.nombre : ''}</span>
                             </Button>
                         </TableCell>
                         </TableRow>
@@ -239,7 +238,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                 ) : (
                   <TableRow>
                     <TableCell colSpan={4} className="h-24 text-center">
-                      {users.length === 0 ? t('noUsersFound') : t('noUsersWithFilter')}
+                      {users.length === 0 ? "No se encontraron usuarios." : "No se encontraron usuarios con el filtro aplicado."}
                     </TableCell>
                   </TableRow>
                 )}
@@ -252,8 +251,8 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
       <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) setEditingUser(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('editUserDialogTitle')}</DialogTitle>
-            <DialogDescription>{t('editUserDialogDescription')}</DialogDescription>
+            <DialogTitle>Editar Usuario</DialogTitle>
+            <DialogDescription>Modifique el rol y los datos personales del usuario.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="font-medium">
@@ -263,7 +262,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                 }
             </div>
             <div className="space-y-2">
-                <Label htmlFor="email-edit">{t('tableHeaderEmail')}</Label>
+                <Label htmlFor="email-edit">Email</Label>
                 <Input 
                     id="email-edit"
                     type="email"
@@ -273,14 +272,14 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                 />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="role-edit">{t('roleLabel')}</Label>
+                <Label htmlFor="role-edit">Rol del Sistema</Label>
                 <Select 
                     onValueChange={(value: EmployeeRole) => setEditFormState(prev => ({ ...prev, role: value }))} 
                     value={editFormState.role} 
                     disabled={isPending}
                 >
                     <SelectTrigger id="role-edit">
-                    <SelectValue placeholder={t('selectRolePlaceholder')} />
+                    <SelectValue placeholder="Seleccionar un rol" />
                     </SelectTrigger>
                     <SelectContent>
                     {roleOptions.map((opt) => (
@@ -294,11 +293,11 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" variant="secondary" disabled={isPending}>{t('cancelButton')}</Button>
+              <Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button>
             </DialogClose>
             <Button type="submit" onClick={handleSaveUser} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('saveChangesButton')}
+              Guardar Cambios
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -307,24 +306,24 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('addUserDialogTitle')}</DialogTitle>
-            <DialogDescription>{t('addUserDialogDescription')}</DialogDescription>
+            <DialogTitle>Agregar Nuevo Usuario</DialogTitle>
+            <DialogDescription>Complete los datos para registrar un nuevo usuario en el sistema.</DialogDescription>
           </DialogHeader>
            <div className="space-y-4 py-4">
                <div className="space-y-2">
-                   <Label htmlFor="employeeId-add">{t('EmployeesManager.tableHeaderName')}</Label>
+                   <Label htmlFor="employeeId-add">Nombre y Apellido</Label>
                    <Combobox
                     options={unassignedEmployees}
                     value={addFormState.employeeId}
                     onValueChange={(value) => setAddFormState(p => ({...p, employeeId: value}))}
-                    placeholder={t('EmployeesManager.selectEmployeePlaceholder')}
-                    searchPlaceholder={t('EmployeesManager.searchEmployeePlaceholder')}
-                    emptyMessage={t('EmployeesManager.employeeNotFound')}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
                     disabled={isPending}
                    />
                </div>
                <div className="space-y-2">
-                  <Label htmlFor="email-add">{t('tableHeaderEmail')}</Label>
+                  <Label htmlFor="email-add">Email</Label>
                   <Input 
                     id="email-add"
                     type="email"
@@ -335,9 +334,9 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                   />
                </div>
                <div className="space-y-2">
-                    <Label htmlFor="role-add">{t('roleLabel')}</Label>
+                    <Label htmlFor="role-add">Rol del Sistema</Label>
                     <Select onValueChange={(value: EmployeeRole) => setAddFormState(p => ({...p, role: value}))} value={addFormState.role} disabled={isPending}>
-                        <SelectTrigger id="role-add"><SelectValue placeholder={t('selectRolePlaceholder')} /></SelectTrigger>
+                        <SelectTrigger id="role-add"><SelectValue placeholder="Seleccionar un rol" /></SelectTrigger>
                         <SelectContent>
                             {roleOptions.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
                         </SelectContent>
@@ -345,10 +344,10 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                 </div>
             </div>
           <DialogFooter>
-            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>{t('cancelButton')}</Button></DialogClose>
+            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
             <Button type="submit" onClick={handleAddUser} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('saveUserButton')}
+              Guardar Usuario
             </Button>
           </DialogFooter>
         </DialogContent>

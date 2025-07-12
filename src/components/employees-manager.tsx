@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { useTranslations, useLocale } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -55,7 +54,7 @@ import type { Employee, Obra, EmployeeCondition, EmployeeStatus } from "@/types"
 import { useToast } from "@/hooks/use-toast";
 import { addEmployee, deleteEmployee, updateEmployee } from "@/app/actions";
 import { format } from "date-fns";
-import { es, enUS } from "date-fns/locale";
+import { es } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import * as XLSX from 'xlsx';
 
@@ -79,10 +78,6 @@ const emptyForm = {
 }
 
 export default function EmployeesManager({ initialEmployees, initialObras }: EmployeesManagerProps) {
-  const t = useTranslations('EmployeesManager');
-  const locale = useLocale();
-  const dateLocale = locale === 'es' ? es : enUS;
-
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
@@ -149,8 +144,8 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
 
     if (missingField || !fechaIngreso) {
       toast({
-        title: t('toast.validationErrorTitle'),
-        description: t('toast.validationErrorDescription'),
+        title: "Error de validación",
+        description: "Debe completar todos los campos obligatorios (*).",
         variant: "destructive",
       });
       return;
@@ -158,8 +153,8 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
 
     if (!/^\d+$/.test(legajo)) {
         toast({
-            title: t('toast.validationErrorTitle'),
-            description: t('toast.legajoValidationError'),
+            title: "Error de validación",
+            description: "El legajo solo debe contener números.",
             variant: "destructive",
         });
         return;
@@ -181,23 +176,23 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
            const updatedEmployee = await updateEmployee(editingEmployee.id, dataToSave);
            setEmployees(prev => prev.map(e => e.id === updatedEmployee.id ? updatedEmployee : e));
            toast({
-            title: t('toast.employeeUpdatedTitle'),
-            description: t('toast.employeeUpdatedDescription', { name: `${updatedEmployee.nombre} ${updatedEmployee.apellido}` }),
+            title: "Empleado actualizado",
+            description: `El empleado "${updatedEmployee.nombre} ${updatedEmployee.apellido}" ha sido actualizado.`,
            });
         } else {
             const newEmployee = await addEmployee(dataToSave);
             setEmployees((prev) => [...prev, newEmployee]);
             toast({
-              title: t('toast.employeeAddedTitle'),
-              description: t('toast.employeeAddedDescription', { name: `${newEmployee.nombre} ${newEmployee.apellido}` }),
+              title: "Empleado agregado",
+              description: `El empleado "${newEmployee.nombre} ${newEmployee.apellido}" ha sido creado.`,
             });
         }
         setIsFormDialogOpen(false);
         setEditingEmployee(null);
       } catch (error) {
         toast({
-          title: editingEmployee ? t('toast.updateErrorTitle') : t('toast.addErrorTitle'),
-          description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+          title: editingEmployee ? "Error al actualizar" : "Error al agregar",
+          description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
           variant: "destructive",
         });
       }
@@ -212,13 +207,13 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
         await deleteEmployee(employeeToDelete.id);
         setEmployees((prev) => prev.filter((e) => e.id !== employeeToDelete.id));
         toast({
-          title: t('toast.employeeDeletedTitle'),
-          description: t('toast.employeeDeletedDescription'),
+          title: "Empleado eliminado",
+          description: "El empleado ha sido eliminado con éxito.",
         });
       } catch (error) {
         toast({
-          title: t('toast.deleteErrorTitle'),
-          description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+          title: "Error al eliminar",
+          description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
           variant: "destructive",
         });
       } finally {
@@ -231,22 +226,22 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
     startTransition(() => {
         try {
             const dataToExport = employees.map(emp => ({
-                [t('exportHeaders.legajo')]: emp.legajo,
-                [t('exportHeaders.apellido')]: emp.apellido,
-                [t('exportHeaders.nombre')]: emp.nombre,
-                [t('exportHeaders.cuil')]: emp.cuil || '',
-                [t('exportHeaders.fechaIngreso')]: emp.fechaIngreso ? format(new Date(emp.fechaIngreso + 'T00:00:00'), 'dd/MM/yyyy', { locale: dateLocale }) : '',
-                [t('exportHeaders.obra')]: obraNameMap[emp.obraId] || 'N/A',
-                [t('exportHeaders.posicion')]: emp.denominacionPosicion,
-                [t('exportHeaders.condicion')]: emp.condicion,
-                [t('exportHeaders.estado')]: emp.estado,
-                [t('exportHeaders.celular')]: emp.celular || '',
-                [t('exportHeaders.correo')]: emp.correo || ''
+                "Legajo": emp.legajo,
+                "Apellido": emp.apellido,
+                "Nombre": emp.nombre,
+                "CUIL": emp.cuil || '',
+                "Fecha de Ingreso": emp.fechaIngreso ? format(new Date(emp.fechaIngreso + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }) : '',
+                "Obra": obraNameMap[emp.obraId] || 'N/A',
+                "Posición": emp.denominacionPosicion,
+                "Condición": emp.condicion,
+                "Estado": emp.estado,
+                "Celular": emp.celular || '',
+                "Correo": emp.correo || ''
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, t('exportSheetName'));
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Empleados");
             
             const colWidths = Object.keys(dataToExport[0] || {}).map(key => ({
                 wch: Math.max(
@@ -256,16 +251,16 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
             }));
             worksheet['!cols'] = colWidths;
             
-            XLSX.writeFile(workbook, `${t('exportFileName')}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+            XLSX.writeFile(workbook, `Listado_Empleados_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
 
             toast({
-                title: t('toast.exportSuccessTitle'),
-                description: t('toast.exportSuccessDescription'),
+                title: "Exportación exitosa",
+                description: "El listado de empleados se ha descargado.",
             });
         } catch (error) {
             toast({
-                title: t('toast.exportErrorTitle'),
-                description: t('toast.exportErrorDescription'),
+                title: "Error al exportar",
+                description: "No se pudo generar el archivo Excel.",
                 variant: "destructive"
             });
         }
@@ -278,16 +273,16 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
         <CardHeader>
              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <CardTitle>{t('cardTitle')}</CardTitle>
+                    <CardTitle>Lista de Empleados</CardTitle>
                     <CardDescription>
-                        {t('cardDescription')}
+                        Busque, edite, agregue nuevos empleados o exporte el listado.
                     </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                      <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder={t('searchPlaceholder')}
+                            placeholder="Buscar empleado..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-10 w-full sm:w-[250px]"
@@ -295,11 +290,11 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                     </div>
                     <Button onClick={handleExport} variant="outline" disabled={isPending}>
                         <FileSpreadsheet className="mr-2 h-4 w-4" />
-                        {t('exportButton')}
+                        Exportar a Excel
                     </Button>
                     <Button onClick={handleOpenAddDialog}>
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        {t('addEmployeeButton')}
+                        Agregar Empleado
                     </Button>
                 </div>
             </div>
@@ -309,12 +304,12 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>{t('tableHeaderLegajo')}</TableHead>
-                            <TableHead>{t('tableHeaderName')}</TableHead>
-                            <TableHead>{t('tableHeaderProject')}</TableHead>
-                            <TableHead>{t('tableHeaderCondition')}</TableHead>
-                            <TableHead>{t('tableHeaderStatus')}</TableHead>
-                            <TableHead className="text-right w-[120px]">{t('tableHeaderActions')}</TableHead>
+                            <TableHead>Legajo</TableHead>
+                            <TableHead>Apellido y Nombre</TableHead>
+                            <TableHead>Obra</TableHead>
+                            <TableHead>Condición</TableHead>
+                            <TableHead>Estado</TableHead>
+                            <TableHead className="text-right w-[120px]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -325,12 +320,12 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                                     <TableCell className="font-medium">{`${emp.apellido}, ${emp.nombre}`}</TableCell>
                                     <TableCell>{obraNameMap[emp.obraId] || 'N/A'}</TableCell>
                                     <TableCell>
-                                        <Badge variant={emp.condicion === 'mensual' ? 'secondary' : 'outline'}>{t(`conditions.${emp.condicion}`)}</Badge>
+                                        <Badge variant={emp.condicion === 'mensual' ? 'secondary' : 'outline'}>{emp.condicion === "jornal" ? "Jornal" : "Mensual"}</Badge>
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant={emp.estado === 'activo' ? 'default' : emp.estado === 'baja' ? 'destructive' : 'secondary'}
                                         className={emp.estado === 'activo' ? 'bg-green-600' : ''}>
-                                        {t(`statuses.${emp.estado}`)}
+                                        {emp.estado === "activo" ? "Activo" : emp.estado === "baja" ? "Baja" : "Suspendido"}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right space-x-1">
@@ -341,7 +336,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                                             disabled={isPending}
                                         >
                                             <Pencil className="h-4 w-4" />
-                                            <span className="sr-only">{t('editSr', { name: emp.nombre })}</span>
+                                            <span className="sr-only">Editar {emp.nombre}</span>
                                         </Button>
                                         <Button
                                             variant="ghost"
@@ -351,7 +346,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                                             disabled={isPending}
                                         >
                                             <Trash2 className="h-4 w-4" />
-                                            <span className="sr-only">{t('deleteSr', { name: emp.nombre })}</span>
+                                            <span className="sr-only">Eliminar {emp.nombre}</span>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -360,8 +355,8 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                             <TableRow>
                                 <TableCell colSpan={6} className="h-24 text-center">
                                      {employees.length === 0 
-                                        ? t('noEmployeesCreated') 
-                                        : t('noEmployeesWithFilter')
+                                        ? "No hay empleados creados."
+                                        : "No se encontraron empleados con los filtros aplicados."
                                     }
                                 </TableCell>
                             </TableRow>
@@ -375,17 +370,17 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
       <Dialog open={isFormDialogOpen} onOpenChange={(open) => { setIsFormDialogOpen(open); if (!open) setEditingEmployee(null); }}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{editingEmployee ? t('editEmployeeDialogTitle') : t('addEmployeeDialogTitle')}</DialogTitle>
+            <DialogTitle>{editingEmployee ? "Editar Empleado" : "Agregar Nuevo Empleado"}</DialogTitle>
             <DialogDescription>
-              {editingEmployee ? t('editEmployeeDialogDescription') : t('addEmployeeDialogDescription')}
+              {editingEmployee ? "Modifique la información del empleado." : "Complete los campos obligatorios (*) para registrar un nuevo empleado."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto pr-6">
             <div>
-              <h3 className="mb-4 text-lg font-medium leading-none">{t('personalInfoTitle')}</h3>
+              <h3 className="mb-4 text-lg font-medium leading-none">Información Personal</h3>
               <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="legajo" className="text-right">{t('legajoLabel')} *</Label>
+                  <Label htmlFor="legajo" className="text-right">Legajo *</Label>
                   <Input 
                     id="legajo" 
                     value={formState.legajo} 
@@ -403,15 +398,15 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                   />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="cuil" className="text-right">{t('cuilLabel')}</Label>
+                  <Label htmlFor="cuil" className="text-right">CUIL</Label>
                   <Input id="cuil" value={formState.cuil} onChange={(e) => handleInputChange('cuil', e.target.value)} className="col-span-3" placeholder="Ej. 20-12345678-9" disabled={isPending}/>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="apellido" className="text-right">{t('lastNameLabel')} *</Label>
+                  <Label htmlFor="apellido" className="text-right">Apellido *</Label>
                   <Input id="apellido" value={formState.apellido} onChange={(e) => handleInputChange('apellido', e.target.value)} className="col-span-3" placeholder="Pérez" disabled={isPending}/>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="nombre" className="text-right">{t('firstNameLabel')} *</Label>
+                  <Label htmlFor="nombre" className="text-right">Nombre *</Label>
                   <Input id="nombre" value={formState.nombre} onChange={(e) => handleInputChange('nombre', e.target.value)} className="col-span-3" placeholder="Juan" disabled={isPending}/>
                 </div>
               </div>
@@ -420,51 +415,51 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
             <Separator />
 
             <div>
-              <h3 className="mb-4 text-lg font-medium leading-none">{t('workInfoTitle')}</h3>
+              <h3 className="mb-4 text-lg font-medium leading-none">Información Laboral</h3>
               <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="fechaIngreso" className="text-right">{t('hireDateLabel')} *</Label>
+                  <Label htmlFor="fechaIngreso" className="text-right">F. Ingreso *</Label>
                   <Popover>
                       <PopoverTrigger asChild>
                           <Button variant="outline" className="col-span-3 justify-start text-left font-normal">
                               <CalendarIconLucide className="mr-2 h-4 w-4" />
-                              {formState.fechaIngreso ? format(formState.fechaIngreso, 'PPP', { locale: dateLocale }) : <span>{t('selectDatePlaceholder')}</span>}
+                              {formState.fechaIngreso ? format(formState.fechaIngreso, 'PPP', { locale: es }) : <span>Seleccione fecha</span>}
                           </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0">
-                          <Calendar mode="single" selected={formState.fechaIngreso} onSelect={(date) => handleInputChange('fechaIngreso', date)} initialFocus locale={dateLocale} />
+                          <Calendar mode="single" selected={formState.fechaIngreso} onSelect={(date) => handleInputChange('fechaIngreso', date)} initialFocus locale={es} />
                       </PopoverContent>
                   </Popover>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="obraId" className="text-right">{t('projectLabel')} *</Label>
+                  <Label htmlFor="obraId" className="text-right">Obra *</Label>
                    <Select onValueChange={(value) => handleInputChange('obraId', value)} value={formState.obraId} disabled={isPending}>
-                    <SelectTrigger className="col-span-3"><SelectValue placeholder={t('selectProjectPlaceholder')} /></SelectTrigger>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
                     <SelectContent>{initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="denominacionPosicion" className="text-right">{t('positionLabel')} *</Label>
-                  <Input id="denominacionPosicion" value={formState.denominacionPosicion} onChange={(e) => handleInputChange('denominacionPosicion', e.target.value)} className="col-span-3" placeholder={t('positionPlaceholder')} disabled={isPending}/>
+                  <Label htmlFor="denominacionPosicion" className="text-right">Posición *</Label>
+                  <Input id="denominacionPosicion" value={formState.denominacionPosicion} onChange={(e) => handleInputChange('denominacionPosicion', e.target.value)} className="col-span-3" placeholder="Ej. Oficial" disabled={isPending}/>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="condicion" className="text-right">{t('conditionLabel')} *</Label>
+                  <Label htmlFor="condicion" className="text-right">Condición *</Label>
                    <Select onValueChange={(value: EmployeeCondition) => handleInputChange('condicion', value)} value={formState.condicion} disabled={isPending}>
-                    <SelectTrigger className="col-span-3"><SelectValue placeholder={t('selectConditionPlaceholder')} /></SelectTrigger>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione condición" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="jornal">{t('conditions.jornal')}</SelectItem>
-                      <SelectItem value="mensual">{t('conditions.mensual')}</SelectItem>
+                      <SelectItem value="jornal">Jornal</SelectItem>
+                      <SelectItem value="mensual">Mensual</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="estado" className="text-right">{t('statusLabel')} *</Label>
+                  <Label htmlFor="estado" className="text-right">Estado *</Label>
                    <Select onValueChange={(value: EmployeeStatus) => handleInputChange('estado', value)} value={formState.estado} disabled={isPending}>
-                    <SelectTrigger className="col-span-3"><SelectValue placeholder={t('selectStatusPlaceholder')} /></SelectTrigger>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione estado" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="activo">{t('statuses.activo')}</SelectItem>
-                      <SelectItem value="suspendido">{t('statuses.suspendido')}</SelectItem>
-                      <SelectItem value="baja">{t('statuses.baja')}</SelectItem>
+                      <SelectItem value="activo">Activo</SelectItem>
+                      <SelectItem value="suspendido">Suspendido</SelectItem>
+                      <SelectItem value="baja">Baja</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -474,24 +469,24 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
             <Separator />
 
             <div>
-                <h3 className="mb-4 text-lg font-medium leading-none">{t('contactInfoTitle')}</h3>
+                <h3 className="mb-4 text-lg font-medium leading-none">Información de Contacto</h3>
                 <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="celular" className="text-right">{t('cellPhoneLabel')}</Label>
+                        <Label htmlFor="celular" className="text-right">Celular</Label>
                         <Input id="celular" value={formState.celular} onChange={(e) => handleInputChange('celular', e.target.value)} className="col-span-3" placeholder="Ej. 1122334455" disabled={isPending}/>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="correo" className="text-right">{t('emailLabel')}</Label>
+                        <Label htmlFor="correo" className="text-right">Correo</Label>
                         <Input id="correo" type="email" value={formState.correo} onChange={(e) => handleInputChange('correo', e.target.value)} className="col-span-3" placeholder="empleado@sacde.com" disabled={isPending}/>
                     </div>
                 </div>
             </div>
           </div>
           <DialogFooter>
-            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>{t('cancelButton')}</Button></DialogClose>
+            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
             <Button type="submit" onClick={handleSaveEmployee} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editingEmployee ? t('saveChangesButton') : t('saveEmployeeButton')}
+              {editingEmployee ? "Guardar Cambios" : "Guardar Empleado"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -500,21 +495,21 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
       <AlertDialog open={!!employeeToDelete} onOpenChange={(open) => !open && setEmployeeToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
+                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {t('deleteDialogDescription', { name: `${employeeToDelete?.nombre} ${employeeToDelete?.apellido}` })}
+                    Esta acción no se puede deshacer. Se eliminará permanentemente al empleado "{`${employeeToDelete?.nombre} ${employeeToDelete?.apellido}`}".
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setEmployeeToDelete(null)} disabled={isPending}>
-                    {t('cancelButton')}
+                    Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={handleDeleteEmployee} 
                   disabled={isPending}
                   className={buttonVariants({ variant: "destructive" })}
                 >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('deleteDialogConfirmButton')}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar empleado"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

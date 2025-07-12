@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -35,7 +34,6 @@ interface ObrasManagerProps {
 }
 
 export default function ObrasManager({ initialObras }: ObrasManagerProps) {
-  const t = useTranslations('ObrasManager');
   const { toast } = useToast();
   const [allObras, setAllObras] = useState<Obra[]>(initialObras.sort((a, b) => a.name.localeCompare(b.name)));
   const [newObra, setNewObra] = useState({ name: "", identifier: "" });
@@ -45,8 +43,8 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
   const handleAddObra = () => {
     if (!newObra.name.trim() || !newObra.identifier.trim()) {
       toast({
-        title: t('toast.validationErrorTitle'),
-        description: t('toast.validationErrorDescription'),
+        title: "Error de validación",
+        description: "El nombre y el identificador de la obra no pueden estar vacíos.",
         variant: "destructive",
       });
       return;
@@ -57,13 +55,13 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
         setAllObras((prev) => [...prev, addedObra].sort((a, b) => a.name.localeCompare(b.name)));
         setNewObra({ name: "", identifier: "" });
         toast({
-          title: t('toast.projectAddedTitle'),
-          description: t('toast.projectAddedDescription', { name: addedObra.name }),
+          title: "Obra agregada",
+          description: `La obra "${addedObra.name}" ha sido creada.`,
         });
       } catch (error) {
         toast({
-          title: t('toast.error'),
-          description: error instanceof Error ? error.message : t('toast.addErrorDescription'),
+          title: "Error",
+          description: error instanceof Error ? error.message : "No se pudo agregar la obra.",
           variant: "destructive",
         });
       }
@@ -78,13 +76,13 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
         await deleteObra(obraToDelete.id);
         setAllObras((prev) => prev.filter((o) => o.id !== obraToDelete.id));
         toast({
-          title: t('toast.projectDeletedTitle'),
-          description: t('toast.projectDeletedDescription', { name: obraToDelete.name }),
+          title: "Obra eliminada",
+          description: `La obra "${obraToDelete.name}" ha sido eliminada con éxito.`,
         });
       } catch (error) {
         toast({
-          title: t('toast.deleteErrorTitle'),
-          description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+          title: "Error al eliminar",
+          description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
           variant: "destructive",
         });
       } finally {
@@ -97,31 +95,31 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>{t('cardTitle')}</CardTitle>
+          <CardTitle>Lista de Obras</CardTitle>
           <CardDescription>
-            {t('cardDescription')}
+            Aquí puede ver todas las obras existentes, agregar nuevas o eliminarlas.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">{t('addNewProjectTitle')}</h3>
+              <h3 className="font-semibold">Agregar Nueva Obra</h3>
               <div className="flex flex-col sm:flex-row items-end gap-2">
                 <div className="w-full sm:w-auto flex-1">
-                  <Label htmlFor="new-obra-identifier" className="text-xs font-semibold">{t('identifierLabel')}</Label>
+                  <Label htmlFor="new-obra-identifier" className="text-xs font-semibold">Identificador</Label>
                   <Input
                     id="new-obra-identifier"
-                    placeholder={t('identifierPlaceholder')}
+                    placeholder="Ej. PC01"
                     value={newObra.identifier}
                     onChange={(e) => setNewObra(prev => ({ ...prev, identifier: e.target.value }))}
                     disabled={isPending}
                   />
                 </div>
                 <div className="w-full sm:w-auto flex-[2]">
-                  <Label htmlFor="new-obra-name" className="text-xs font-semibold">{t('projectNameLabel')}</Label>
+                  <Label htmlFor="new-obra-name" className="text-xs font-semibold">Nombre de la Obra</Label>
                   <Input
                     id="new-obra-name"
-                    placeholder={t('projectNamePlaceholder')}
+                    placeholder="Nombre de la nueva obra"
                     value={newObra.name}
                     onChange={(e) => setNewObra(prev => ({ ...prev, name: e.target.value }))}
                     disabled={isPending}
@@ -134,12 +132,12 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
                 </div>
                 <Button onClick={handleAddObra} disabled={isPending || !newObra.name.trim() || !newObra.identifier.trim()}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('addButton')}
+                  Agregar
                 </Button>
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">{t('existingProjectsTitle', { count: allObras.length })}</h3>
+              <h3 className="font-semibold">Obras Existentes ({allObras.length})</h3>
               <ScrollArea className="h-72 rounded-md border">
                 <div className="p-4">
                   {allObras.length > 0 ? (
@@ -158,14 +156,14 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
                             disabled={isPending}
                           >
                             <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">{t('deleteSr', { name: obra.name })}</span>
+                            <span className="sr-only">Eliminar {obra.name}</span>
                           </Button>
                         </li>
                       ))}
                     </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground p-2 text-center">
-                      {t('noProjectsCreated')}
+                      No hay obras creadas.
                     </p>
                   )}
                 </div>
@@ -178,21 +176,21 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
       <AlertDialog open={!!obraToDelete} onOpenChange={(open) => !open && setObraToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
+                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {t('deleteDialogDescription', { name: obraToDelete?.name })}
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la obra "{obraToDelete?.name}". Esta acción fallará si la obra tiene cuadrillas o empleados asignados.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setObraToDelete(null)} disabled={isPending}>
-                    {t('cancelButton')}
+                    Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={handleDeleteObra} 
                   disabled={isPending}
                   className={buttonVariants({ variant: "destructive" })}
                 >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('deleteDialogConfirmButton')}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar obra"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

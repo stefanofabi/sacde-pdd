@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Providers } from '@/components/providers';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'Parte Digital - Sacde',
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
           <Providers>
             {children}
+            <Toaster />
           </Providers>
       </body>
     </html>

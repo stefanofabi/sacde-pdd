@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -35,7 +34,6 @@ interface AbsenceTypesManagerProps {
 }
 
 export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceTypesManagerProps) {
-  const t = useTranslations('AbsenceTypesManager');
   const { toast } = useToast();
   const [allAbsenceTypes, setAllAbsenceTypes] = useState<AbsenceType[]>(initialAbsenceTypes.sort((a, b) => a.name.localeCompare(b.name)));
   const [newAbsenceType, setNewAbsenceType] = useState({ name: "", code: "" });
@@ -45,8 +43,8 @@ export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceType
   const handleAddAbsenceType = () => {
     if (!newAbsenceType.name.trim() || !newAbsenceType.code.trim()) {
       toast({
-        title: t('toast.validationErrorTitle'),
-        description: t('toast.validationErrorDescription'),
+        title: 'Error de validación',
+        description: 'El nombre y el código del tipo no pueden estar vacíos.',
         variant: "destructive",
       });
       return;
@@ -57,13 +55,13 @@ export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceType
         setAllAbsenceTypes((prev) => [...prev, addedType].sort((a, b) => a.name.localeCompare(b.name)));
         setNewAbsenceType({ name: "", code: "" });
         toast({
-          title: t('toast.typeAddedTitle'),
-          description: t('toast.typeAddedDescription', { name: addedType.name }),
+          title: 'Tipo agregado',
+          description: `El tipo "${addedType.name}" ha sido creado.`,
         });
       } catch (error) {
         toast({
-          title: t('toast.error'),
-          description: error instanceof Error ? error.message : t('toast.addErrorDescription'),
+          title: 'Error',
+          description: error instanceof Error ? error.message : 'No se pudo agregar el tipo.',
           variant: "destructive",
         });
       }
@@ -78,13 +76,13 @@ export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceType
         await deleteAbsenceType(typeToDelete.id);
         setAllAbsenceTypes((prev) => prev.filter((o) => o.id !== typeToDelete.id));
         toast({
-          title: t('toast.typeDeletedTitle'),
-          description: t('toast.typeDeletedDescription', { name: typeToDelete.name }),
+          title: 'Tipo eliminado',
+          description: `El tipo "${typeToDelete.name}" ha sido eliminado con éxito.`,
         });
       } catch (error) {
         toast({
-          title: t('toast.deleteErrorTitle'),
-          description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+          title: 'Error al eliminar',
+          description: error instanceof Error ? error.message : 'Ocurrió un error inesperado.',
           variant: "destructive",
         });
       } finally {
@@ -97,31 +95,31 @@ export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceType
     <>
       <Card>
         <CardHeader>
-          <CardTitle>{t('cardTitle')}</CardTitle>
+          <CardTitle>Tipos de Ausentismo</CardTitle>
           <CardDescription>
-            {t('cardDescription')}
+            Gestione los motivos de ausentismo que se pueden registrar en los partes diarios.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">{t('addNewTypeTitle')}</h3>
+              <h3 className="font-semibold">Agregar Nuevo Tipo de Ausentismo</h3>
               <div className="flex flex-col sm:flex-row items-end gap-2">
                 <div className="w-full sm:w-auto flex-1">
-                  <Label htmlFor="new-type-code" className="text-xs font-semibold">{t('codeLabel')}</Label>
+                  <Label htmlFor="new-type-code" className="text-xs font-semibold">Código</Label>
                   <Input
                     id="new-type-code"
-                    placeholder={t('codePlaceholder')}
+                    placeholder="Ej. VAC"
                     value={newAbsenceType.code}
                     onChange={(e) => setNewAbsenceType(prev => ({ ...prev, code: e.target.value }))}
                     disabled={isPending}
                   />
                 </div>
                 <div className="w-full sm:w-auto flex-[2]">
-                  <Label htmlFor="new-type-name" className="text-xs font-semibold">{t('nameLabel')}</Label>
+                  <Label htmlFor="new-type-name" className="text-xs font-semibold">Nombre del Tipo</Label>
                   <Input
                     id="new-type-name"
-                    placeholder={t('namePlaceholder')}
+                    placeholder="Ej. Vacaciones"
                     value={newAbsenceType.name}
                     onChange={(e) => setNewAbsenceType(prev => ({ ...prev, name: e.target.value }))}
                     disabled={isPending}
@@ -134,12 +132,12 @@ export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceType
                 </div>
                 <Button onClick={handleAddAbsenceType} disabled={isPending || !newAbsenceType.name.trim() || !newAbsenceType.code.trim()}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('addButton')}
+                  Agregar
                 </Button>
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">{t('existingTypesTitle', { count: allAbsenceTypes.length })}</h3>
+              <h3 className="font-semibold">Tipos Existentes ({allAbsenceTypes.length})</h3>
               <ScrollArea className="h-72 rounded-md border">
                 <div className="p-4">
                   {allAbsenceTypes.length > 0 ? (
@@ -158,14 +156,14 @@ export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceType
                             disabled={isPending}
                           >
                             <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">{t('deleteSr', { name: type.name })}</span>
+                            <span className="sr-only">Eliminar {type.name}</span>
                           </Button>
                         </li>
                       ))}
                     </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground p-2 text-center">
-                      {t('noTypesCreated')}
+                      No hay tipos de ausentismo creados.
                     </p>
                   )}
                 </div>
@@ -178,21 +176,21 @@ export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceType
       <AlertDialog open={!!typeToDelete} onOpenChange={(open) => !open && setTypeToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
+                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {t('deleteDialogDescription', { name: typeToDelete?.name })}
+                    Esta acción no se puede deshacer. Se eliminará permanentemente el tipo de ausentismo "{typeToDelete?.name}".
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setTypeToDelete(null)} disabled={isPending}>
-                    {t('cancelButton')}
+                    Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={handleDeleteAbsenceType} 
                   disabled={isPending}
                   className={buttonVariants({ variant: "destructive" })}
                 >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('deleteDialogConfirmButton')}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar tipo"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

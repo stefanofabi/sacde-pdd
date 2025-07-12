@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useTranslations } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -35,7 +34,6 @@ interface PhasesManagerProps {
 }
 
 export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
-  const t = useTranslations('PhasesManager');
   const { toast } = useToast();
   const [allPhases, setAllPhases] = useState<Phase[]>(initialPhases.sort((a, b) => a.name.localeCompare(b.name)));
   const [newPhase, setNewPhase] = useState({ name: "", pepElement: "" });
@@ -45,8 +43,8 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
   const handleAddPhase = () => {
     if (!newPhase.name.trim() || !newPhase.pepElement.trim()) {
       toast({
-        title: t('toast.validationErrorTitle'),
-        description: t('toast.validationErrorDescription'),
+        title: "Error de validación",
+        description: "El nombre de la fase y el elemento PEP no pueden estar vacíos.",
         variant: "destructive",
       });
       return;
@@ -57,13 +55,13 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
         setAllPhases((prev) => [...prev, addedPhase].sort((a, b) => a.name.localeCompare(b.name)));
         setNewPhase({ name: "", pepElement: "" });
         toast({
-          title: t('toast.phaseAddedTitle'),
-          description: t('toast.phaseAddedDescription', { name: addedPhase.name }),
+          title: "Fase agregada",
+          description: `La fase "${addedPhase.name}" ha sido creada.`,
         });
       } catch (error) {
         toast({
-          title: t('toast.error'),
-          description: error instanceof Error ? error.message : t('toast.addErrorDescription'),
+          title: "Error",
+          description: error instanceof Error ? error.message : "No se pudo agregar la fase.",
           variant: "destructive",
         });
       }
@@ -78,13 +76,13 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
         await deletePhase(phaseToDelete.id);
         setAllPhases((prev) => prev.filter((p) => p.id !== phaseToDelete.id));
         toast({
-          title: t('toast.phaseDeletedTitle'),
-          description: t('toast.phaseDeletedDescription', { name: phaseToDelete.name }),
+          title: "Fase eliminada",
+          description: `La fase "${phaseToDelete.name}" ha sido eliminada con éxito.`,
         });
       } catch (error) {
         toast({
-          title: t('toast.deleteErrorTitle'),
-          description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+          title: "Error al eliminar",
+          description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
           variant: "destructive",
         });
       } finally {
@@ -97,31 +95,31 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>{t('cardTitle')}</CardTitle>
+          <CardTitle>Fases del Proyecto</CardTitle>
           <CardDescription>
-            {t('cardDescription')}
+            Gestione las fases y sus elementos PEP asociados.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">{t('addNewPhaseTitle')}</h3>
+              <h3 className="font-semibold">Agregar Nueva Fase</h3>
               <div className="flex flex-col sm:flex-row items-end gap-2">
                 <div className="w-full sm:w-auto flex-[2]">
-                  <Label htmlFor="new-phase-name" className="text-xs font-semibold">{t('phaseNameLabel')}</Label>
+                  <Label htmlFor="new-phase-name" className="text-xs font-semibold">Nombre de la Fase</Label>
                   <Input
                     id="new-phase-name"
-                    placeholder={t('phaseNamePlaceholder')}
+                    placeholder="Ej. Movimiento de Suelos"
                     value={newPhase.name}
                     onChange={(e) => setNewPhase(prev => ({ ...prev, name: e.target.value }))}
                     disabled={isPending}
                   />
                 </div>
                 <div className="w-full sm:w-auto flex-1">
-                  <Label htmlFor="new-phase-pep" className="text-xs font-semibold">{t('pepElementLabel')}</Label>
+                  <Label htmlFor="new-phase-pep" className="text-xs font-semibold">Elemento PEP</Label>
                   <Input
                     id="new-phase-pep"
-                    placeholder={t('pepElementPlaceholder')}
+                    placeholder="Ej. A-110-C1001"
                     value={newPhase.pepElement}
                     onChange={(e) => setNewPhase(prev => ({ ...prev, pepElement: e.target.value }))}
                     disabled={isPending}
@@ -134,12 +132,12 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
                 </div>
                 <Button onClick={handleAddPhase} disabled={isPending || !newPhase.name.trim() || !newPhase.pepElement.trim()}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('addButton')}
+                  Agregar
                 </Button>
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">{t('existingPhasesTitle', { count: allPhases.length })}</h3>
+              <h3 className="font-semibold">Fases Existentes ({allPhases.length})</h3>
               <ScrollArea className="h-72 rounded-md border">
                 <div className="p-4">
                   {allPhases.length > 0 ? (
@@ -158,14 +156,14 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
                             disabled={isPending}
                           >
                             <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">{t('deleteSr', { name: phase.name })}</span>
+                            <span className="sr-only">Eliminar {phase.name}</span>
                           </Button>
                         </li>
                       ))}
                     </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground p-2 text-center">
-                      {t('noPhasesCreated')}
+                      No hay fases creadas.
                     </p>
                   )}
                 </div>
@@ -178,21 +176,21 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
       <AlertDialog open={!!phaseToDelete} onOpenChange={(open) => !open && setPhaseToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
+                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {t('deleteDialogDescription', { name: phaseToDelete?.name })}
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la fase "{phaseToDelete?.name}". Esta acción fallará si la fase está asignada a alguna cuadrilla.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setPhaseToDelete(null)} disabled={isPending}>
-                    {t('cancelButton')}
+                    Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={handleDeletePhase} 
                   disabled={isPending}
                   className={buttonVariants({ variant: "destructive" })}
                 >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('deleteDialogConfirmButton')}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar fase"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

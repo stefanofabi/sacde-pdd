@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useMemo, useTransition, useEffect } from "react";
-import { useTranslations, useLocale } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -63,7 +62,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft } from "lucide-react";
 import { format, startOfToday } from "date-fns";
-import { es, enUS } from "date-fns/locale";
+import { es } from "date-fns/locale";
 import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry, Permission } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
@@ -102,12 +101,6 @@ export default function DailyLaborReport({
   initialUnproductiveHourTypes,
   initialPermissions,
 }: DailyLaborReportProps) {
-  const t = useTranslations('DailyLaborReport');
-  const locale = useLocale();
-  const dateLocale = locale === 'es' ? es : enUS;
-  const { user } = useAuth();
-
-
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
@@ -139,8 +132,8 @@ export default function DailyLaborReport({
 
   const formattedDate = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
   const displayDate = selectedDate
-    ? format(selectedDate, "PPP", { locale: dateLocale })
-    : t('selectDate');
+    ? format(selectedDate, "PPP", { locale: es })
+    : "Seleccione una fecha";
 
   const employeeMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, emp])), [initialEmployees]);
   const obraMap = useMemo(() => new Map(initialObras.map(o => [o.id, o.name])), [initialObras]);
@@ -158,10 +151,10 @@ export default function DailyLaborReport({
     const crews = initialCrews.filter(c => c.obraId === selectedObraId);
     const options = crews.map(c => ({ value: c.id, label: c.name }));
      if (crews.length > 1) {
-        options.unshift({ value: 'all', label: t('allCrews') });
+        options.unshift({ value: 'all', label: "Todas las Cuadrillas" });
     }
     return options;
-  }, [initialCrews, selectedObraId, t]);
+  }, [initialCrews, selectedObraId]);
 
   const crewsForListView = useMemo(() => {
     if (!selectedObraId) return [];
@@ -174,8 +167,8 @@ export default function DailyLaborReport({
             c.id !== selectedCrewId && 
             !notificationData[formattedDate]?.[c.id]?.notified
         )
-        .map(c => ({ value: c.id, label: `${c.name} (${obraMap.get(c.obraId) || t('noProject')})` }));
-  }, [initialCrews, selectedCrewId, notificationData, formattedDate, obraMap, t]);
+        .map(c => ({ value: c.id, label: `${c.name} (${obraMap.get(c.obraId) || "Sin Obra"})` }));
+  }, [initialCrews, selectedCrewId, notificationData, formattedDate, obraMap]);
 
   const selectedCrew = useMemo(() => {
     if (selectedCrewId === 'all') return null;
@@ -268,9 +261,9 @@ export default function DailyLaborReport({
     const status = notificationData[formattedDate]?.[selectedCrewId];
     return {
       isNotified: status?.notified || false,
-      notifiedAt: status?.notifiedAt ? format(new Date(status.notifiedAt), 'Pp', { locale: dateLocale }) : null,
+      notifiedAt: status?.notifiedAt ? format(new Date(status.notifiedAt), 'Pp', { locale: es }) : null,
     }
-  }, [notificationData, formattedDate, selectedCrewId, dateLocale]);
+  }, [notificationData, formattedDate, selectedCrewId]);
   
   useEffect(() => {
     if (formattedDate && selectedCrewId && selectedCrewId !== 'all' && personnelForTable.length > 0) {
@@ -372,8 +365,8 @@ export default function DailyLaborReport({
   const handleSave = () => {
     if (!formattedDate || !selectedCrewId || selectedCrewId === 'all') {
       toast({
-        title: t('toast.selectionRequiredTitle'),
-        description: t('toast.selectionRequiredDescription'),
+        title: "Selección requerida",
+        description: "Por favor, seleccione una fecha y una cuadrilla para guardar.",
         variant: "destructive",
       });
       return;
@@ -417,13 +410,13 @@ export default function DailyLaborReport({
         }));
         
         toast({
-          title: t('toast.dataSavedTitle'),
-          description: t('toast.dataSavedDescription'),
+          title: "Datos Guardados",
+          description: "Las horas y ausencias se han registrado correctamente.",
         });
       } catch (error) {
         toast({
-          title: t('toast.saveErrorTitle'),
-          description: t('toast.saveErrorDescription'),
+          title: "Error al Guardar",
+          description: "No se pudieron guardar los datos.",
           variant: "destructive",
         });
       }
@@ -448,13 +441,13 @@ export default function DailyLaborReport({
             }));
             setIsNotifyDialogOpen(false);
             toast({
-                title: t('toast.reportNotifiedTitle'),
-                description: t('toast.reportNotifiedDescription'),
+                title: "Parte Notificado",
+                description: "El parte diario se ha notificado y ya no se puede modificar.",
             });
         } catch (error) {
             toast({
-                title: t('toast.notifyErrorTitle'),
-                description: t('toast.notifyErrorDescription'),
+                title: "Error al Notificar",
+                description: "No se pudo notificar el parte.",
                 variant: "destructive",
             });
         }
@@ -464,8 +457,8 @@ export default function DailyLaborReport({
   const handleOpenNotifyDialog = () => {
     if (!selectedCrewId || selectedCrewId === 'all' || !personnelForTable) {
         toast({
-            title: t('toast.error'),
-            description: t('toast.selectCrewToNotify'),
+            title: "Error",
+            description: "Debe seleccionar una cuadrilla con personal para notificar.",
             variant: "destructive"
         });
         return;
@@ -493,8 +486,8 @@ export default function DailyLaborReport({
             .map(emp => `${emp.apellido}, ${emp.nombre}`)
             .join('; ');
         toast({
-            title: t('toast.missingEntriesTitle'),
-            description: t('toast.missingEntriesDescription', { employees: employeeNames }),
+            title: "Faltan Novedades para Notificar",
+            description: `Los siguientes empleados no tienen horas ni ausencias registradas: ${employeeNames}.`,
             variant: "destructive",
             duration: 8000
         });
@@ -506,8 +499,8 @@ export default function DailyLaborReport({
             .map(emp => `${emp.apellido}, ${emp.nombre}`)
             .join('; ');
         toast({
-            title: t('toast.missingEntriesTitle'),
-            description: t('toast.phaseRequiredDescription', { employees: employeeNames }),
+            title: "Faltan Novedades para Notificar",
+            description: `Los siguientes empleados con horas no tienen una fase asignada: ${employeeNames}.`,
             variant: "destructive",
             duration: 8000
         });
@@ -535,16 +528,16 @@ export default function DailyLaborReport({
             setLaborData(updatedLaborData);
             
             toast({
-                title: t('toast.employeeMovedTitle'),
-                description: t('toast.employeeMovedDescription', { name: `${employeeToMove.apellido}, ${employeeToMove.nombre}` }),
+                title: "Empleado Movido",
+                description: `${employeeToMove.apellido}, ${employeeToMove.nombre} ha sido movido con éxito.`,
             });
             
             setEmployeeToMove(null);
             setDestinationCrewId("");
         } catch (error) {
             toast({
-                title: t('toast.moveErrorTitle'),
-                description: error instanceof Error ? error.message : t('toast.moveErrorDescription'),
+                title: "Error al mover",
+                description: error instanceof Error ? error.message : "No se pudo mover el empleado.",
                 variant: "destructive",
             });
         }
@@ -629,8 +622,8 @@ export default function DailyLaborReport({
         if (newTotalSpecial > totalHours) {
             toast({
                 variant: "destructive",
-                title: t('toast.error'),
-                description: t('toast.specialHoursExceededError', { totalHours }),
+                title: "Error",
+                description: `La suma de horas especiales no puede superar el total de horas trabajadas (${totalHours}h).`,
             });
             return;
         }
@@ -704,9 +697,9 @@ export default function DailyLaborReport({
     <TooltipProvider>
     <Card>
       <CardHeader>
-        <CardTitle>{t('cardTitle')}</CardTitle>
+        <CardTitle>Carga de Horas por Empleado</CardTitle>
         <CardDescription>
-          {t('cardDescription')}
+          Seleccione fecha, obra y cuadrilla para registrar las horas o ausencias del personal.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -719,13 +712,13 @@ export default function DailyLaborReport({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus locale={dateLocale} disabled={(date) => date > new Date()} />
+              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus locale={es} disabled={(date) => date > new Date()} />
             </PopoverContent>
           </Popover>
 
           <Select value={selectedObraId} onValueChange={setSelectedObraId} disabled={isPending}>
             <SelectTrigger className="w-full sm:w-[250px]">
-              <SelectValue placeholder={t('selectProjectPlaceholder')} />
+              <SelectValue placeholder="Seleccione una obra" />
             </SelectTrigger>
             <SelectContent>
               {obrasWithCrews.map(obra => (
@@ -738,9 +731,9 @@ export default function DailyLaborReport({
             options={crewOptions}
             value={selectedCrewId}
             onValueChange={setSelectedCrewId}
-            placeholder={t('selectCrewPlaceholder')}
-            searchPlaceholder={t('searchCrewPlaceholder')}
-            emptyMessage={t('noCrewsForProject')}
+            placeholder="Seleccione una cuadrilla"
+            searchPlaceholder="Buscar cuadrilla..."
+            emptyMessage="No hay cuadrillas para esta obra."
             disabled={!selectedObraId || isPending}
             className="w-full sm:w-[250px]"
           />
@@ -751,10 +744,10 @@ export default function DailyLaborReport({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t('listView.tableHeaderCrew')}</TableHead>
-                    <TableHead>{t('listView.tableHeaderForeman')}</TableHead>
-                    <TableHead>{t('listView.tableHeaderStatus')}</TableHead>
-                    <TableHead className="text-right">{t('listView.tableHeaderActions')}</TableHead>
+                    <TableHead>Cuadrilla</TableHead>
+                    <TableHead>Capataz</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -762,13 +755,13 @@ export default function DailyLaborReport({
                     crewsForListView.map(crew => {
                       const isNotified = notificationData[formattedDate]?.[crew.id]?.notified;
                       const hasEntries = (laborData[formattedDate] || []).some(e => e.crewId === crew.id);
-                      let statusText = t('listView.statusNotStarted');
+                      let statusText = "No Iniciado";
                       let statusColor = 'text-muted-foreground';
                       if (isNotified) {
-                        statusText = t('listView.statusNotified');
+                        statusText = "Notificado";
                         statusColor = 'text-green-600';
                       } else if (hasEntries) {
-                        statusText = t('listView.statusPending');
+                        statusText = "Pendiente";
                         statusColor = 'text-yellow-600';
                       }
 
@@ -782,7 +775,7 @@ export default function DailyLaborReport({
                           <TableCell className={cn("font-semibold", statusColor)}>{statusText}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="outline" size="sm" onClick={() => setSelectedCrewId(crew.id)}>
-                              {t('listView.editButton')}
+                              Ver / Editar
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -791,7 +784,7 @@ export default function DailyLaborReport({
                   ) : (
                     <TableRow>
                       <TableCell colSpan={4} className="h-24 text-center">
-                        {t('listView.noReports')}
+                        No hay partes para mostrar para esta obra y fecha.
                       </TableCell>
                     </TableRow>
                   )}
@@ -803,9 +796,9 @@ export default function DailyLaborReport({
             {isNotified && (
               <Alert className="mb-4 border-primary/50 text-primary [&>svg]:text-primary">
                 <Info className="h-4 w-4" />
-                <AlertTitle>{t('alertNotifiedTitle')}</AlertTitle>
+                <AlertTitle>Parte Notificado</AlertTitle>
                 <AlertDescription>
-                  {t('alertNotifiedDescription', { date: notifiedAt })}
+                  Este parte fue notificado el {notifiedAt}. No se admiten más cambios.
                 </AlertDescription>
               </Alert>
             )}
@@ -813,19 +806,19 @@ export default function DailyLaborReport({
             {selectedCrew && (
               <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border p-4 bg-muted/50">
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground">{t('foremanLabel')}</p>
+                  <p className="text-sm font-semibold text-muted-foreground">Capataz</p>
                   <p className="truncate">{employeeMap.get(selectedCrew.capatazId) ? `${employeeMap.get(selectedCrew.capatazId)?.apellido}, ${employeeMap.get(selectedCrew.capatazId)?.nombre}` : 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground">{t('tallymanLabel')}</p>
+                  <p className="text-sm font-semibold text-muted-foreground">Apuntador</p>
                   <p className="truncate">{employeeMap.get(selectedCrew.apuntadorId) ? `${employeeMap.get(selectedCrew.apuntadorId)?.apellido}, ${employeeMap.get(selectedCrew.apuntadorId)?.nombre}` : 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground">{t('projectManagerLabel')}</p>
+                  <p className="text-sm font-semibold text-muted-foreground">Jefe de Proyecto</p>
                   <p className="truncate">{employeeMap.get(selectedCrew.jefeDeObraId) ? `${employeeMap.get(selectedCrew.jefeDeObraId)?.apellido}, ${employeeMap.get(selectedCrew.jefeDeObraId)?.nombre}` : 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-muted-foreground">{t('mgmtControlLabel')}</p>
+                  <p className="text-sm font-semibold text-muted-foreground">Control y Gestión</p>
                   <p className="truncate">{employeeMap.get(selectedCrew.controlGestionId) ? `${employeeMap.get(selectedCrew.controlGestionId)?.apellido}, ${employeeMap.get(selectedCrew.controlGestionId)?.nombre}` : 'N/A'}</p>
                 </div>
               </div>
@@ -836,16 +829,16 @@ export default function DailyLaborReport({
                 <Table>
                     <TableHeader>
                     <TableRow>
-                        <TableHead className="sticky left-0 bg-background z-10">{t('tableHeaderLegajo')}</TableHead>
-                        <TableHead className="sticky left-[70px] bg-background z-10 min-w-[200px]">{t('tableHeaderName')}</TableHead>
-                        <TableHead className="w-[220px]">{t('tableHeaderAbsence')}</TableHead>
+                        <TableHead className="sticky left-0 bg-background z-10">Legajo</TableHead>
+                        <TableHead className="sticky left-[70px] bg-background z-10 min-w-[200px]">Apellido y Nombre</TableHead>
+                        <TableHead className="w-[220px]">Ausencia</TableHead>
                         {activePhases.map(phase => (
                             <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
                         ))}
-                        <TableHead className="w-[150px] text-center">{t('tableHeaderUnproductiveHours')}</TableHead>
-                        <TableHead className="w-[120px] text-center font-bold text-foreground">{t('tableHeaderTotalHours')}</TableHead>
-                        <TableHead className="w-[150px] text-center">{t('tableHeaderSpecialHours')}</TableHead>
-                        <TableHead className="w-[100px] text-right">{t('tableHeaderActions')}</TableHead>
+                        <TableHead className="w-[150px] text-center">Horas Improductivas</TableHead>
+                        <TableHead className="w-[120px] text-center font-bold text-foreground">Horas Totales</TableHead>
+                        <TableHead className="w-[150px] text-center">Horas Especiales</TableHead>
+                        <TableHead className="w-[100px] text-right">Acciones</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -884,7 +877,7 @@ export default function DailyLaborReport({
                                       <UserPlus className="h-4 w-4 text-primary" />
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                      <p>{t('tooltipManuallyAdded')}</p>
+                                      <p>Empleado agregado manualmente</p>
                                       </TooltipContent>
                                   </Tooltip>
                                   )}
@@ -894,7 +887,7 @@ export default function DailyLaborReport({
                                               <AlertTriangle className="h-4 w-4 text-destructive" />
                                           </TooltipTrigger>
                                           <TooltipContent>
-                                            <p>{t('warningOvertime', { hours: totalHours })}</p>
+                                            <p>Advertencia: Más de 12 horas cargadas.</p>
                                           </TooltipContent>
                                       </Tooltip>
                                   )}
@@ -908,7 +901,7 @@ export default function DailyLaborReport({
                                       disabled={isPending || hasHours}
                                   >
                                       <SelectTrigger>
-                                          <SelectValue placeholder={t('selectReasonPlaceholder')} />
+                                          <SelectValue placeholder="Seleccionar motivo..." />
                                       </SelectTrigger>
                                       <SelectContent>
                                           <SelectItem value="NONE">-</SelectItem>
@@ -925,7 +918,7 @@ export default function DailyLaborReport({
                                             <Info className="h-4 w-4 text-primary" />
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>{t('tooltipPermissionApplied')}</p>
+                                            <p>Ausencia sugerida automáticamente por un permiso aprobado.</p>
                                         </TooltipContent>
                                     </Tooltip>
                                   )}
@@ -960,7 +953,7 @@ export default function DailyLaborReport({
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>{t('editUnproductiveHoursButtonSr', { name: `${emp.apellido}, ${emp.nombre}` })}</p>
+                                        <p>Editar horas improductivas para {`${emp.apellido}, ${emp.nombre}`}</p>
                                       </TooltipContent>
                                     </Tooltip>
                                 </div>
@@ -983,7 +976,7 @@ export default function DailyLaborReport({
                                         </Button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>{t('editSpecialHoursButtonSr', { name: `${emp.apellido}, ${emp.nombre}` })}</p>
+                                        <p>Editar horas especiales para {`${emp.apellido}, ${emp.nombre}`}</p>
                                       </TooltipContent>
                                     </Tooltip>
                                 </div>
@@ -999,11 +992,11 @@ export default function DailyLaborReport({
                                         disabled={isPending}
                                     >
                                         <ArrowRightLeft className="h-4 w-4 text-blue-600" />
-                                        <span className="sr-only">{t('tooltipMoveEmployee')}</span>
+                                        <span className="sr-only">Mover empleado</span>
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                      <p>{t('tooltipMoveToOtherCrew')}</p>
+                                      <p>Mover a otra cuadrilla</p>
                                   </TooltipContent>
                                 </Tooltip>
                                 {isManual && (
@@ -1016,11 +1009,11 @@ export default function DailyLaborReport({
                                                 disabled={isPending}
                                             >
                                                 <Trash2 className="h-4 w-4 text-destructive" />
-                                                <span className="sr-only">{t('tooltipRemoveEmployee')}</span>
+                                                <span className="sr-only">Quitar empleado</span>
                                             </Button>
                                         </TooltipTrigger>
                                         <TooltipContent>
-                                            <p>{t('tooltipRemoveFromReport')}</p>
+                                            <p>Quitar de este parte</p>
                                         </TooltipContent>
                                     </Tooltip>
                                 )}
@@ -1031,7 +1024,7 @@ export default function DailyLaborReport({
                     ) : (
                         <TableRow>
                         <TableCell colSpan={8 + activePhases.length} className="h-24 text-center">
-                            {t('noPersonnelAssigned')}
+                            Esta cuadrilla no tiene personal asignado.
                         </TableCell>
                         </TableRow>
                     )}
@@ -1041,22 +1034,22 @@ export default function DailyLaborReport({
                 <div className="flex justify-between mt-4 p-4 border-t">
                     <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending}>
                         <UserPlus className="mr-2 h-4 w-4" />
-                        {t('addEmployeeButton')}
+                        Agregar Empleado
                     </Button>
                     <div className="flex gap-2">
                         {selectedCrewId && selectedCrewId !== 'all' && crewOptions.some(o => o.value === 'all') && (
                             <Button variant="outline" onClick={() => setSelectedCrewId('all')} disabled={isPending}>
                                 <ArrowLeft className="mr-2 h-4 w-4" />
-                                {t('listView.backButton')}
+                                Volver al Listado
                             </Button>
                         )}
                         <Button onClick={handleSave} disabled={isPending || !selectedCrewId}>
                             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                            {t('saveReportButton')}
+                            Guardar Parte
                         </Button>
                         <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId}>
                             <Send className="mr-2 h-4 w-4" />
-                            {t('notifyReportButton')}
+                            Notificar Parte
                         </Button>
                     </div>
                 </div>
@@ -1064,7 +1057,7 @@ export default function DailyLaborReport({
           </div>
         ) : (
             <div className="flex items-center justify-center h-40 text-muted-foreground border-2 border-dashed rounded-lg">
-                <p>{t('selectProjectAndCrewMessage')}</p>
+                <p>Seleccione una obra y una cuadrilla para ver al personal.</p>
             </div>
         )}
       </CardContent>
@@ -1073,26 +1066,26 @@ export default function DailyLaborReport({
     <Dialog open={isAddEmployeeDialogOpen} onOpenChange={setIsAddEmployeeDialogOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('addManualEmployeeDialogTitle')}</DialogTitle>
+          <DialogTitle>Agregar Empleado Manualmente</DialogTitle>
           <DialogDescription>
-            {t('addManualEmployeeDialogDescription')}
+            Seleccione un empleado para agregarlo a este parte diario. Solo se guardará cuando presione "Guardar Parte".
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-          <Label htmlFor="employee-to-add">{t('employeeLabel')}</Label>
+          <Label htmlFor="employee-to-add">Empleado</Label>
           <Combobox
             options={availableEmployeesForManualAdd}
             value={employeeToAdd}
             onValueChange={setEmployeeToAdd}
-            placeholder={t('selectEmployeePlaceholder')}
-            searchPlaceholder={t('searchEmployeeByNamePlaceholder')}
-            emptyMessage={t('noMoreEmployeesAvailable')}
+            placeholder="Seleccione un empleado"
+            searchPlaceholder="Buscar por nombre o legajo..."
+            emptyMessage="No hay más empleados disponibles."
           />
         </div>
         <DialogFooter>
-          <DialogClose asChild><Button type="button" variant="secondary">{t('cancelButton')}</Button></DialogClose>
+          <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
           <Button onClick={handleAddManualEmployee} disabled={!employeeToAdd || isPending}>
-            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('addButton')}
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Agregar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1101,20 +1094,16 @@ export default function DailyLaborReport({
     <Dialog open={!!employeeToMove} onOpenChange={(open) => !open && setEmployeeToMove(null)}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>{t('moveEmployeeDialogTitle')}</DialogTitle>
+                <DialogTitle>Mover Empleado</DialogTitle>
                 <DialogDescription>
-                    {t.rich('moveEmployeeDialogDescription', {
-                        name: `${employeeToMove?.apellido}, ${employeeToMove?.nombre}`,
-                        date: displayDate,
-                        strong: (chunks) => <strong>{chunks}</strong>
-                    })}
+                    Mover a <strong>{employeeToMove?.apellido}, {employeeToMove?.nombre}</strong> a otra cuadrilla para la fecha <strong>{displayDate}</strong>. Esta acción quitará al empleado del parte actual y creará una entrada en blanco en el parte de destino.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-2">
-                <Label htmlFor="destination-crew">{t('destinationCrewLabel')}</Label>
+                <Label htmlFor="destination-crew">Cuadrilla de Destino</Label>
                 <Select value={destinationCrewId} onValueChange={setDestinationCrewId}>
                     <SelectTrigger id="destination-crew">
-                        <SelectValue placeholder={t('selectCrewPlaceholder')} />
+                        <SelectValue placeholder="Seleccione una cuadrilla" />
                     </SelectTrigger>
                     <SelectContent>
                         {availableCrewsForMove.length > 0 ? (
@@ -1123,17 +1112,17 @@ export default function DailyLaborReport({
                             ))
                         ) : (
                             <div className="p-4 text-center text-sm text-muted-foreground">
-                                {t('noOtherCrewsAvailable')}
+                                No hay otras cuadrillas disponibles para mover.
                             </div>
                         )}
                     </SelectContent>
                 </Select>
             </div>
             <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="secondary">{t('cancelButton')}</Button></DialogClose>
+                <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
                 <Button onClick={handleMoveEmployee} disabled={isPending || !destinationCrewId}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t('moveButton')}
+                  Mover
                 </Button>
             </DialogFooter>
         </DialogContent>
@@ -1142,23 +1131,19 @@ export default function DailyLaborReport({
     <AlertDialog open={isNotifyDialogOpen} onOpenChange={setIsNotifyDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>{t('notifyDialogTitle')}</AlertDialogTitle>
+                <AlertDialogTitle>¿Notificar y cerrar el parte diario?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {t.rich('notifyDialogDescription', { 
-                        crewName: selectedCrew?.name, 
-                        date: displayDate,
-                        strong: (chunks) => <strong>{chunks}</strong>
-                    })}
+                    Esta acción es irreversible. Once notificado, el parte diario para la cuadrilla <strong>{selectedCrew?.name}</strong> en la fecha <strong>{displayDate}</strong> no podrá ser modificado. Asegúrese de que todos los datos son correctos.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setIsNotifyDialogOpen(false)} disabled={isPending}>{t('cancelButton')}</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setIsNotifyDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
                 <AlertDialogAction 
                     onClick={handleNotify} 
                     disabled={isPending}
                     className={buttonVariants({ variant: "default" })}
                 >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('notifyDialogConfirmButton')}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, notificar y cerrar"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
@@ -1167,22 +1152,19 @@ export default function DailyLaborReport({
     <Dialog open={specialHoursModalState.isOpen} onOpenChange={(isOpen) => setSpecialHoursModalState({ isOpen, employee: isOpen ? specialHoursModalState.employee : null })}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('specialHoursModalTitle')}</DialogTitle>
+          <DialogTitle>Registrar Horas Especiales</DialogTitle>
           <DialogDescription>
-            {t('specialHoursModalDescription', { 
-                name: `${specialHoursModalState.employee?.apellido}, ${specialHoursModalState.employee?.nombre}`,
-                date: displayDate
-            })}
+            Registre las horas especiales para {`${specialHoursModalState.employee?.apellido}, ${specialHoursModalState.employee?.nombre}`} en la fecha {displayDate}. El total no puede exceder las horas totales trabajadas.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 grid gap-4">
           <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">{t('totalHoursLabel')}</p>
+                <p className="text-sm font-medium text-muted-foreground">Horas Totales Trabajadas</p>
                 <p className="text-2xl font-bold">{totalHoursForModal} hs</p>
              </div>
              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">{t('tableHeaderSpecialHours')}</p>
+                <p className="text-sm font-medium text-muted-foreground">Horas Especiales</p>
                 <p className="text-2xl font-bold">{Object.values(modalSpecialHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
              </div>
           </div>
@@ -1205,8 +1187,8 @@ export default function DailyLaborReport({
           ))}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setSpecialHoursModalState({ isOpen: false, employee: null })}>{t('cancelButton')}</Button>
-          <Button onClick={handleSaveSpecialHours}>{t('saveButton')}</Button>
+          <Button variant="outline" onClick={() => setSpecialHoursModalState({ isOpen: false, employee: null })}>Cancelar</Button>
+          <Button onClick={handleSaveSpecialHours}>Guardar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1214,22 +1196,19 @@ export default function DailyLaborReport({
     <Dialog open={unproductiveHoursModalState.isOpen} onOpenChange={(isOpen) => setUnproductiveHoursModalState({ isOpen, employee: isOpen ? unproductiveHoursModalState.employee : null })}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t('unproductiveHoursModalTitle')}</DialogTitle>
+          <DialogTitle>Registrar Horas Improductivas</DialogTitle>
           <DialogDescription>
-            {t('unproductiveHoursModalDescription', { 
-                name: `${unproductiveHoursModalState.employee?.apellido}, ${unproductiveHoursModalState.employee?.nombre}`,
-                date: displayDate
-            })}
+            Registre las horas improductivas para {`${unproductiveHoursModalState.employee?.apellido}, ${unproductiveHoursModalState.employee?.nombre}`} en la fecha {displayDate}.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 grid gap-4">
           <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">{t('totalProductiveHoursLabel')}</p>
+                <p className="text-sm font-medium text-muted-foreground">Horas Productivas Totales</p>
                 <p className="text-2xl font-bold">{totalProductiveHoursForModal} hs</p>
              </div>
              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">{t('tableHeaderUnproductiveHours')}</p>
+                <p className="text-sm font-medium text-muted-foreground">Horas Improductivas</p>
                 <p className="text-2xl font-bold">{Object.values(modalUnproductiveHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
              </div>
           </div>
@@ -1251,8 +1230,8 @@ export default function DailyLaborReport({
           ))}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setUnproductiveHoursModalState({ isOpen: false, employee: null })}>{t('cancelButton')}</Button>
-          <Button onClick={handleSaveUnproductiveHours}>{t('saveButton')}</Button>
+          <Button variant="outline" onClick={() => setUnproductiveHoursModalState({ isOpen: false, employee: null })}>Cancelar</Button>
+          <Button onClick={handleSaveUnproductiveHours}>Guardar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

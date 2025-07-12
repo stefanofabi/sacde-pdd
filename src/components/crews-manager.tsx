@@ -2,7 +2,6 @@
 "use client";
 
 import { useState, useTransition, useMemo, useEffect } from "react";
-import { useTranslations, useLocale } from "next-intl";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -58,7 +57,7 @@ import { Badge } from "./ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
 import { format } from "date-fns";
-import { es, enUS } from "date-fns/locale";
+import { es } from "date-fns/locale";
 
 interface CrewsManagerProps {
   initialCrews: Crew[];
@@ -79,9 +78,6 @@ const emptyForm = {
 };
 
 export default function CrewsManager({ initialCrews, initialObras, initialEmployees, initialPhases }: CrewsManagerProps) {
-  const t = useTranslations('CrewsManager');
-  const locale = useLocale();
-  const dateLocale = locale === 'es' ? es : enUS;
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
   const [isCrewDialogOpen, setIsCrewDialogOpen] = useState(false);
@@ -197,8 +193,8 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
 
     if (endDate < startDate) {
         toast({
-            title: t('toast.validationErrorTitle'),
-            description: t('toast.phaseDateValidation'),
+            title: "Error de validación",
+            description: "La fecha de fin no puede ser anterior a la de inicio.",
             variant: "destructive"
         });
         return;
@@ -223,8 +219,8 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
     const { name, obraId, capatazId, apuntadorId, jefeDeObraId, controlGestionId } = newCrewState;
     if (!name.trim() || !obraId || !capatazId || !apuntadorId || !jefeDeObraId || !controlGestionId) {
       toast({
-        title: t('toast.validationErrorTitle'),
-        description: t('toast.validationErrorDescription'),
+        title: "Error de validación",
+        description: "Debe completar todos los campos para crear una cuadrilla.",
         variant: "destructive",
       });
       return;
@@ -235,23 +231,23 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
           const updatedCrew = await updateCrew(editingCrew.id, newCrewState);
           setAllCrews(prev => prev.map(c => c.id === updatedCrew.id ? updatedCrew : c));
           toast({
-            title: t('toast.crewUpdatedTitle'),
-            description: t('toast.crewUpdatedDescription', { crewName: updatedCrew.name }),
+            title: "Cuadrilla actualizada",
+            description: `La cuadrilla "${updatedCrew.name}" ha sido actualizada.`,
           });
         } else {
           const newCrew = await addCrew(newCrewState);
           setAllCrews((prev) => [...prev, newCrew]);
           toast({
-            title: t('toast.crewAddedTitle'),
-            description: t('toast.crewAddedDescription', { crewName: newCrew.name }),
+            title: "Cuadrilla agregada",
+            description: `La cuadrilla "${newCrew.name}" ha sido creada.`,
           });
         }
         setIsCrewDialogOpen(false);
         setEditingCrew(null);
       } catch (error) {
         toast({
-          title: t('toast.error'),
-          description: error instanceof Error ? error.message : t('toast.saveErrorDescription'),
+          title: "Error",
+          description: error instanceof Error ? error.message : "No se pudo guardar la cuadrilla.",
           variant: "destructive",
         });
       }
@@ -266,13 +262,13 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
         await deleteCrew(crewToDelete.id);
         setAllCrews((prev) => prev.filter((c) => c.id !== crewToDelete.id));
         toast({
-          title: t('toast.crewDeletedTitle'),
-          description: t('toast.crewDeletedDescription', { crewName: crewToDelete.name }),
+          title: "Cuadrilla eliminada",
+          description: `La cuadrilla "${crewToDelete.name}" ha sido eliminada con éxito.`,
         });
       } catch (error) {
         toast({
-          title: t('toast.deleteErrorTitle'),
-          description: error instanceof Error ? error.message : t('toast.unexpectedError'),
+          title: "Error al eliminar",
+          description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
           variant: "destructive",
         });
       } finally {
@@ -297,16 +293,16 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
         <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <CardTitle>{t('cardTitle')}</CardTitle>
+                    <CardTitle>Lista de Cuadrillas</CardTitle>
                     <CardDescription>
-                        {t('cardDescription')}
+                        Busque, filtre por obra o gestione las cuadrillas existentes.
                     </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder={t('searchPlaceholder')}
+                            placeholder="Buscar cuadrilla..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-10 w-full sm:w-[200px]"
@@ -314,10 +310,10 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                     </div>
                     <Select onValueChange={setSelectedObraId} defaultValue="all">
                         <SelectTrigger className="w-full sm:w-[250px]">
-                            <SelectValue placeholder={t('filterByProjectPlaceholder')} />
+                            <SelectValue placeholder="Filtrar por obra..." />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">{t('allProjects')}</SelectItem>
+                            <SelectItem value="all">Todas las Obras</SelectItem>
                             {initialObras.map((obra) => (
                                 <SelectItem key={obra.id} value={obra.id}>
                                     {obra.name}
@@ -327,7 +323,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                     </Select>
                     <Button onClick={handleOpenAddDialog}>
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        {t('addCrewButton')}
+                        Agregar Cuadrilla
                     </Button>
                 </div>
             </div>
@@ -337,13 +333,13 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>{t('tableHeaderName')}</TableHead>
-                            <TableHead>{t('tableHeaderForeman')}</TableHead>
-                            <TableHead>{t('tableHeaderTallyman')}</TableHead>
-                            <TableHead>{t('tableHeaderSiteManager')}</TableHead>
-                            <TableHead>{t('tableHeaderMgmtControl')}</TableHead>
-                            <TableHead className="text-center">{t('tableHeaderPersonnel')}</TableHead>
-                            <TableHead className="text-right w-[120px]">{t('tableHeaderActions')}</TableHead>
+                            <TableHead>Nombre</TableHead>
+                            <TableHead>Capataz</TableHead>
+                            <TableHead>Apuntador</TableHead>
+                            <TableHead>Jefe de Proyecto</TableHead>
+                            <TableHead>Control y Gestión</TableHead>
+                            <TableHead className="text-center">Personal</TableHead>
+                            <TableHead className="text-right w-[120px]">Acciones</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -366,7 +362,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                                             disabled={isPending}
                                         >
                                             <Pencil className="h-4 w-4" />
-                                            <span className="sr-only">{t('editSr', { name: crew.name })}</span>
+                                            <span className="sr-only">Editar {crew.name}</span>
                                         </Button>
                                         <Button
                                             variant="ghost"
@@ -376,7 +372,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                                             disabled={isPending}
                                         >
                                             <Trash2 className="h-4 w-4" />
-                                            <span className="sr-only">{t('deleteSr', { name: crew.name })}</span>
+                                            <span className="sr-only">Eliminar {crew.name}</span>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -385,8 +381,8 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                             <TableRow>
                                 <TableCell colSpan={7} className="h-24 text-center">
                                     {allCrews.length === 0 
-                                        ? t('noCrewsCreated') 
-                                        : t('noCrewsWithFilter')
+                                        ? "No hay cuadrillas creadas."
+                                        : "No se encontraron cuadrillas con los filtros aplicados."
                                     }
                                 </TableCell>
                             </TableRow>
@@ -400,146 +396,146 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
       <Dialog open={isCrewDialogOpen} onOpenChange={(open) => { setIsCrewDialogOpen(open); if (!open) setEditingCrew(null); }}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>{editingCrew ? t('editCrewDialogTitle') : t('addCrewDialogTitle')}</DialogTitle>
+            <DialogTitle>{editingCrew ? "Editar Cuadrilla" : "Agregar Nueva Cuadrilla"}</DialogTitle>
             <DialogDescription>
-              {t('addCrewDialogDescription')}
+              Complete los detalles de la cuadrilla y asigne el personal necesario.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="crew-name">{t('nameLabel')}</Label>
-                <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder={t('namePlaceholder')} disabled={isPending}/>
+                <Label htmlFor="crew-name">Nombre</Label>
+                <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Ej. Equipo de Montaje" disabled={isPending}/>
               </div>
               <div>
-                <Label htmlFor="crew-obra">{t('projectLabel')}</Label>
+                <Label htmlFor="crew-obra">Obra</Label>
                  <Select onValueChange={(value) => handleInputChange('obraId', value)} value={newCrewState.obraId} disabled={isPending}>
-                  <SelectTrigger><SelectValue placeholder={t('selectProjectPlaceholder')} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
                   <SelectContent>
                     {initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="crew-capataz">{t('foremanLabel')}</Label>
+                <Label htmlFor="crew-capataz">Capataz</Label>
                  <Combobox
                     options={employeeOptions}
                     value={newCrewState.capatazId}
                     onValueChange={(value) => handleInputChange('capatazId', value)}
-                    placeholder={t('selectEmployeePlaceholder')}
-                    searchPlaceholder={t('searchEmployeePlaceholder')}
-                    emptyMessage={t('employeeNotFound')}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
                     disabled={isPending}
                   />
               </div>
               <div>
-                <Label htmlFor="crew-apuntador">{t('tallymanLabel')}</Label>
+                <Label htmlFor="crew-apuntador">Apuntador</Label>
                  <Combobox
                     options={employeeOptions}
                     value={newCrewState.apuntadorId}
                     onValueChange={(value) => handleInputChange('apuntadorId', value)}
-                    placeholder={t('selectEmployeePlaceholder')}
-                    searchPlaceholder={t('searchEmployeePlaceholder')}
-                    emptyMessage={t('employeeNotFound')}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
                     disabled={isPending}
                   />
               </div>
               <div>
-                <Label htmlFor="crew-jefe">{t('siteManagerLabel')}</Label>
+                <Label htmlFor="crew-jefe">Jefe de Proyecto</Label>
                  <Combobox
                     options={employeeOptions}
                     value={newCrewState.jefeDeObraId}
                     onValueChange={(value) => handleInputChange('jefeDeObraId', value)}
-                    placeholder={t('selectEmployeePlaceholder')}
-                    searchPlaceholder={t('searchEmployeePlaceholder')}
-                    emptyMessage={t('employeeNotFound')}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
                     disabled={isPending}
                   />
               </div>
                <div>
-                <Label htmlFor="crew-control" className="whitespace-nowrap">{t('mgmtControlLabel')}</Label>
+                <Label htmlFor="crew-control" className="whitespace-nowrap">Control y Gestión</Label>
                  <Combobox
                     options={employeeOptions}
                     value={newCrewState.controlGestionId}
                     onValueChange={(value) => handleInputChange('controlGestionId', value)}
-                    placeholder={t('selectEmployeePlaceholder')}
-                    searchPlaceholder={t('searchEmployeePlaceholder')}
-                    emptyMessage={t('employeeNotFound')}
+                    placeholder="Seleccione un empleado"
+                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                    emptyMessage="No se encontró el empleado."
                     disabled={isPending}
                   />
               </div>
             </div>
             <Separator className="my-4" />
             <div>
-              <h3 className="mb-4 text-lg font-medium leading-none">{t('assignPhasesTitle')}</h3>
+              <h3 className="mb-4 text-lg font-medium leading-none">Asignar Fases</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4 rounded-md border p-4">
-                        <h4 className="font-semibold text-sm">{t('assignPhasesTitle')}</h4>
+                        <h4 className="font-semibold text-sm">Asignar Fases</h4>
                         <div className="space-y-2">
-                            <Label htmlFor="phase-id">{t('phaseLabel')}</Label>
+                            <Label htmlFor="phase-id">Fase</Label>
                             <Combobox
                                 options={phaseOptions}
                                 value={phaseAssignment.phaseId}
                                 onValueChange={(value) => setPhaseAssignment(p => ({...p, phaseId: value}))}
-                                placeholder={t('selectPhasePlaceholder')}
-                                searchPlaceholder={t('searchEmployeePlaceholder')}
-                                emptyMessage={t('phaseNotFound')}
+                                placeholder="Seleccione una fase"
+                                searchPlaceholder="Buscar fase..."
+                                emptyMessage="Fase no encontrada."
                                 disabled={isPending}
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>{t('startDateLabel')}</Label>
+                                <Label>Fecha Inicio</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-start text-left font-normal">
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {phaseAssignment.startDate ? format(phaseAssignment.startDate, 'PPP', { locale: dateLocale }) : <span>{t('selectDatePlaceholder')}</span>}
+                                            {phaseAssignment.startDate ? format(phaseAssignment.startDate, 'PPP', { locale: es }) : <span>Seleccione una fecha</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={phaseAssignment.startDate} onSelect={(d) => setPhaseAssignment(p => ({...p, startDate: d}))} initialFocus locale={dateLocale} />
+                                        <Calendar mode="single" selected={phaseAssignment.startDate} onSelect={(d) => setPhaseAssignment(p => ({...p, startDate: d}))} initialFocus locale={es} />
                                     </PopoverContent>
                                 </Popover>
                             </div>
                             <div className="space-y-2">
-                                <Label>{t('endDateLabel')}</Label>
+                                <Label>Fecha Fin</Label>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className="w-full justify-start text-left font-normal">
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {phaseAssignment.endDate ? format(phaseAssignment.endDate, 'PPP', { locale: dateLocale }) : <span>{t('selectDatePlaceholder')}</span>}
+                                            {phaseAssignment.endDate ? format(phaseAssignment.endDate, 'PPP', { locale: es }) : <span>Seleccione una fecha</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={phaseAssignment.endDate} onSelect={(d) => setPhaseAssignment(p => ({...p, endDate: d}))} initialFocus locale={dateLocale} />
+                                        <Calendar mode="single" selected={phaseAssignment.endDate} onSelect={(d) => setPhaseAssignment(p => ({...p, endDate: d}))} initialFocus locale={es} />
                                     </PopoverContent>
                                 </Popover>
                             </div>
                         </div>
                         <Button onClick={handleAddPhaseAssignment} className="w-full" disabled={isPending || !phaseAssignment.phaseId || !phaseAssignment.startDate || !phaseAssignment.endDate}>
-                            <Plus className="mr-2 h-4 w-4" /> {t('addPhaseButton')}
+                            <Plus className="mr-2 h-4 w-4" /> Agregar Fase
                         </Button>
                     </div>
                      <div className="flex flex-col gap-2">
-                        <h4 className="font-semibold text-sm">{t('assignedPhasesTitle', { count: (newCrewState.assignedPhases || []).length })}</h4>
+                        <h4 className="font-semibold text-sm">Fases Asignadas ({(newCrewState.assignedPhases || []).length})</h4>
                         <ScrollArea className="flex-1 h-60 rounded-md border p-2">
                              {(newCrewState.assignedPhases || []).length > 0 ? (newCrewState.assignedPhases || []).map(p => (
                                 <div key={p.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                     <div>
                                         <p className="font-medium">{phaseMap.get(p.phaseId)?.name}</p>
                                         <p className="text-xs text-muted-foreground">
-                                          {format(new Date(p.startDate), 'P', {locale: dateLocale})} - {format(new Date(p.endDate), 'P', {locale: dateLocale})}
+                                          {format(new Date(p.startDate), 'P', {locale: es})} - {format(new Date(p.endDate), 'P', {locale: es})}
                                         </p>
                                     </div>
                                     <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleRemovePhaseAssignment(p.id)} disabled={isPending}>
                                         <X className="h-4 w-4" />
-                                        <span className="sr-only">{t('removePhaseSr', { name: phaseMap.get(p.phaseId)?.name })}</span>
+                                        <span className="sr-only">Quitar fase {phaseMap.get(p.phaseId)?.name}</span>
                                     </Button>
                                 </div>
                             )) : (
                                 <div className="text-center text-sm text-muted-foreground py-4">
-                                    {t('noPhasesAssigned')}
+                                    No hay fases asignadas.
                                 </div>
                             )}
                         </ScrollArea>
@@ -548,18 +544,18 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
             </div>
             <Separator className="my-4" />
              <div>
-                <h3 className="mb-4 text-lg font-medium leading-none">{t('assignPersonnelTitle')} <Badge variant="outline">{t('activeDailyWorkerBadge')}</Badge></h3>
+                <h3 className="mb-4 text-lg font-medium leading-none">Asignar Personal <Badge variant="outline">Jornal Activo</Badge></h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-72">
                     <div className="flex flex-col gap-2">
                         <div className="flex justify-between items-center">
-                            <h4 className="font-semibold text-sm">{t('availablePersonnelTitle')}</h4>
-                            {personnelSearchTerm && <Badge variant="secondary">{t('foundCount', { count: availablePersonnel.length })}</Badge>}
+                            <h4 className="font-semibold text-sm">Personal Disponible</h4>
+                            {personnelSearchTerm && <Badge variant="secondary">{availablePersonnel.length} encontrados</Badge>}
                         </div>
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 id="personnel-search"
-                                placeholder={t('searchPersonnelPlaceholder')}
+                                placeholder="Buscar por nombre, apellido, legajo o CUIL..."
                                 value={personnelSearchTerm}
                                 onChange={(e) => setPersonnelSearchTerm(e.target.value)}
                                 className="pl-10 h-9"
@@ -579,13 +575,13 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                                 </div>
                             )) : (
                                 <div className="text-center text-sm text-muted-foreground py-4">
-                                    {personnelSearchTerm ? t('noPersonnelFound') : t('typeToSearchPersonnel')}
+                                    {personnelSearchTerm ? "No se encontraron empleados." : "Escriba para buscar personal."}
                                 </div>
                             )}
                         </ScrollArea>
                     </div>
                     <div className="flex flex-col gap-2">
-                        <h4 className="font-semibold text-sm">{t('assignedPersonnelTitle', { count: assignedPersonnel.length })}</h4>
+                        <h4 className="font-semibold text-sm">Personal Asignado ({assignedPersonnel.length})</h4>
                         <div className="h-9" /> {/* Spacer to align */}
                         <ScrollArea className="flex-1 rounded-md border p-2">
                              {assignedPersonnel.length > 0 ? assignedPersonnel.map(emp => (
@@ -600,7 +596,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                                 </div>
                             )) : (
                                 <div className="text-center text-sm text-muted-foreground py-4">
-                                    {t('noPersonnelAssigned')}
+                                    No hay personal asignado.
                                 </div>
                             )}
                         </ScrollArea>
@@ -609,10 +605,10 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
             </div>
           </div>
           <DialogFooter>
-            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>{t('cancelButton')}</Button></DialogClose>
+            <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
             <Button type="submit" onClick={handleSaveCrew} disabled={isPending}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('saveButton')}
+              Guardar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -621,21 +617,21 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
       <AlertDialog open={!!crewToDelete} onOpenChange={(open) => !open && setCrewToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>{t('deleteDialogTitle')}</AlertDialogTitle>
+                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    {t('deleteDialogDescription', { crewName: crewToDelete?.name })}
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la cuadrilla "{crewToDelete?.name}". No podrá eliminar una cuadrilla si tiene registros de asistencia asociados.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setCrewToDelete(null)} disabled={isPending}>
-                    {t('cancelButton')}
+                    Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction 
                   onClick={handleDeleteCrew} 
                   disabled={isPending}
                   className={buttonVariants({ variant: "destructive" })}
                 >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t('deleteDialogConfirmButton')}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar cuadrilla"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

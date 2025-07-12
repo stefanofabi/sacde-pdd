@@ -34,16 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const appUser = await getUserByEmail(fbUser.email);
         if (appUser) {
           setUser(appUser);
-          localStorage.setItem('user', JSON.stringify(appUser));
         } else {
-          // Logged into Firebase, but no profile in our DB. Log them out.
           await signOut(auth);
           setUser(null);
-          localStorage.removeItem('user');
         }
       } else {
         setUser(null);
-        localStorage.removeItem('user');
       }
       setLoading(false);
     });
@@ -62,8 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const appUser = await getUserByEmail(fbUser.email);
           if (appUser) {
             setUser(appUser);
-            localStorage.setItem('user', JSON.stringify(appUser));
-            
             switch (appUser.role) {
               case 'crew_manager':
                 router.push(`/cuadrillas`);
@@ -84,7 +78,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return true;
           }
       }
-      // If appUser is not found, sign out from Firebase
       await signOut(auth);
       return false;
     } catch (error: any) {
@@ -102,7 +95,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
         console.error("Error signing out from Firebase:", error);
     } finally {
-        localStorage.removeItem('user');
         setUser(null);
         setFirebaseUser(null);
         router.push(`/login`);

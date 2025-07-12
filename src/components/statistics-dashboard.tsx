@@ -2,10 +2,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useTranslations, useLocale } from "next-intl";
 import type { DateRange } from "react-day-picker";
 import { addDays, format } from "date-fns";
-import { es, enUS } from "date-fns/locale";
+import { es } from "date-fns/locale";
 import {
   Bar,
   BarChart,
@@ -55,9 +54,6 @@ export default function StatisticsDashboard({
   initialObras,
   initialAbsenceTypes,
 }: StatisticsDashboardProps) {
-  const t = useTranslations("EstadisticasPage");
-  const locale = useLocale();
-  const dateLocale = locale === 'es' ? es : enUS;
 
   const [date, setDate] = useState<DateRange | undefined>({
     from: addDays(new Date(), -7),
@@ -149,8 +145,8 @@ export default function StatisticsDashboard({
     const absenceChartData = Object.entries(absenceCounts).map(([name, value]) => ({ name, value }));
     const absenceByCrewChartData = Object.entries(absenceByCrew).map(([name, value]) => ({ name, value }));
     const hoursChartData = [
-        { name: t('charts.productiveHours'), value: productiveHours },
-        { name: t('charts.unproductiveHours'), value: totalUnproductiveHours },
+        { name: "Productivas", value: productiveHours },
+        { name: "Improductivas", value: totalUnproductiveHours },
     ];
 
     return {
@@ -163,14 +159,14 @@ export default function StatisticsDashboard({
       absenceByCrewChartData,
       hoursChartData,
     };
-  }, [date, selectedObras, selectedCrews, initialDailyLabor, crewOptions, absenceTypeMap, crewMap, t]);
+  }, [date, selectedObras, selectedCrews, initialDailyLabor, crewOptions, absenceTypeMap, crewMap]);
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{t('filtersTitle')}</CardTitle>
-          <CardDescription>{t('filtersDescription')}</CardDescription>
+          <CardTitle>Filtros</CardTitle>
+          <CardDescription>Seleccione un rango de fechas, obras y cuadrillas para analizar.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row gap-4">
           <Popover>
@@ -184,14 +180,14 @@ export default function StatisticsDashboard({
                 {date?.from ? (
                   date.to ? (
                     <>
-                      {format(date.from, "LLL dd, y", { locale: dateLocale })} -{" "}
-                      {format(date.to, "LLL dd, y", { locale: dateLocale })}
+                      {format(date.from, "LLL dd, y", { locale: es })} -{" "}
+                      {format(date.to, "LLL dd, y", { locale: es })}
                     </>
                   ) : (
-                    format(date.from, "LLL dd, y", { locale: dateLocale })
+                    format(date.from, "LLL dd, y", { locale: es })
                   )
                 ) : (
-                  <span>{t('pickDate')}</span>
+                  <span>Seleccione un rango de fechas</span>
                 )}
               </Button>
             </PopoverTrigger>
@@ -203,7 +199,7 @@ export default function StatisticsDashboard({
                 selected={date}
                 onSelect={setDate}
                 numberOfMonths={2}
-                locale={dateLocale}
+                locale={es}
               />
             </PopoverContent>
           </Popover>
@@ -211,20 +207,20 @@ export default function StatisticsDashboard({
             options={obraOptions}
             selected={selectedObras}
             onChange={setSelectedObras}
-            placeholder={t('selectProjects')}
+            placeholder="Seleccionar obras..."
             className="w-full md:w-[250px]"
-            selectAllLabel={t('selectAllProjects')}
-            deselectAllLabel={t('deselectAllProjects')}
+            selectAllLabel="Seleccionar todas las obras"
+            deselectAllLabel="Deseleccionar todas las obras"
           />
           <MultiSelectCombobox
             options={crewOptions}
             selected={selectedCrews}
             onChange={setSelectedCrews}
-            placeholder={t('selectCrews')}
+            placeholder="Seleccionar cuadrillas..."
             className="w-full md:w-[250px]"
             disabled={crewOptions.length === 0}
-            selectAllLabel={t('selectAllCrews')}
-            deselectAllLabel={t('deselectAllCrews')}
+            selectAllLabel="Seleccionar todas las cuadrillas"
+            deselectAllLabel="Deseleccionar todas las cuadrillas"
           />
         </CardContent>
       </Card>
@@ -232,7 +228,7 @@ export default function StatisticsDashboard({
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('kpi.totalHours')}</CardTitle>
+            <CardTitle className="text-sm font-medium">Horas Totales</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -241,7 +237,7 @@ export default function StatisticsDashboard({
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('kpi.unproductiveHours')}</CardTitle>
+            <CardTitle className="text-sm font-medium">Horas Improductivas</CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -250,7 +246,7 @@ export default function StatisticsDashboard({
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('kpi.totalAbsences')}</CardTitle>
+            <CardTitle className="text-sm font-medium">Ausentismo Total</CardTitle>
             <UserX className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -259,7 +255,7 @@ export default function StatisticsDashboard({
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{t('kpi.attendancePercentage')}</CardTitle>
+            <CardTitle className="text-sm font-medium">% Presentismo</CardTitle>
             <Percent className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -271,7 +267,7 @@ export default function StatisticsDashboard({
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
             <CardHeader>
-                <CardTitle>{t('charts.absenceTypesTitle')}</CardTitle>
+                <CardTitle>Distribución de Tipos de Ausentismo</CardTitle>
             </CardHeader>
             <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -299,7 +295,7 @@ export default function StatisticsDashboard({
         </Card>
         <Card>
             <CardHeader>
-                <CardTitle>{t('charts.hoursCompositionTitle')}</CardTitle>
+                <CardTitle>Composición de Horas</CardTitle>
             </CardHeader>
             <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -328,7 +324,7 @@ export default function StatisticsDashboard({
       </div>
        <Card>
             <CardHeader>
-                <CardTitle>{t('charts.absencesByCrewTitle')}</CardTitle>
+                <CardTitle>Ausentismo por Cuadrilla</CardTitle>
             </CardHeader>
             <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -337,7 +333,7 @@ export default function StatisticsDashboard({
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Bar dataKey="value" fill="#82ca9d" name={t('charts.absences')} />
+                        <Bar dataKey="value" fill="#82ca9d" name={"Ausencias"} />
                     </BarChart>
                 </ResponsiveContainer>
             </CardContent>
