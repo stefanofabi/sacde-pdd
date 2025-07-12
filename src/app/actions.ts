@@ -137,26 +137,35 @@ export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]
 }
 
 export async function getUserByEmail(email: string): Promise<(Employee & { role: User['role'] }) | null> {
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where("email", "==", email.toLowerCase()));
-    const querySnapshot = await getDocs(q);
+    try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where("email", "==", email.toLowerCase()));
+        const querySnapshot = await getDocs(q);
 
-    if (querySnapshot.empty) {
+        if (querySnapshot.empty) {
+            console.log(`No user found with email: ${email}`);
+            return null;
+        }
+
+        const userDoc = querySnapshot.docs[0];
+        const user = { id: userDoc.id, ...userDoc.data() } as User;
+
+        if (user && user.employeeId) {
+            const employee = await readDoc<Employee>('employees', user.employeeId);
+            if (employee) {
+                return { ...employee, role: user.role };
+            }
+        }
+        console.log(`User found but corresponding employee not found. User email: ${email}, Employee ID: ${user.employeeId}`);
+        return null;
+    } catch (error) {
+        console.error(`Error fetching user by email ${email}:`, error);
+        // This is where permission errors will be caught.
+        // We return null to indicate failure without crashing.
         return null;
     }
-
-    const userDoc = querySnapshot.docs[0];
-    const user = { id: userDoc.id, ...userDoc.data() } as User;
-
-    if (user && user.employeeId) {
-        const employee = await readDoc<Employee>('employees', user.employeeId);
-        if (employee) {
-            return { ...employee, role: user.role };
-        }
-    }
-
-    return null;
 }
+
 
 export async function addUnproductiveHourType(newType: Omit<UnproductiveHourType, 'id'>): Promise<UnproductiveHourType> {
     const q = query(collection(db, 'unproductive-hour-types'), where("code", "==", newType.code.toUpperCase()));
@@ -425,3 +434,5 @@ export async function updateUser(userId: string, updatedData: Partial<Omit<User,
     if (!updatedDoc) throw new Error("Failed to update user.");
     return updatedDoc;
 }
+
+    
