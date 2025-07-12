@@ -52,8 +52,11 @@ export default async function DashboardPage() {
     const isApproved = p.status.startsWith("APROBADO");
     if (!isApproved) return false;
     
-    const startDate = new Date(p.startDate + "T00:00:00");
-    const endDate = new Date(p.endDate + "T00:00:00");
+    // Create Date objects correctly to avoid timezone issues
+    const startDate = new Date(p.startDate);
+    startDate.setUTCHours(0, 0, 0, 0);
+    const endDate = new Date(p.endDate);
+    endDate.setUTCHours(23, 59, 59, 999);
     
     return isWithinInterval(today, { start: startDate, end: endDate });
   }).length;
