@@ -74,7 +74,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
       return users;
     }
     return users.filter((user) => {
-      const employee = employeeMap.get(user.employeeId);
+      const employee = user.employeeId ? employeeMap.get(user.employeeId) : null;
       const fullName = employee ? `${employee.nombre} ${employee.apellido}`.toLowerCase() : '';
       const email = user.email.toLowerCase();
       return fullName.includes(lowerCaseSearchTerm) || email.includes(lowerCaseSearchTerm);
@@ -82,7 +82,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
   }, [users, searchTerm, employeeMap]);
 
   const unassignedEmployees = useMemo(() => {
-    const assignedEmployeeIds = new Set(users.map(u => u.employeeId));
+    const assignedEmployeeIds = new Set(users.map(u => u.employeeId).filter(Boolean));
     return initialEmployees
         .filter(e => !assignedEmployeeIds.has(e.id))
         .map(e => ({ value: e.id, label: `${e.apellido}, ${e.nombre} (L: ${e.legajo})`}));
@@ -93,6 +93,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
     setEditFormState({
       email: user.email,
       role: user.role,
+      employeeId: user.employeeId
     });
     setIsEditDialogOpen(true);
   };
@@ -107,13 +108,18 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
 
     startTransition(async () => {
       try {
-        const updatedUser = await updateUser(editingUser.id, { email: editFormState.email, role: editFormState.role });
+        const updatedUser = await updateUser(editingUser.id, { 
+          email: editFormState.email, 
+          role: editFormState.role,
+          employeeId: editFormState.employeeId
+        });
         setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
         
-        const employeeName = employeeMap.get(updatedUser.employeeId);
+        const employeeName = updatedUser.employeeId ? employeeMap.get(updatedUser.employeeId) : null;
+        const displayName = employeeName ? `${employeeName.nombre} ${employeeName.apellido}` : updatedUser.email;
         toast({
           title: "Usuario Actualizado",
-          description: `El usuario "${employeeName?.nombre} ${employeeName?.apellido}" ha sido actualizado.`,
+          description: `El usuario "${displayName}" ha sido actualizado.`,
         });
         
         setIsEditDialogOpen(false);
@@ -131,10 +137,10 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
   
   const handleAddUser = () => {
     const { employeeId, email, role } = addFormState;
-    if (!employeeId || !email || !role) {
+    if (!email || !role) {
       toast({
         title: "Error de validación",
-        description: "Debe completar todos los campos obligatorios (*).",
+        description: "Debe completar el email y el rol.",
         variant: "destructive",
       });
       return;
@@ -144,10 +150,11 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
       try {
         const newUser = await addUser(addFormState);
         setUsers((prev) => [...prev, newUser]);
-        const employeeName = employeeMap.get(newUser.employeeId);
+        const employeeName = newUser.employeeId ? employeeMap.get(newUser.employeeId) : null;
+        const displayName = employeeName ? `${employeeName.nombre} ${employeeName.apellido}` : newUser.email;
         toast({
           title: "Usuario Creado",
-          description: `El usuario "${employeeName?.nombre} ${employeeName?.apellido}" ha sido creado.`,
+          description: `El usuario "${displayName}" ha sido creado.`,
         });
         setIsAddDialogOpen(false);
       } catch (error) {
@@ -212,10 +219,10 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
               <TableBody>
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => {
-                    const employee = employeeMap.get(user.employeeId);
+                    const employee = user.employeeId ? employeeMap.get(user.employeeId) : null;
                     return (
                         <TableRow key={user.id}>
-                        <TableCell className="font-medium">{employee ? `${employee.apellido}, ${employee.nombre}` : 'Empleado no encontrado'}</TableCell>
+                        <TableCell className="font-medium">{employee ? `${employee.apellido}, ${employee.nombre}` : <span className="text-muted-foreground">Empleado no asignado</span>}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
                             <Badge variant="secondary">{roleOptions.find(r => r.value === user.role)?.label || user.role}</Badge>
@@ -228,7 +235,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                             disabled={isPending}
                             >
                             <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Editar {employee ? employee.nombre : ''}</span>
+                            <span className="sr-only">Editar {employee ? employee.nombre : user.email}</span>
                             </Button>
                         </TableCell>
                         </TableRow>
@@ -254,11 +261,14 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
             <DialogDescription>Modifique el rol y los datos personales del usuario.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="font-medium">
-                {editingUser && employeeMap.has(editingUser.employeeId) 
-                    ? `${employeeMap.get(editingUser.employeeId)?.apellido}, ${employeeMap.get(editingUser.employeeId)?.nombre}`
-                    : 'Usuario'
-                }
+            <div className="space-y-2">
+                <Label>Empleado Vinculado</Label>
+                <p className="font-medium text-sm p-2 bg-muted rounded-md h-10 flex items-center">
+                    {editFormState.employeeId && employeeMap.has(editFormState.employeeId) 
+                        ? `${employeeMap.get(editFormState.employeeId)?.apellido}, ${employeeMap.get(editFormState.employeeId)?.nombre}`
+                        : <span className="text-muted-foreground">Ninguno</span>
+                    }
+                </p>
             </div>
             <div className="space-y-2">
                 <Label htmlFor="email-edit">Email</Label>
@@ -306,11 +316,11 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Agregar Nuevo Usuario</DialogTitle>
-            <DialogDescription>Complete los datos para registrar un nuevo usuario en el sistema.</DialogDescription>
+            <DialogDescription>Complete los datos para registrar un nuevo usuario en el sistema. Opcionalmente, puede vincularlo a un empleado existente.</DialogDescription>
           </DialogHeader>
            <div className="space-y-4 py-4">
                <div className="space-y-2">
-                   <Label htmlFor="employeeId-add">Nombre y Apellido</Label>
+                   <Label htmlFor="employeeId-add">Vincular Empleado (Opcional)</Label>
                    <Combobox
                     options={unassignedEmployees}
                     value={addFormState.employeeId}
@@ -322,7 +332,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                    />
                </div>
                <div className="space-y-2">
-                  <Label htmlFor="email-add">Email</Label>
+                  <Label htmlFor="email-add">Email *</Label>
                   <Input 
                     id="email-add"
                     type="email"
@@ -333,7 +343,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                   />
                </div>
                <div className="space-y-2">
-                    <Label htmlFor="role-add">Rol del Sistema</Label>
+                    <Label htmlFor="role-add">Rol del Sistema *</Label>
                     <Select onValueChange={(value: EmployeeRole) => setAddFormState(p => ({...p, role: value}))} value={addFormState.role} disabled={isPending}>
                         <SelectTrigger id="role-add"><SelectValue placeholder="Seleccionar un rol" /></SelectTrigger>
                         <SelectContent>
