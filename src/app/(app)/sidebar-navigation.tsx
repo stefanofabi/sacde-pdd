@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3, UserCog } from 'lucide-react';
+import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3, UserCog, LayoutDashboard } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/auth-context';
 
@@ -13,10 +13,12 @@ export function SidebarNavigation() {
 
     const isActive = (path: string) => {
         if (path === '/') return pathname === path;
-        return pathname.startsWith(path);
+        if (path === '/dashboard') return pathname === path;
+        return pathname.startsWith(path) && path !== '/';
     };
 
     const navItemsMap = {
+      dashboard: "Dashboard",
       crews: "Cuadrillas",
       employees: "Empleados",
       users: "Usuarios",
@@ -30,6 +32,7 @@ export function SidebarNavigation() {
     };
 
     const allNavItems = [
+      { href: "/dashboard", icon: LayoutDashboard, translationKey: "dashboard", roles: ['admin', 'crew_manager', 'foreman', 'tallyman', 'project_manager', 'management_control', 'recursos_humanos', 'invitado'] },
       { href: "/cuadrillas", icon: Users, translationKey: "crews", roles: ['admin', 'crew_manager'] },
       { href: "/empleados", icon: IdCard, translationKey: "employees", roles: ['admin', 'recursos_humanos'] },
       { href: "/usuarios", icon: UserCog, translationKey: "users", roles: ['admin'] },

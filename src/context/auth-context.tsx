@@ -4,9 +4,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Employee, User } from '@/types';
-import { getUserByEmail } from '@/app/actions';
+import { getUserByEmail, registerUser as appRegisterUser } from '@/app/actions';
 import { auth } from '@/lib/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
 
 type AuthenticatedUser = User & { nombre?: string, apellido?: string };
 
@@ -60,23 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const appUser = await getUserByEmail(fbUser.email);
           if (appUser) {
             setUser(appUser);
-            switch (appUser.role) {
-              case 'crew_manager':
-                router.push(`/cuadrillas`);
-                break;
-              case 'admin':
-                router.push(`/estadisticas`);
-                break;
-              case 'recursos_humanos':
-                router.push(`/empleados`);
-                break;
-              case 'invitado':
-                router.push(`/partes-diarios`);
-                break;
-              default:
-                router.push(`/partes-diarios`);
-                break;
-            }
+            router.push(`/dashboard`);
             return true;
           }
       }
@@ -103,8 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.push(`/login`);
     }
   };
-
-  const displayName = user ? (user.nombre && user.apellido ? `${user.nombre} ${user.apellido}` : user.email) : null;
   
   const authContextValue: AuthContextType = {
     user,
