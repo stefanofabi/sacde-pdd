@@ -53,7 +53,7 @@ export type AttendanceData = Record<string, DailyAttendance>;
 
 export type EmployeeCondition = "jornal" | "mensual";
 export type EmployeeStatus = "activo" | "suspendido" | "baja";
-export type EmployeeRole = 'admin' | 'crew_manager' | 'foreman' | 'tallyman' | 'project_manager' | 'management_control' | 'recursos_humanos' | 'unassigned';
+export type EmployeeRole = 'admin' | 'crew_manager' | 'foreman' | 'tallyman' | 'project_manager' | 'management_control' | 'recursos_humanos' | 'unassigned' | 'invitado';
 
 export interface Employee {
   id: string;

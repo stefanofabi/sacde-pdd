@@ -9,10 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import Link from 'next/link';
+import { Separator } from '@/components/ui/separator';
 
 export default function LoginPage() {
   const t = useTranslations('LoginPage');
+  const locale = useLocale();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login } = useAuth();
@@ -75,10 +78,21 @@ export default function LoginPage() {
               />
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex-col items-stretch gap-4">
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t('buttonText')}
+            </Button>
+            <div className="relative">
+              <Separator />
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <span className="bg-background px-2 text-sm text-muted-foreground">O</span>
+              </div>
+            </div>
+             <Button variant="outline" asChild>
+              <Link href={`/${locale}/register`}>
+                {t('registerButton')}
+              </Link>
             </Button>
           </CardFooter>
         </form>

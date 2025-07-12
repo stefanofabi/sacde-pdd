@@ -4,7 +4,7 @@
 import { db, auth as clientAuth } from '@/lib/firebase'; // Renamed to avoid confusion
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch, documentId } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry } from '@/types';
+import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
 import { format, subDays } from 'date-fns';
 
 async function readCollection<T>(collectionName: string): Promise<T[]> {
@@ -447,4 +447,65 @@ export async function updateUser(userId: string, updatedData: Partial<Omit<User,
     const updatedDoc = await readDoc<User>('users', userId);
     if (!updatedDoc) throw new Error("Failed to update user.");
     return updatedDoc;
+}
+
+interface RegisterUserInput {
+  nombre: string;
+  apellido: string;
+  legajo: string;
+  email: string;
+  password: string;
+}
+
+export async function registerUser(input: RegisterUserInput): Promise<void> {
+    const { nombre, apellido, legajo, email, password } = input;
+
+    // Check if user or employee already exists
+    const userQuery = query(collection(db, 'users'), where("email", "==", email.toLowerCase()));
+    const userSnapshot = await getDocs(userQuery);
+    if (!userSnapshot.empty) {
+        throw new Error('Ya existe un usuario con este correo electrónico.');
+    }
+
+    const employeeQuery = query(collection(db, 'employees'), where("legajo", "==", legajo));
+    const employeeSnapshot = await getDocs(employeeQuery);
+    if (!employeeSnapshot.empty) {
+        throw new Error('Ya existe un empleado con este legajo.');
+    }
+
+    // Create user in Firebase Auth
+    try {
+        await createUserWithEmailAndPassword(clientAuth, email, password);
+    } catch (error: any) {
+        // Handle specific Firebase Auth errors
+        if (error.code === 'auth/email-already-in-use') {
+            throw new Error('El correo electrónico ya está registrado.');
+        }
+        if (error.code === 'auth/weak-password') {
+            throw new Error('La contraseña debe tener al menos 6 caracteres.');
+        }
+        throw new Error(`Error al crear el usuario en Firebase: ${error.message}`);
+    }
+
+    // Create Employee document
+    const newEmployeeData = {
+        nombre,
+        apellido,
+        legajo,
+        email,
+        condicion: 'jornal' as const,
+        estado: 'activo' as const,
+        fechaIngreso: format(new Date(), "yyyy-MM-dd"),
+        obraId: '', // Assign a default or leave empty
+        denominacionPosicion: 'Invitado', // Default position
+    };
+    const employeeDoc = await addDocument('employees', newEmployeeData);
+
+    // Create User document
+    const newUserData = {
+        email,
+        employeeId: employeeDoc.id,
+        role: 'invitado' as EmployeeRole,
+    };
+    await addDocument('users', newUserData);
 }

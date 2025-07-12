@@ -79,7 +79,27 @@
     "passwordLabel": "Password",
     "buttonText": "Sign In",
     "errorToastTitle": "Login Error",
-    "errorToastDescription": "Invalid credentials. Please try again."
+    "errorToastDescription": "Invalid credentials. Please try again.",
+    "registerButton": "Register"
+  },
+  "RegisterPage": {
+    "title": "Create an Account",
+    "description": "Fill in your details to register in the system.",
+    "firstNameLabel": "First Name",
+    "lastNameLabel": "Last Name",
+    "legajoLabel": "File Number",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "confirmPasswordLabel": "Confirm Password",
+    "buttonText": "Register",
+    "backToLogin": "Back to Sign In",
+    "toast": {
+      "errorTitle": "Registration Error",
+      "passwordMismatch": "Passwords do not match.",
+      "successTitle": "Registration Successful!",
+      "successDescription": "Your account has been created. You can now sign in.",
+      "unexpectedError": "An unexpected error occurred."
+    }
   },
   "ThemeToggle": {
     "srToggleTheme": "Toggle theme",
@@ -264,6 +284,7 @@
       "project_manager": "Project Manager",
       "management_control": "Management & Control",
       "recursos_humanos": "Human Resources",
+      "invitado": "Guest",
       "unassigned": "Unassigned"
     }
   },

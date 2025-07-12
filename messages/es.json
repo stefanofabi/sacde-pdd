@@ -79,7 +79,27 @@
     "passwordLabel": "Contraseña",
     "buttonText": "Ingresar",
     "errorToastTitle": "Error de inicio de sesión",
-    "errorToastDescription": "Credenciales inválidas. Intente de nuevo."
+    "errorToastDescription": "Credenciales inválidas. Intente de nuevo.",
+    "registerButton": "Registrarse"
+  },
+  "RegisterPage": {
+    "title": "Crear una cuenta",
+    "description": "Complete sus datos para registrarse en el sistema.",
+    "firstNameLabel": "Nombre",
+    "lastNameLabel": "Apellido",
+    "legajoLabel": "Legajo",
+    "emailLabel": "Email",
+    "passwordLabel": "Contraseña",
+    "confirmPasswordLabel": "Confirmar Contraseña",
+    "buttonText": "Registrarse",
+    "backToLogin": "Volver a Iniciar Sesión",
+    "toast": {
+      "errorTitle": "Error de Registro",
+      "passwordMismatch": "Las contraseñas no coinciden.",
+      "successTitle": "¡Registro Exitoso!",
+      "successDescription": "Su cuenta ha sido creada. Ahora puede iniciar sesión.",
+      "unexpectedError": "Ocurrió un error inesperado."
+    }
   },
   "ThemeToggle": {
     "srToggleTheme": "Cambiar tema",
@@ -264,6 +284,7 @@
       "project_manager": "Jefe de Obra",
       "management_control": "Control y Gestión",
       "recursos_humanos": "Recursos Humanos",
+      "invitado": "Invitado",
       "unassigned": "Sin Asignar"
     }
   },
