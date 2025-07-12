@@ -92,11 +92,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await signOut(auth);
-    localStorage.removeItem('user');
-    setUser(null);
-    setFirebaseUser(null);
-    router.push(`/${locale}/login`);
+    try {
+      await signOut(auth);
+    } catch (error) {
+        console.error("Error signing out from Firebase:", error);
+    } finally {
+        localStorage.removeItem('user');
+        setUser(null);
+        setFirebaseUser(null);
+        router.push(`/${locale}/login`);
+    }
   };
 
   return (

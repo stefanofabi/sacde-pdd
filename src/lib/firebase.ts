@@ -4,10 +4,10 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyBIXYa-E7nhizXpiURBo5srMgD4CJ8JT4E",
   authDomain: "sacde-pdd.firebaseapp.com",
   projectId: "sacde-pdd",
-  storageBucket: "sacde-pdd.appspot.com",
+  storageBucket: "sacde-pdd.firebasestorage.app",
   messagingSenderId: "192452058062",
   appId: "1:192452058062:web:936049521788ddf48b699f",
   measurementId: "G-4DE54KZMK9"
