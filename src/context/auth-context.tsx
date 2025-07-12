@@ -56,8 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password?: string): Promise<boolean> => {
     if (!password) return false;
     
-    const attemptLogin = async (emailToTry: string, passwordToTry: string) => {
-      const userCredential = await signInWithEmailAndPassword(auth, emailToTry, passwordToTry);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const fbUser = userCredential.user;
       
       if (fbUser && fbUser.email) {
@@ -86,24 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If appUser is not found, sign out from Firebase
       await signOut(auth);
       return false;
-    }
-
-    try {
-      return await attemptLogin(email, password);
     } catch (error: any) {
-      // This is a temporary solution for development to auto-create users.
-      // In a real app, you would simply show an error.
-      if (error.code === 'auth/invalid-credential' && password === 'password') {
-        console.warn(`User ${email} not found in Firebase Auth. Attempting to create user for development...`);
-        try {
-          await createUserWithEmailAndPassword(auth, email, password);
-          // After creating, try logging in again
-          return await attemptLogin(email, password);
-        } catch (createError) {
-          console.error("Firebase create user error:", createError);
-          return false;
-        }
-      }
       console.error("Firebase login error:", error);
       return false;
     }
