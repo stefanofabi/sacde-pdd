@@ -51,7 +51,7 @@ interface UsersManagerProps {
 const emptyAddForm = {
     employeeId: "",
     email: "",
-    role: "unassigned" as EmployeeRole,
+    role: "invitado" as EmployeeRole,
 };
 
 export default function UsersManager({ initialUsers, initialEmployees }: UsersManagerProps) {
@@ -170,7 +170,6 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
     { value: 'management_control', label: "Control y Gestión" },
     { value: 'recursos_humanos', label: "Recursos Humanos" },
     { value: 'invitado', label: "Invitado" },
-    { value: 'unassigned', label: "Sin Asignar" },
   ];
 
   return (
