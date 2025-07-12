@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { Employee, User } from '@/types';
 import { getUserByEmail } from '@/app/actions';
 import { auth } from '@/lib/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
 
 type AuthenticatedUser = Employee & { role: User['role'] };
 
