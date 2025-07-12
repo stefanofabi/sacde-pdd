@@ -244,7 +244,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                 ) : (
                   <TableRow>
                     <TableCell colSpan={4} className="h-24 text-center">
-                      {users.length === 0 ? "No se encontraron usuarios." : "No se encontraron usuarios con el filtro aplicado."}
+                      {users.length === 0 ? "No hay usuarios." : "No se encontraron usuarios con el filtro aplicado."}
                     </TableCell>
                   </TableRow>
                 )}
