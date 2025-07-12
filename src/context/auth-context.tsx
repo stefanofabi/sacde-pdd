@@ -8,7 +8,7 @@ import { getUserByEmail } from '@/app/actions';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
 
-type AuthenticatedUser = Employee & { role: User['role'] };
+type AuthenticatedUser = User & { nombre?: string, apellido?: string };
 
 interface AuthContextType {
   user: AuthenticatedUser | null;
@@ -35,6 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (appUser) {
           setUser(appUser);
         } else {
+          // This case might happen if a user exists in Auth but not in Firestore.
+          // For now, we log them out.
           await signOut(auth);
           setUser(null);
         }
@@ -78,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return true;
           }
       }
+      // If appUser is not found after successful login, something is wrong.
       await signOut(auth);
       return false;
     } catch (error: any) {
@@ -101,8 +104,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const displayName = user ? (user.nombre && user.apellido ? `${user.nombre} ${user.apellido}` : user.email) : null;
+  
+  const authContextValue: AuthContextType = {
+    user,
+    firebaseUser,
+    isAuthenticated: !!user,
+    login,
+    logout,
+    loading,
+  };
+
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, isAuthenticated: !!user, login, logout, loading }}>
+    <AuthContext.Provider value={authContextValue}>
       {children}
     </AuthContext.Provider>
   );

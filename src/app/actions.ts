@@ -137,7 +137,7 @@ export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]
     return readCollection<UnproductiveHourType>('unproductive-hour-types');
 }
 
-export async function getUserByEmail(email: string): Promise<(Employee & { role: User['role'] }) | null> {
+export async function getUserByEmail(email: string): Promise<(User & {nombre?: string, apellido?: string}) | null> {
     try {
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where("email", "==", email.toLowerCase()));
@@ -154,11 +154,12 @@ export async function getUserByEmail(email: string): Promise<(Employee & { role:
         if (user && user.employeeId) {
             const employee = await readDoc<Employee>('employees', user.employeeId);
             if (employee) {
-                return { ...employee, role: user.role };
+                return { ...user, nombre: employee.nombre, apellido: employee.apellido };
             }
         }
-        console.log(`User found but corresponding employee not found. User email: ${email}, Employee ID: ${user.employeeId}`);
-        return null;
+        
+        // Return user even if there is no linked employee
+        return user;
     } catch (error) {
         console.error(`Error fetching user by email ${email}:`, error);
         return null;
@@ -450,14 +451,12 @@ export async function updateUser(userId: string, updatedData: Partial<Omit<User,
 }
 
 interface RegisterUserInput {
-  nombre: string;
-  apellido: string;
   email: string;
   password: string;
 }
 
 export async function registerUser(input: RegisterUserInput): Promise<void> {
-    const { nombre, apellido, email, password } = input;
+    const { email, password } = input;
 
     // 1. Check if user already exists in Firestore
     const userQuery = query(collection(db, 'users'), where("email", "==", email.toLowerCase()));
@@ -479,24 +478,10 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
         throw new Error(`Error al crear el usuario en Firebase: ${error.message}`);
     }
 
-    // 3. Create Employee document
-    const newEmployeeData = {
-        nombre,
-        apellido,
-        legajo: '', // Legajo is optional now
-        email,
-        condicion: 'jornal' as const,
-        estado: 'activo' as const,
-        fechaIngreso: format(new Date(), "yyyy-MM-dd"),
-        obraId: '', // Assign a default or leave empty
-        denominacionPosicion: 'Invitado', // Default position
-    };
-    const employeeDoc = await addDocument('employees', newEmployeeData);
-
-    // 4. Create User document in Firestore
+    // 3. Create User document in Firestore
     const newUserData = {
         email,
-        employeeId: employeeDoc.id,
+        employeeId: '', // No employee linked on registration
         role: 'invitado' as EmployeeRole,
     };
     await addDocument('users', newUserData);

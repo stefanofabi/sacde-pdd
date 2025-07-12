@@ -36,6 +36,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const displayName = user?.nombre && user?.apellido ? `${user.nombre} ${user.apellido}` : user?.email;
+
   return (
     <SidebarProvider>
       <Sidebar>
@@ -63,8 +65,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarNavigation />
         </SidebarContent>
         <SidebarFooter className="flex-col gap-2 p-2">
-            <div className="text-center text-xs text-sidebar-foreground/70 mb-2 group-data-[collapsible=icon]:hidden">
-              {user?.correo}
+            <div className="text-center text-xs text-sidebar-foreground/70 mb-2 group-data-[collapsible=icon]:hidden truncate" title={displayName}>
+              {displayName}
             </div>
             <Button variant="ghost" onClick={logout} className="w-full justify-start gap-2">
               <LogOut />

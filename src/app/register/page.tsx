@@ -17,8 +17,6 @@ export default function RegisterPage() {
   const { toast } = useToast();
 
   const [formState, setFormState] = useState({
-    nombre: '',
-    apellido: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -46,8 +44,6 @@ export default function RegisterPage() {
 
     try {
       await registerUser({
-        nombre: formState.nombre,
-        apellido: formState.apellido,
         email: formState.email,
         password: formState.password,
       });
@@ -79,29 +75,17 @@ export default function RegisterPage() {
         </CardHeader>
         <form onSubmit={handleRegister}>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre</Label>
-                <Input id="nombre" name="nombre" required value={formState.nombre} onChange={handleInputChange} disabled={isLoading} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="apellido">Apellido</Label>
-                <Input id="apellido" name="apellido" required value={formState.apellido} onChange={handleInputChange} disabled={isLoading} />
-              </div>
-            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" name="email" type="email" required value={formState.email} onChange={handleInputChange} disabled={isLoading} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input id="password" name="password" type="password" required value={formState.password} onChange={handleInputChange} disabled={isLoading} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
-                <Input id="confirmPassword" name="confirmPassword" type="password" required value={formState.confirmPassword} onChange={handleInputChange} disabled={isLoading} />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input id="password" name="password" type="password" required value={formState.password} onChange={handleInputChange} disabled={isLoading} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+              <Input id="confirmPassword" name="confirmPassword" type="password" required value={formState.confirmPassword} onChange={handleInputChange} disabled={isLoading} />
             </div>
           </CardContent>
           <CardFooter className="flex-col items-stretch gap-4">
