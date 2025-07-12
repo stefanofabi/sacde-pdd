@@ -293,7 +293,7 @@ export async function updateCrew(crewId: string, updatedCrewData: Partial<Omit<C
 export async function addEmployee(newEmployee: Omit<Employee, 'id'>): Promise<Employee> {
     const q = query(collection(db, 'employees'), where("legajo", "==", newEmployee.legajo));
     const existing = await getDocs(q);
-    if (!existing.empty) {
+    if (!existing.empty && newEmployee.legajo) {
         throw new Error('Ya existe un empleado con el mismo legajo.');
     }
     return addDocument('employees', newEmployee);
@@ -459,20 +459,19 @@ interface RegisterUserInput {
 export async function registerUser(input: RegisterUserInput): Promise<void> {
     const { nombre, apellido, email, password } = input;
 
-    // Check if user or employee already exists
+    // 1. Check if user already exists in Firestore
     const userQuery = query(collection(db, 'users'), where("email", "==", email.toLowerCase()));
     const userSnapshot = await getDocs(userQuery);
     if (!userSnapshot.empty) {
         throw new Error('Ya existe un usuario con este correo electrónico.');
     }
 
-    // Create user in Firebase Auth
+    // 2. Create user in Firebase Auth FIRST
     try {
         await createUserWithEmailAndPassword(clientAuth, email, password);
     } catch (error: any) {
-        // Handle specific Firebase Auth errors
         if (error.code === 'auth/email-already-in-use') {
-            throw new Error('El correo electrónico ya está registrado.');
+            throw new Error('El correo electrónico ya está registrado en el sistema de autenticación.');
         }
         if (error.code === 'auth/weak-password') {
             throw new Error('La contraseña debe tener al menos 6 caracteres.');
@@ -480,11 +479,11 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
         throw new Error(`Error al crear el usuario en Firebase: ${error.message}`);
     }
 
-    // Create Employee document
+    // 3. Create Employee document
     const newEmployeeData = {
         nombre,
         apellido,
-        legajo: '',
+        legajo: '', // Legajo is optional now
         email,
         condicion: 'jornal' as const,
         estado: 'activo' as const,
@@ -494,7 +493,7 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
     };
     const employeeDoc = await addDocument('employees', newEmployeeData);
 
-    // Create User document
+    // 4. Create User document in Firestore
     const newUserData = {
         email,
         employeeId: employeeDoc.id,
