@@ -5,79 +5,66 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import type { User } from '@/types';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
 import { getUserByEmail } from '@/app/actions';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password?: string) => Promise<boolean>;
+  login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper function to introduce a delay
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const isAuthenticated = !!user;
-  const router = useRouter();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setLoading(true);
+      setFirebaseUser(fbUser);
       if (fbUser) {
-        setFirebaseUser(fbUser);
+        // This delay is CRUCIAL. It gives Firebase time to propagate the auth state
+        // to the point where Firestore security rules will recognize the new session.
+        // Without this, Firestore queries can fail with "Missing or insufficient permissions".
+        await wait(250); 
         try {
           const appUser = await getUserByEmail(fbUser.email!);
           setUser(appUser);
         } catch (error) {
           console.error("Failed to fetch app user, signing out.", error);
-          await signOut(auth);
-          setUser(null);
-          setFirebaseUser(null);
+          await signOut(auth); // Sign out if user data can't be fetched
         }
       } else {
-        setFirebaseUser(null);
         setUser(null);
       }
       setLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
-  const login = async (email: string, password?: string): Promise<boolean> => {
-    if (!password) return false;
-    
-    setLoading(true);
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const fbUser = userCredential.user;
-      setFirebaseUser(fbUser);
-      
-      const appUser = await getUserByEmail(fbUser.email!);
-      setUser(appUser);
-
-      setLoading(false);
-      return true;
-    } catch (error: any) {
-      console.error("Firebase login error:", error.code, error.message);
-      setUser(null);
-      setFirebaseUser(null);
-      setLoading(false);
-      return false;
+  const login = async (email: string, password?: string): Promise<void> => {
+    if (!password) {
+       throw new Error("Password is required.");
     }
+    // Let the onAuthStateChanged listener handle the state updates.
+    // This function's only job is to trigger the sign-in.
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {
     await signOut(auth);
-    setUser(null);
-    setFirebaseUser(null);
-    router.push(`/login`);
+    // The onAuthStateChanged listener will handle setting user and firebaseUser to null.
   };
+
+  const isAuthenticated = !loading && !!user && !!firebaseUser;
 
   const authContextValue: AuthContextType = {
     firebaseUser,

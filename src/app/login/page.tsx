@@ -11,31 +11,31 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
-import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, loading: authLoading } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const router = useRouter();
+  
+  const isLoading = authLoading || isSubmitting;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsSubmitting(true);
     
-    const success = await login(email, password);
-    
-    if (success) {
-      router.push('/dashboard');
-    } else {
+    try {
+      await login(email, password);
+      // No need to redirect here. The layout will handle it.
+    } catch (error) {
       toast({
         title: "Error de inicio de sesión",
-        description: "Credenciales inválidas. Intente de nuevo.",
+        description: "Credenciales inválidas. Por favor, verifique sus datos e intente de nuevo.",
         variant: "destructive",
       });
-      setIsLoading(false);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
