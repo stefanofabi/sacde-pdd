@@ -2,15 +2,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
 import type { User } from '@/types';
-import { getUserByEmail } from '@/app/actions';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
-  user: User | null;
   firebaseUser: FirebaseUser | null;
+  user: User | null; // This will be set from the layout
+  setUser: (user: User | null) => void;
   isAuthenticated: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
   logout: () => void;
@@ -20,28 +20,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setLoading(true);
-      if (fbUser && fbUser.email) {
-        setFirebaseUser(fbUser);
-        try {
-          const appUser = await getUserByEmail(fbUser.email);
-          setUser(appUser);
-        } catch (error) {
-          console.error("Failed to fetch app user data:", error);
-          // Don't sign out, just leave app user as null
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-        setFirebaseUser(null);
-      }
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
+      setFirebaseUser(fbUser);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -50,36 +36,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password?: string): Promise<boolean> => {
     if (!password) return false;
     
-    setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // The onAuthStateChanged listener will handle setting the user state.
-      // We just need to return true on success.
-      setLoading(false);
+      // onAuthStateChanged will handle the rest.
       return true;
     } catch (error: any) {
-      console.error("Firebase login error:", error.code);
-      setLoading(false); 
+      console.error("Firebase login error:", error.code, error.message);
       return false;
     }
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-        console.error("Error signing out from Firebase:", error);
-    } finally {
-        setUser(null);
-        setFirebaseUser(null);
-        router.push(`/login`);
-    }
+    await signOut(auth);
+    setUser(null);
+    router.push(`/login`);
   };
-  
+
   const authContextValue: AuthContextType = {
-    user,
     firebaseUser,
-    isAuthenticated: !!user && !!firebaseUser,
+    user,
+    setUser,
+    isAuthenticated: !!firebaseUser && !!user, // Authenticated if both firebase user and app user are present
     login,
     logout,
     loading,
