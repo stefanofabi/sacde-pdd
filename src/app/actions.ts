@@ -448,14 +448,8 @@ interface RegisterUserInput {
 export async function registerUser(input: RegisterUserInput): Promise<void> {
     const { email, password } = input;
 
-    // 1. Check if user already exists in Firestore
-    const userQuery = query(collection(db, 'users'), where("email", "==", email.toLowerCase()));
-    const userSnapshot = await getDocs(userQuery);
-    if (!userSnapshot.empty) {
-        throw new Error('Ya existe un usuario con este correo electrónico.');
-    }
-
-    // 2. Create user in Firebase Auth FIRST
+    // 1. Create user in Firebase Auth FIRST
+    // This will throw an error if the email is already in use, which is what we want.
     try {
         await createUserWithEmailAndPassword(clientAuth, email, password);
     } catch (error: any) {
@@ -468,7 +462,7 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
         throw new Error(`Error al crear el usuario en Firebase: ${error.message}`);
     }
 
-    // 3. Create User document in Firestore
+    // 2. If Auth creation is successful, create User document in Firestore
     const newUserData = {
         email,
         role: 'invitado' as EmployeeRole,
