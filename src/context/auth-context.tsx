@@ -19,9 +19,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper function to introduce a small delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -32,24 +29,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setLoading(true);
       if (fbUser && fbUser.email) {
-        // Introduce a small delay to allow session propagation
-        await delay(250);
         try {
           const appUser = await getUserByEmail(fbUser.email);
           if (appUser) {
             setUser(appUser);
-            setFirebaseUser(fbUser);
           } else {
-            // User exists in Auth but not in Firestore 'users' collection
-            await signOut(auth);
-            setUser(null);
-            setFirebaseUser(null);
+             await signOut(auth);
+             setUser(null);
           }
         } catch (error) {
           console.error("Failed to fetch user data:", error);
           await signOut(auth);
           setUser(null);
-          setFirebaseUser(null);
+        } finally {
+            setFirebaseUser(fbUser);
         }
       } else {
         setUser(null);
@@ -66,8 +59,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting user and redirecting
-      router.push('/dashboard');
       return true;
     } catch (error: any) {
       console.error("Firebase login error:", error.code);

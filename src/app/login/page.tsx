@@ -11,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +27,9 @@ export default function LoginPage() {
     
     const success = await login(email, password);
     
-    if (!success) {
+    if (success) {
+      router.push('/dashboard');
+    } else {
       toast({
         title: "Error de inicio de sesión",
         description: "Credenciales inválidas. Intente de nuevo.",
@@ -33,7 +37,6 @@ export default function LoginPage() {
       });
       setIsLoading(false);
     }
-    // On success, the auth context will redirect.
   };
 
   return (
