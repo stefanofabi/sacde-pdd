@@ -19,6 +19,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Helper function to introduce a small delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -26,31 +29,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-      setFirebaseUser(fbUser);
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      setLoading(true);
+      if (fbUser && fbUser.email) {
+        // Introduce a small delay to allow session propagation
+        await delay(250);
+        try {
+          const appUser = await getUserByEmail(fbUser.email);
+          if (appUser) {
+            setUser(appUser);
+            setFirebaseUser(fbUser);
+          } else {
+            // User exists in Auth but not in Firestore 'users' collection
+            await signOut(auth);
+            setUser(null);
+            setFirebaseUser(null);
+          }
+        } catch (error) {
+          console.error("Failed to fetch user data:", error);
+          await signOut(auth);
+          setUser(null);
+          setFirebaseUser(null);
+        }
+      } else {
+        setUser(null);
+        setFirebaseUser(null);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
-
-  useEffect(() => {
-    const fetchUserData = async () => {
-        if (firebaseUser && firebaseUser.email) {
-            const appUser = await getUserByEmail(firebaseUser.email);
-            if (appUser) {
-                setUser(appUser);
-            } else {
-                await signOut(auth);
-                setUser(null);
-            }
-        } else {
-            setUser(null);
-        }
-        setLoading(false);
-    };
-
-    fetchUserData();
-  }, [firebaseUser]);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
     if (!password) return false;
@@ -58,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle setting the firebaseUser, which triggers the other useEffect
+      // onAuthStateChanged will handle setting user and redirecting
       router.push('/dashboard');
       return true;
     } catch (error: any) {
@@ -83,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const authContextValue: AuthContextType = {
     user,
     firebaseUser,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !!firebaseUser,
     login,
     logout,
     loading,
