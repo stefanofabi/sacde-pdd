@@ -18,7 +18,6 @@ export default function UsuariosPage() {
         setInitialUsers(users);
       } catch (error) {
         console.error("Failed to fetch user data:", error);
-        // Optionally, show a toast or error message to the user
       } finally {
         setLoading(false);
       }

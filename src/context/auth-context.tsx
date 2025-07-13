@@ -26,26 +26,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
       setFirebaseUser(fbUser);
-      if (fbUser && fbUser.email) {
-        const appUser = await getUserByEmail(fbUser.email);
-        if (appUser) {
-          setUser(appUser);
-        } else {
-          // This case might happen if a user exists in Auth but not in Firestore.
-          // For now, we log them out.
-          await signOut(auth);
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+        if (firebaseUser && firebaseUser.email) {
+            const appUser = await getUserByEmail(firebaseUser.email);
+            if (appUser) {
+                setUser(appUser);
+            } else {
+                await signOut(auth);
+                setUser(null);
+            }
+        } else {
+            setUser(null);
+        }
+        setLoading(false);
+    };
+
+    fetchUserData();
+  }, [firebaseUser]);
 
   const login = async (email: string, password?: string): Promise<boolean> => {
     if (!password) return false;
@@ -53,12 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle the rest: setting user, loading state, and redirecting.
+      // onAuthStateChanged will handle setting the firebaseUser, which triggers the other useEffect
       router.push('/dashboard');
       return true;
     } catch (error: any) {
       console.error("Firebase login error:", error.code);
-      // The onAuthStateChanged listener will not fire on failure, so we need to stop loading here.
       setLoading(false); 
       return false;
     }
