@@ -29,20 +29,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setLoading(true);
       if (fbUser && fbUser.email) {
+        setFirebaseUser(fbUser);
         try {
           const appUser = await getUserByEmail(fbUser.email);
-          if (appUser) {
-            setUser(appUser);
-          } else {
-             await signOut(auth);
-             setUser(null);
-          }
+          setUser(appUser);
         } catch (error) {
           console.error("Failed to fetch user data:", error);
-          await signOut(auth);
+          await signOut(auth); // Sign out if app user data fails
           setUser(null);
-        } finally {
-            setFirebaseUser(fbUser);
         }
       } else {
         setUser(null);
@@ -58,8 +52,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      return true;
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const fbUser = userCredential.user;
+      
+      if (fbUser && fbUser.email) {
+          const appUser = await getUserByEmail(fbUser.email);
+          if (appUser) {
+              setFirebaseUser(fbUser);
+              setUser(appUser);
+              setLoading(false);
+              return true;
+          }
+      }
+      // If we reach here, something went wrong
+      await signOut(auth);
+      setLoading(false);
+      return false;
+
     } catch (error: any) {
       console.error("Firebase login error:", error.code);
       setLoading(false); 
