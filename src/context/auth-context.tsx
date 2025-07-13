@@ -34,8 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const appUser = await getUserByEmail(fbUser.email);
           setUser(appUser);
         } catch (error) {
-          console.error("Failed to fetch user data:", error);
-          await signOut(auth); // Sign out if app user data fails
+          console.error("Failed to fetch app user data:", error);
+          // Don't sign out, just leave app user as null
           setUser(null);
         }
       } else {
@@ -52,23 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const fbUser = userCredential.user;
-      
-      if (fbUser && fbUser.email) {
-          const appUser = await getUserByEmail(fbUser.email);
-          if (appUser) {
-              setFirebaseUser(fbUser);
-              setUser(appUser);
-              setLoading(false);
-              return true;
-          }
-      }
-      // If we reach here, something went wrong
-      await signOut(auth);
+      await signInWithEmailAndPassword(auth, email, password);
+      // The onAuthStateChanged listener will handle setting the user state.
+      // We just need to return true on success.
       setLoading(false);
-      return false;
-
+      return true;
     } catch (error: any) {
       console.error("Firebase login error:", error.code);
       setLoading(false); 
