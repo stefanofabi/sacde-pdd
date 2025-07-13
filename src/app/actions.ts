@@ -402,25 +402,11 @@ export async function deletePermission(permissionId: string): Promise<void> {
 }
 
 export async function addUser(newUser: Omit<User, 'id'>): Promise<User> {
-    const q = query(collection(db, 'users'), where("email", "==", newUser.email.toLowerCase()));
-    const existing = await getDocs(q);
-    if (!existing.empty) {
-        throw new Error('Ya existe un usuario con este correo electrónico.');
-    }
-
-    try {
-        // Create user in Firebase Auth with a default password
-        await createUserWithEmailAndPassword(clientAuth, newUser.email, "password");
-    } catch (error: any) {
-        // If user already exists in Auth, we can ignore this for dev purposes,
-        // but in production we'd handle this more gracefully.
-        if (error.code !== 'auth/email-already-in-use') {
-            throw new Error(`Error creating Firebase Auth user: ${error.message}`);
-        }
-    }
-
-    // Add user to Firestore 'users' collection
-    return addDocument('users', newUser);
+    const dataToSave = {
+        ...newUser,
+        email: newUser.email.toLowerCase(),
+    };
+    return addDocument('users', dataToSave);
 }
 
 export async function updateUser(userId: string, updatedData: Partial<Omit<User, 'id'>>): Promise<User> {
@@ -467,5 +453,5 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
         email,
         role: 'invitado' as EmployeeRole,
     };
-    await addDocument('users', newUserData);
+    await addUser(newUserData);
 }
