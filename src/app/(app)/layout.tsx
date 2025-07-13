@@ -17,45 +17,28 @@ import { SidebarNavigation } from './sidebar-navigation';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { LogOut, Loader2 } from 'lucide-react';
-import { getUserByEmail } from '@/app/actions';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { loading, firebaseUser, user, setUser, isAuthenticated, logout } = useAuth();
+  const { loading, user, isAuthenticated, logout } = useAuth();
   const router = useRouter();
-  const [isUserDataLoading, setIsUserDataLoading] = React.useState(true);
 
   React.useEffect(() => {
-    if (loading) {
-      return; // Wait for Firebase auth state to be determined
-    }
-
-    if (!firebaseUser) {
+    if (!loading && !isAuthenticated) {
       router.replace(`/login`);
-      return;
     }
-    
-    // Firebase user exists, now fetch our app-specific user data
-    if (firebaseUser && !user) {
-        setIsUserDataLoading(true);
-        getUserByEmail(firebaseUser.email!)
-            .then(appUser => {
-                setUser(appUser);
-            })
-            .catch(err => {
-                console.error("Failed to fetch user data, logging out.", err);
-                logout();
-            })
-            .finally(() => {
-                setIsUserDataLoading(false);
-            });
-    } else {
-        setIsUserDataLoading(false);
-    }
+  }, [isAuthenticated, loading, router]);
 
-  }, [firebaseUser, user, loading, router, setUser, logout]);
-
-  if (loading || isUserDataLoading || !isAuthenticated) {
+  if (loading) {
     return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+     // You can return a loader here as well or null, as the useEffect will redirect.
+     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>

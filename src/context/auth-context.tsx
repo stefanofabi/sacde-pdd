@@ -6,11 +6,11 @@ import type { User } from '@/types';
 import { auth } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { getUserByEmail } from '@/app/actions';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
-  user: User | null; // This will be set from the layout
-  setUser: (user: User | null) => void;
+  user: User | null; 
   isAuthenticated: boolean;
   login: (email: string, password?: string) => Promise<boolean>;
   logout: () => void;
@@ -26,8 +26,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (fbUser) => {
-      setFirebaseUser(fbUser);
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        setFirebaseUser(fbUser);
+        try {
+          const appUser = await getUserByEmail(fbUser.email!);
+          setUser(appUser);
+        } catch (error) {
+          console.error("Failed to fetch app user, signing out.", error);
+          await signOut(auth); // Sign out if user data can't be fetched
+          setUser(null);
+          setFirebaseUser(null);
+        }
+      } else {
+        setFirebaseUser(null);
+        setUser(null);
+      }
       setLoading(false);
     });
     return () => unsubscribe();
@@ -38,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will handle the rest.
+      // onAuthStateChanged will handle setting the user state.
       return true;
     } catch (error: any) {
       console.error("Firebase login error:", error.code, error.message);
@@ -49,14 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await signOut(auth);
     setUser(null);
+    setFirebaseUser(null);
     router.push(`/login`);
   };
 
   const authContextValue: AuthContextType = {
     firebaseUser,
     user,
-    setUser,
-    isAuthenticated: !!firebaseUser && !!user, // Authenticated if both firebase user and app user are present
+    isAuthenticated: !!firebaseUser && !!user,
     login,
     logout,
     loading,
