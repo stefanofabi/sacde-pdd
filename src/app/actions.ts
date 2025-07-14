@@ -137,27 +137,6 @@ export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]
     return readCollection<UnproductiveHourType>('unproductive-hour-types');
 }
 
-export async function getUserByEmail(email: string): Promise<User | null> {
-    try {
-        const usersRef = collection(db, 'users');
-        // Always search for the lowercase version of the email.
-        const q = query(usersRef, where("email", "==", email.toLowerCase()));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            console.log(`No user found with email: ${email}`);
-            return null;
-        }
-
-        const userDoc = querySnapshot.docs[0];
-        return { id: userDoc.id, ...userDoc.data() } as User;
-    } catch (error) {
-        console.error(`Error fetching user by email ${email}:`, error);
-        return null;
-    }
-}
-
-
 export async function addUnproductiveHourType(newType: Omit<UnproductiveHourType, 'id'>): Promise<UnproductiveHourType> {
     const q = query(collection(db, 'unproductive-hour-types'), where("code", "==", newType.code.toUpperCase()));
     const existing = await getDocs(q);
