@@ -16,7 +16,7 @@ export default function EmpleadosPage() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!user) return;
+      if (!user) return; // Esta guarda es importante, pero la dependencia lo hace más robusto.
       setLoading(true);
       try {
         const [employeesData, projectsData] = await Promise.all([
@@ -32,10 +32,16 @@ export default function EmpleadosPage() {
       }
     }
 
+    // La clave está aquí: la lógica se ejecuta solo cuando la autenticación no está cargando Y hay un usuario.
+    // El array de dependencias [user, authLoading] asegura que este efecto se re-evalúe cuando el estado de auth cambie.
     if (user && !authLoading) {
       fetchData();
+    } else if (!authLoading && !user) {
+      // Si la autenticación terminó y no hay usuario, dejamos de cargar.
+      setLoading(false);
     }
-  }, [user, authLoading]);
+
+  }, [user, authLoading]); // El array de dependencias es la solución definitiva.
 
   return (
     <>
