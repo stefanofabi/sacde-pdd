@@ -140,6 +140,7 @@ export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]
 export async function getUserByEmail(email: string): Promise<User | null> {
     try {
         const usersRef = collection(db, 'users');
+        // Always search for the lowercase version of the email.
         const q = query(usersRef, where("email", "==", email.toLowerCase()));
         const querySnapshot = await getDocs(q);
 
@@ -404,23 +405,23 @@ export async function deletePermission(permissionId: string): Promise<void> {
 export async function addUser(newUser: Omit<User, 'id'>): Promise<User> {
     const dataToSave = {
         ...newUser,
-        email: newUser.email.toLowerCase(),
+        email: newUser.email.toLowerCase(), // Always save email in lowercase
     };
     return addDocument('users', dataToSave);
 }
 
 export async function updateUser(userId: string, updatedData: Partial<Omit<User, 'id'>>): Promise<User> {
-    if (updatedData.email) {
-        const q = query(collection(db, 'users'), where("email", "==", updatedData.email.toLowerCase()));
+    const dataToUpdate = { ...updatedData };
+    if (dataToUpdate.email) {
+        dataToUpdate.email = dataToUpdate.email.toLowerCase(); // Always update to lowercase
+        const q = query(collection(db, 'users'), where("email", "==", dataToUpdate.email));
         const existing = await getDocs(q);
         if (!existing.empty && existing.docs[0].id !== userId) {
             throw new Error('Ya existe otro usuario con este correo electrónico.');
         }
     }
 
-    // Note: This does not update the email in Firebase Auth.
-    // That requires the Admin SDK or for the user to be logged in.
-    await updateDocument('users', userId, updatedData);
+    await updateDocument('users', userId, dataToUpdate);
     const updatedDoc = await readDoc<User>('users', userId);
     if (!updatedDoc) throw new Error("Failed to update user.");
     return updatedDoc;
@@ -433,11 +434,20 @@ interface RegisterUserInput {
 
 export async function registerUser(input: RegisterUserInput): Promise<void> {
     const { email, password } = input;
+    const lowerCaseEmail = email.toLowerCase();
 
-    // 1. Create user in Firebase Auth FIRST
-    // This will throw an error if the email is already in use, which is what we want.
+    // 1. Check if a user document with this email already exists in Firestore.
+    // This is a pre-check to provide a better error message.
+    const userExistsQuery = query(collection(db, 'users'), where("email", "==", lowerCaseEmail));
+    const existingUserSnapshot = await getDocs(userExistsQuery);
+    if (!existingUserSnapshot.empty) {
+        throw new Error('El correo electrónico ya está registrado en la base de datos.');
+    }
+
+    // 2. Create user in Firebase Auth.
+    // This will also throw an error if the email is already in use in Auth, which is a good safeguard.
     try {
-        await createUserWithEmailAndPassword(clientAuth, email, password);
+        await createUserWithEmailAndPassword(clientAuth, lowerCaseEmail, password);
     } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
             throw new Error('El correo electrónico ya está registrado en el sistema de autenticación.');
@@ -448,9 +458,9 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
         throw new Error(`Error al crear el usuario en Firebase: ${error.message}`);
     }
 
-    // 2. If Auth creation is successful, create User document in Firestore
+    // 3. If Auth creation is successful, create User document in Firestore.
     const newUserData = {
-        email,
+        email: lowerCaseEmail,
         role: 'invitado' as EmployeeRole,
     };
     await addUser(newUserData);
