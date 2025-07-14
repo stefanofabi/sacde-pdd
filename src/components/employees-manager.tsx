@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -88,6 +88,10 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
   const [formState, setFormState] = useState(emptyForm);
 
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setEmployees(initialEmployees);
+  }, [initialEmployees]);
 
   const obraNameMap = useMemo(() => {
     return Object.fromEntries(initialObras.map(obra => [obra.id, obra.name]));
