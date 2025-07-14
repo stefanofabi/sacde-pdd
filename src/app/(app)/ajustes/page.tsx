@@ -47,7 +47,7 @@ export default function AjustesPage() {
       }
     }
 
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchData();
     }
   }, [user, authLoading]);

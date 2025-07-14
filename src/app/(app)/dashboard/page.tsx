@@ -27,8 +27,8 @@ export default function DashboardPage() {
   React.useEffect(() => {
     async function fetchDashboardData() {
       if (!user) return;
+      setLoading(true);
       try {
-        setLoading(true);
         const [
           attendanceData,
           dailyLaborData,
@@ -88,7 +88,7 @@ export default function DashboardPage() {
       }
     }
 
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchDashboardData();
     }
   }, [user, authLoading, todayKey]);

@@ -38,7 +38,7 @@ export default function AsistenciasPage() {
       }
     }
 
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchData();
     }
   }, [user, authLoading]);

@@ -67,7 +67,7 @@ export default function PartesDiariosPage() {
       }
     }
     
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchData();
     }
   }, [user, authLoading]);

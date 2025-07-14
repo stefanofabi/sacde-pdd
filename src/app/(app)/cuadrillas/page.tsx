@@ -38,7 +38,7 @@ export default function CuadrillasPage() {
       }
     }
     
-    if (!authLoading) {
+    if (user && !authLoading) {
         fetchData();
     }
   }, [user, authLoading]);

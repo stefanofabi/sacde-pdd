@@ -27,7 +27,7 @@ export default function ProyectosPage() {
       }
     }
 
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchData();
     }
   }, [user, authLoading]);

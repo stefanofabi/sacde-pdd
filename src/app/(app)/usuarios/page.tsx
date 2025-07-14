@@ -32,7 +32,7 @@ export default function UsuariosPage() {
       }
     }
 
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchData();
     }
   }, [user, authLoading]);

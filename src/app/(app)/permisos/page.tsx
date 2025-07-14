@@ -35,7 +35,7 @@ export default function PermisosPage() {
       }
     }
     
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchData();
     }
   }, [user, authLoading]);

@@ -55,7 +55,7 @@ export default function EstadisticasPage() {
       }
     }
     
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchData();
     }
   }, [user, authLoading]);

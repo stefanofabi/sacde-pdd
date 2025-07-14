@@ -16,7 +16,7 @@ export default function EmpleadosPage() {
 
   useEffect(() => {
     async function fetchData() {
-      if (!user) return; // Don't fetch if no user
+      if (!user) return;
       setLoading(true);
       try {
         const [employeesData, projectsData] = await Promise.all([
@@ -32,7 +32,7 @@ export default function EmpleadosPage() {
       }
     }
 
-    if (!authLoading) {
+    if (user && !authLoading) {
       fetchData();
     }
   }, [user, authLoading]);
