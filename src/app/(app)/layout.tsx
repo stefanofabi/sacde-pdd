@@ -23,11 +23,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   React.useEffect(() => {
+    // Solo redirigir si la carga ha finalizado y el usuario NO está autenticado.
     if (!loading && !isAuthenticated) {
       router.replace(`/login`);
     }
   }, [isAuthenticated, loading, router]);
 
+  // Mostrar el spinner mientras el estado de autenticación se está verificando.
+  // O si aún no estamos seguros de si debemos redirigir.
   if (loading || !isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -36,6 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Si la carga ha finalizado y el usuario está autenticado, mostrar el layout y el contenido.
   const displayName = user?.email;
 
   return (

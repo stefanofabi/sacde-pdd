@@ -18,9 +18,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Helper function to introduce a delay
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -30,23 +27,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        // This delay is CRUCIAL. It gives Firebase time to propagate the auth state
-        // to the point where Firestore security rules will recognize the new session.
-        // Without this, Firestore queries can fail with "Missing or insufficient permissions".
-        await wait(250); 
         try {
+          // Obtiene los datos del usuario de Firestore.
           const appUser = await getUserByEmail(fbUser.email!);
           setUser(appUser);
         } catch (error) {
           console.error("Failed to fetch app user, signing out.", error);
-          await signOut(auth); // Sign out if user data can't be fetched
+          await signOut(auth); // Desloguear si hay un error al obtener los datos.
+          setUser(null);
         }
       } else {
         setUser(null);
       }
+      // Marcar la carga como finalizada solo después de que todo el proceso ha terminado.
       setLoading(false);
     });
 
+    // Limpiar el listener al desmontar el componente.
     return () => unsubscribe();
   }, []);
 
@@ -54,14 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!password) {
        throw new Error("Password is required.");
     }
-    // Let the onAuthStateChanged listener handle the state updates.
-    // This function's only job is to trigger the sign-in.
+    // Solo inicia sesión. El listener onAuthStateChanged se encargará
+    // de actualizar el estado de la aplicación de forma centralizada y robusta.
     await signInWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {
     await signOut(auth);
-    // The onAuthStateChanged listener will handle setting user and firebaseUser to null.
+    // El listener onAuthStateChanged se encargará de poner user y firebaseUser a null.
   };
 
   const isAuthenticated = !loading && !!user && !!firebaseUser;

@@ -11,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,6 +19,7 @@ export default function LoginPage() {
   const { login, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
   
   const isLoading = authLoading || isSubmitting;
 
@@ -27,7 +29,10 @@ export default function LoginPage() {
     
     try {
       await login(email, password);
-      // No need to redirect here. The layout will handle it.
+      // La redirección ahora es manejada por AppLayout, que espera a que el estado
+      // de autenticación esté completamente resuelto.
+      // Pero podemos dar un empujón inicial para una mejor UX.
+      router.push('/dashboard');
     } catch (error) {
       toast({
         title: "Error de inicio de sesión",
