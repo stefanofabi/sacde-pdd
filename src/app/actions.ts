@@ -349,3 +349,5 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
 export async function deleteProject(projectId: string): Promise<void> {
     await deleteDoc(doc(db, 'projects', projectId));
 }
+
+    

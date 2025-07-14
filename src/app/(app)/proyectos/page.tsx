@@ -3,10 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import ProjectsManager from "@/components/projects-manager";
-import { getProjects } from "@/app/actions";
 import type { Project } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function ProyectosPage() {
   const { user, loading: authLoading } = useAuth();
@@ -18,7 +19,8 @@ export default function ProyectosPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const projectsData = await getProjects();
+        const projectsSnapshot = await getDocs(collection(db, 'projects'));
+        const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];
         setInitialProjects(projectsData);
       } catch (error) {
         console.error("Failed to fetch projects data:", error);

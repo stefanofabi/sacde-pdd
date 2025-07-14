@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { getAttendance, getDailyLabor, getDailyLaborNotifications, getEmployees, getPermissions } from "@/app/actions";
+import { getAttendance, getDailyLabor, getDailyLaborNotifications, getPermissions } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayoutDashboard, ClipboardList, ClipboardCheck, Users, UserCheck, BarChart3, AlertCircle, Loader2 } from "lucide-react";
 import { format, isWithinInterval, startOfToday } from "date-fns";
@@ -10,6 +10,9 @@ import { es } from "date-fns/locale";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/auth-context';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { Employee } from '@/types';
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -33,15 +36,17 @@ export default function DashboardPage() {
           attendanceData,
           dailyLaborData,
           notificationData,
-          employees,
+          employeesSnapshot,
           permissions,
         ] = await Promise.all([
           getAttendance(),
           getDailyLabor(),
           getDailyLaborNotifications(),
-          getEmployees(),
+          getDocs(collection(db, 'employees')),
           getPermissions(),
         ]);
+
+        const employees = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
 
         // Metric 1: Partes pendientes de realizar (Asistencia)
         const attendanceToday = attendanceData[todayKey] || [];
@@ -182,3 +187,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
