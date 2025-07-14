@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Combobox } from "@/components/ui/combobox";
 import {
   Dialog,
   DialogContent,
@@ -39,36 +38,34 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Pencil, PlusCircle } from "lucide-react";
-import type { Employee, EmployeeRole, User } from "@/types";
+import type { EmployeeRole, User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, getDocs } from "firebase/firestore";
 
 interface UsersManagerProps {
   initialUsers: User[];
-  initialEmployees: Employee[];
+  initialEmployees: User[];
 }
 
 const emptyAddForm = {
-    employeeId: "",
+    nombre: "",
+    apellido: "",
     email: "",
     role: "invitado" as EmployeeRole,
 };
 
-export default function UsersManager({ initialUsers, initialEmployees }: UsersManagerProps) {
+export default function UsersManager({ initialUsers }: UsersManagerProps) {
   const { toast } = useToast();
   
   const [users, setUsers] = useState<User[]>(initialUsers);
-  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editFormState, setEditFormState] = useState<Partial<User & Employee>>({});
+  const [editFormState, setEditFormState] = useState<Partial<User>>({});
   const [addFormState, setAddFormState] = useState(emptyAddForm);
   const [isPending, startTransition] = useTransition();
-
-  const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
   
   const filteredUsers = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -76,29 +73,20 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
       return users;
     }
     return users.filter((user) => {
-      const employee = employeeMap.get(user.employeeId);
-      const fullName = employee ? `${employee.nombre} ${employee.apellido}`.toLowerCase() : '';
+      const fullName = `${user.nombre} ${user.apellido}`.toLowerCase();
       const email = user.email.toLowerCase();
       return fullName.includes(lowerCaseSearchTerm) || email.includes(lowerCaseSearchTerm);
     });
-  }, [users, searchTerm, employeeMap]);
-
-  const unassignedEmployees = useMemo(() => {
-    const assignedEmployeeIds = new Set(users.map(u => u.employeeId));
-    return initialEmployees
-        .filter(e => !assignedEmployeeIds.has(e.id))
-        .map(e => ({ value: e.id, label: `${e.apellido}, ${e.nombre} (L: ${e.legajo})`}));
-  }, [users, initialEmployees]);
+  }, [users, searchTerm]);
 
 
   const handleOpenEditDialog = (user: User) => {
-    const employee = employeeMap.get(user.employeeId);
     setEditingUser(user);
     setEditFormState({
       email: user.email,
       role: user.role,
-      nombre: employee?.nombre,
-      apellido: employee?.apellido
+      nombre: user.nombre,
+      apellido: user.apellido
     });
     setIsEditDialogOpen(true);
   };
@@ -116,6 +104,8 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
         const userDataToUpdate = { 
           email: editFormState.email, 
           role: editFormState.role,
+          nombre: editFormState.nombre,
+          apellido: editFormState.apellido,
         };
 
         if (editFormState.email.toLowerCase() !== editingUser.email.toLowerCase()) {
@@ -126,26 +116,15 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
             }
         }
         
-        const employeeDataToUpdate = {
-            nombre: editFormState.nombre,
-            apellido: editFormState.apellido,
-        };
-
         const userDocRef = doc(db, "users", editingUser.id);
-        const employeeDocRef = doc(db, "employees", editingUser.employeeId);
-
         await updateDoc(userDocRef, userDataToUpdate);
-        await updateDoc(employeeDocRef, employeeDataToUpdate);
         
         const updatedUser = { ...editingUser, ...userDataToUpdate } as User;
         setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-
-        const updatedEmployee = { ...employeeMap.get(editingUser.employeeId)!, ...employeeDataToUpdate } as Employee;
-        setEmployees(prev => prev.map(e => e.id === updatedEmployee.id ? updatedEmployee : e));
         
         toast({
           title: "Usuario Actualizado",
-          description: `El usuario "${updatedEmployee.nombre} ${updatedEmployee.apellido}" ha sido actualizado.`,
+          description: `El usuario "${updatedUser.nombre} ${updatedUser.apellido}" ha sido actualizado.`,
         });
         
         setIsEditDialogOpen(false);
@@ -162,8 +141,8 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
   };
   
   const handleAddUser = () => {
-    const { employeeId, email, role } = addFormState;
-    if (!employeeId || !email || !role) {
+    const { nombre, apellido, email, role } = addFormState;
+    if (!nombre || !apellido || !email || !role) {
       toast({
         title: "Error de validación",
         description: "Debe completar todos los campos obligatorios (*).",
@@ -175,17 +154,23 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
     startTransition(async () => {
       try {
         const dataToSave = {
-            employeeId: addFormState.employeeId,
+            nombre: addFormState.nombre,
+            apellido: addFormState.apellido,
             email: addFormState.email.toLowerCase(),
             role: addFormState.role,
         };
+        const q = query(collection(db, 'users'), where("email", "==", dataToSave.email));
+        const existing = await getDocs(q);
+        if (!existing.empty) {
+            throw new Error('Ya existe un usuario con este correo electrónico.');
+        }
+
         const docRef = await addDoc(collection(db, "users"), dataToSave);
         const newUser = { id: docRef.id, ...dataToSave };
         setUsers((prev) => [...prev, newUser]);
-        const employee = employeeMap.get(newUser.employeeId);
         toast({
           title: "Usuario Creado",
-          description: `El usuario "${employee?.nombre} ${employee?.apellido}" ha sido creado.`,
+          description: `El usuario "${newUser.nombre} ${newUser.apellido}" ha sido creado.`,
         });
         setIsAddDialogOpen(false);
       } catch (error) {
@@ -197,15 +182,6 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
         });
       }
     });
-  };
-
-  const handleEmployeeSelectionForNewUser = (employeeId: string) => {
-      const selectedEmployee = employeeMap.get(employeeId);
-      setAddFormState(prev => ({
-          ...prev,
-          employeeId: employeeId,
-          email: selectedEmployee?.correo || ''
-      }));
   };
 
   const roleOptions: { value: EmployeeRole; label: string }[] = [
@@ -259,8 +235,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
               <TableBody>
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => {
-                        const employee = employeeMap.get(user.employeeId);
-                        const fullName = employee ? `${employee.apellido}, ${employee.nombre}` : 'Empleado no encontrado';
+                        const fullName = `${user.apellido}, ${user.nombre}`;
                         return (
                           <TableRow key={user.id}>
                             <TableCell className="font-medium">{fullName}</TableCell>
@@ -369,17 +344,25 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
             <DialogDescription>Complete los datos para registrar un nuevo usuario en el sistema.</DialogDescription>
           </DialogHeader>
            <div className="space-y-4 py-4">
-               <div className="space-y-2">
-                   <Label htmlFor="employeeId-add">Nombre y Apellido *</Label>
-                   <Combobox
-                    options={unassignedEmployees}
-                    value={addFormState.employeeId}
-                    onValueChange={handleEmployeeSelectionForNewUser}
-                    placeholder="Seleccione un empleado"
-                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                    emptyMessage="No se encontró el empleado."
+                <div className="space-y-2">
+                  <Label htmlFor="apellido-add">Apellido *</Label>
+                  <Input 
+                    id="apellido-add"
+                    value={addFormState.apellido} 
+                    onChange={(e) => setAddFormState(p => ({...p, apellido: e.target.value}))} 
+                    placeholder="Apellido del usuario"
                     disabled={isPending}
-                   />
+                  />
+               </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nombre-add">Nombre *</Label>
+                  <Input 
+                    id="nombre-add"
+                    value={addFormState.nombre} 
+                    onChange={(e) => setAddFormState(p => ({...p, nombre: e.target.value}))} 
+                    placeholder="Nombre del usuario"
+                    disabled={isPending}
+                  />
                </div>
                <div className="space-y-2">
                   <Label htmlFor="email-add">Email *</Label>

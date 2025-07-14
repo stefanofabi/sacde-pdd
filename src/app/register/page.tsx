@@ -8,15 +8,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { registerUser } from '@/app/actions';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/context/auth-context';
+import type { EmployeeRole } from '@/types';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { registerUser } = useAuth();
 
   const [formState, setFormState] = useState({
+    nombre: '',
+    apellido: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -44,9 +48,11 @@ export default function RegisterPage() {
 
     try {
       await registerUser({
+        nombre: formState.nombre,
+        apellido: formState.apellido,
         email: formState.email,
-        password: formState.password,
-      });
+        role: 'invitado' as EmployeeRole,
+      }, formState.password);
 
       toast({
         title: "¡Registro Exitoso!",
@@ -75,6 +81,16 @@ export default function RegisterPage() {
         </CardHeader>
         <form onSubmit={handleRegister}>
           <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nombre">Nombre</Label>
+                <Input id="nombre" name="nombre" type="text" required value={formState.nombre} onChange={handleInputChange} disabled={isLoading} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="apellido">Apellido</Label>
+                <Input id="apellido" name="apellido" type="text" required value={formState.apellido} onChange={handleInputChange} disabled={isLoading} />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" name="email" type="email" required value={formState.email} onChange={handleInputChange} disabled={isLoading} />

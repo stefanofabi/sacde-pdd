@@ -5,14 +5,13 @@ import { useState, useEffect } from 'react';
 import UsersManager from "@/components/users-manager";
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { User, Employee } from '@/types';
+import type { User } from '@/types';
 import { UserCog, Loader2 } from "lucide-react";
 import { useAuth } from '@/context/auth-context';
 
 export default function UsuariosPage() {
   const { user, loading: authLoading } = useAuth();
   const [initialUsers, setInitialUsers] = useState<User[]>([]);
-  const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,16 +19,9 @@ export default function UsuariosPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const [usersSnapshot, employeesSnapshot] = await Promise.all([
-          getDocs(collection(db, 'users')),
-          getDocs(collection(db, 'employees'))
-        ]);
-        
+        const usersSnapshot = await getDocs(collection(db, 'users'));
         const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
-        const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
-        
         setInitialUsers(usersData);
-        setInitialEmployees(employeesData);
       } catch (error) {
         console.error("Failed to fetch user data:", error);
       } finally {
@@ -60,7 +52,7 @@ export default function UsuariosPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <UsersManager initialUsers={initialUsers} initialEmployees={initialEmployees} />
+            <UsersManager initialUsers={initialUsers} initialEmployees={[]} />
           )}
         </div>
       </main>

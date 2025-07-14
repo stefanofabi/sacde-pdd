@@ -2,7 +2,8 @@
 
 export interface User {
   id: string;
-  employeeId: string;
+  nombre: string;
+  apellido: string;
   email: string;
   role: EmployeeRole;
 }

@@ -1,10 +1,9 @@
 
 'use server';
 
-import { db, auth as clientAuth } from '@/lib/firebase'; // Renamed to avoid confusion
+import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch, documentId } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import type { Crew, AttendanceData, Project, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
+import type { Crew, AttendanceData, Project, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
 import { format, subDays } from 'date-fns';
 
 async function readCollection<T>(collectionName: string): Promise<T[]> {
@@ -307,47 +306,6 @@ export async function deletePermission(permissionId: string): Promise<void> {
     await deleteDoc(doc(db, 'permissions', permissionId));
 }
 
-interface RegisterUserInput {
-  email: string;
-  password: string;
-}
-
-export async function registerUser(input: RegisterUserInput): Promise<void> {
-    const { email, password } = input;
-    const lowerCaseEmail = email.toLowerCase();
-
-    // 1. Check if a user document with this email already exists in Firestore.
-    // This is a pre-check to provide a better error message.
-    const userExistsQuery = query(collection(db, 'users'), where("email", "==", lowerCaseEmail));
-    const existingUserSnapshot = await getDocs(userExistsQuery);
-    if (!existingUserSnapshot.empty) {
-        throw new Error('El correo electrónico ya está registrado en la base de datos.');
-    }
-
-    // 2. Create user in Firebase Auth.
-    // This will also throw an error if the email is already in use in Auth, which is a good safeguard.
-    try {
-        await createUserWithEmailAndPassword(clientAuth, lowerCaseEmail, password);
-    } catch (error: any) {
-        if (error.code === 'auth/email-already-in-use') {
-            throw new Error('El correo electrónico ya está registrado en el sistema de autenticación.');
-        }
-        if (error.code === 'auth/weak-password') {
-            throw new Error('La contraseña debe tener al menos 6 caracteres.');
-        }
-        throw new Error(`Error al crear el usuario en Firebase: ${error.message}`);
-    }
-
-    // 3. If Auth creation is successful, create User document in Firestore.
-    const newUserData = {
-        email: lowerCaseEmail,
-        role: 'invitado' as EmployeeRole,
-    };
-    await addDoc(collection(db, 'users'), newUserData);
-}
-
 export async function deleteProject(projectId: string): Promise<void> {
     await deleteDoc(doc(db, 'projects', projectId));
 }
-
-    
