@@ -27,9 +27,9 @@ export default function LoginPage() {
     
     try {
       await login(email, password);
-      // La redirección ahora es manejada por AppLayout, que espera a que el estado
-      // de autenticación esté completamente resuelto.
-      // Pero podemos dar un empujón inicial para una mejor UX.
+      // The redirect is now handled by the AppLayout
+      // which waits for the auth state to be fully resolved.
+      // We can push to dashboard to initiate navigation.
       router.push('/dashboard');
     } catch (error) {
       toast({
@@ -37,7 +37,6 @@ export default function LoginPage() {
         description: "Credenciales inválidas. Por favor, verifique sus datos e intente de nuevo.",
         variant: "destructive",
       });
-    } finally {
       setIsSubmitting(false);
     }
   };

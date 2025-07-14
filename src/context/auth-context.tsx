@@ -9,7 +9,8 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
-  user: User | null | undefined; // undefined: initial check, null: not logged in, User: logged in
+  user: User | null; 
+  loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
 }
@@ -19,7 +20,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 async function getUserByEmail(email: string): Promise<User | null> {
     try {
         const usersRef = collection(db, 'users');
-        // Always search for the lowercase version of the email.
         const q = query(usersRef, where("email", "==", email.toLowerCase()));
         const querySnapshot = await getDocs(q);
 
@@ -31,7 +31,6 @@ async function getUserByEmail(email: string): Promise<User | null> {
         const userDoc = querySnapshot.docs[0];
         return { id: userDoc.id, ...userDoc.data() } as User;
     } catch (error) {
-        // This will now log the detailed permission error in the browser console
         console.error(`Error fetching user by email ${email}:`, error);
         return null;
     }
@@ -39,14 +38,14 @@ async function getUserByEmail(email: string): Promise<User | null> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [user, setUser] = useState<User | null | undefined>(undefined); // Start as undefined
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
           try {
-            // The query now runs on the client, where the auth state is valid
             const appUser = await getUserByEmail(fbUser.email!);
             setUser(appUser);
           } catch (error) {
@@ -57,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setUser(null);
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -66,18 +66,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!password) {
        throw new Error("Password is required.");
     }
-    // The onAuthStateChanged listener will handle fetching user data and setting state
     await signInWithEmailAndPassword(auth, email, password);
   };
 
   const logout = async () => {
     await signOut(auth);
-    setUser(null);
   };
 
   const authContextValue: AuthContextType = {
     firebaseUser,
     user,
+    loading,
     login,
     logout,
   };

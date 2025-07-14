@@ -45,19 +45,16 @@ function DebugAuthPanel() {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
-    // user es undefined durante la comprobación inicial.
-    // Si la comprobación ha terminado (user no es undefined) y el resultado es null (no autenticado)
-    if (user === null) {
+    if (!loading && !user) {
       router.replace(`/login`);
     }
-  }, [user, router]);
+  }, [user, loading, router]);
 
-  // Muestra una pantalla de carga mientras el estado del usuario es 'undefined' (comprobación inicial).
-  if (user === undefined) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -65,8 +62,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-
-  // Si la carga ha finalizado y el usuario existe (es un objeto), mostrar el layout principal.
+  
   if (user) {
     const displayName = user?.email;
     return (
@@ -116,8 +112,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Fallback para el caso en que user sea null pero el redirect aún no se haya completado.
-  // Muestra una pantalla de carga para evitar un parpadeo de contenido incorrecto.
   return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
