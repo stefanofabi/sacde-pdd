@@ -38,12 +38,14 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Pencil, PlusCircle } from "lucide-react";
-import type { EmployeeRole, User } from "@/types";
+import type { EmployeeRole, User, Employee } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { updateUser, addUser } from "@/app/actions";
+import { Combobox } from "./ui/combobox";
 
 interface UsersManagerProps {
   initialUsers: User[];
+  initialEmployees: Employee[];
 }
 
 const emptyAddForm = {
@@ -51,7 +53,7 @@ const emptyAddForm = {
     role: "invitado" as EmployeeRole,
 };
 
-export default function UsersManager({ initialUsers }: UsersManagerProps) {
+export default function UsersManager({ initialUsers, initialEmployees }: UsersManagerProps) {
   const { toast } = useToast();
   
   const [users, setUsers] = useState<User[]>(initialUsers);
@@ -62,6 +64,8 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
   const [editFormState, setEditFormState] = useState<Partial<User>>({});
   const [addFormState, setAddFormState] = useState(emptyAddForm);
   const [isPending, startTransition] = useTransition();
+
+  const employeeMap = useMemo(() => new Map(initialEmployees.map(e => [e.id, e])), [initialEmployees]);
   
   const filteredUsers = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -69,10 +73,19 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
       return users;
     }
     return users.filter((user) => {
+      const employee = employeeMap.get(user.id);
+      const fullName = employee ? `${employee.nombre} ${employee.apellido}`.toLowerCase() : '';
       const email = user.email.toLowerCase();
-      return email.includes(lowerCaseSearchTerm);
+      return fullName.includes(lowerCaseSearchTerm) || email.includes(lowerCaseSearchTerm);
     });
-  }, [users, searchTerm]);
+  }, [users, searchTerm, employeeMap]);
+  
+  const unassignedEmployees = useMemo(() => {
+    const assignedEmployeeIds = new Set(users.map(u => u.id));
+    return initialEmployees
+      .filter(e => !assignedEmployeeIds.has(e.id))
+      .map(e => ({ value: e.id, label: `${e.apellido}, ${e.nombre} (L: ${e.legajo})` }));
+  }, [users, initialEmployees]);
 
   const handleOpenEditDialog = (user: User) => {
     setEditingUser(user);
