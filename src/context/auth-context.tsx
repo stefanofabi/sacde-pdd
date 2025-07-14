@@ -13,7 +13,7 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
-  registerUser: (userData: Omit<User, 'id'>, password: string) => Promise<void>;
+  registerUser: (userData: Omit<User, 'id' | 'authUid'>, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
   };
 
-  const registerUser = async (userData: Omit<User, 'id'>, password: string): Promise<void> => {
+  const registerUser = async (userData: Omit<User, 'id' | 'authUid'>, password: string): Promise<void> => {
     const lowerCaseEmail = userData.email.toLowerCase();
 
     const userExistsQuery = query(collection(db, 'users'), where("email", "==", lowerCaseEmail));
@@ -83,8 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('El correo electrónico ya está registrado en la base de datos.');
     }
 
+    let authUser: FirebaseUser;
     try {
-        await createUserWithEmailAndPassword(auth, lowerCaseEmail, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, lowerCaseEmail, password);
+        authUser = userCredential.user;
     } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
             throw new Error('El correo electrónico ya está registrado en el sistema de autenticación.');
@@ -98,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await addDoc(collection(db, 'users'), {
         ...userData,
         email: lowerCaseEmail,
+        authUid: authUser.uid,
     });
   }
 

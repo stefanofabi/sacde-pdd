@@ -3,10 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import AttendanceTracker from "@/components/attendance-tracker";
-import { getCrews, getAttendance, getProjects, getEmployees } from "@/app/actions";
+import { getAttendance } from "@/app/actions";
 import type { Crew, AttendanceData, Project, Employee } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function AsistenciasPage() {
   const { user, loading: authLoading } = useAuth();
@@ -21,12 +23,22 @@ export default function AsistenciasPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const [crewsData, attendanceData, projectsData, employeesData] = await Promise.all([
-          getCrews(),
+        const [
+          attendanceData,
+          crewsSnapshot,
+          projectsSnapshot,
+          employeesSnapshot
+        ] = await Promise.all([
           getAttendance(),
-          getProjects(),
-          getEmployees(),
+          getDocs(collection(db, 'crews')),
+          getDocs(collection(db, 'projects')),
+          getDocs(collection(db, 'employees')),
         ]);
+
+        const crewsData = crewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Crew[];
+        const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];
+        const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
+
         setInitialCrews(crewsData);
         setInitialAttendance(attendanceData);
         setInitialProjects(projectsData);

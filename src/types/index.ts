@@ -6,6 +6,7 @@ export interface User {
   apellido: string;
   email: string;
   role: EmployeeRole;
+  authUid?: string; // UID from Firebase Auth
 }
 
 export interface Project {

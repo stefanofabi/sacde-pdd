@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -18,6 +18,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -37,11 +48,12 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Pencil, PlusCircle } from "lucide-react";
+import { Loader2, Search, Pencil, PlusCircle, Trash2 } from "lucide-react";
 import type { EmployeeRole, User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, getDocs } from "firebase/firestore";
+import { createUser, deleteUser } from "@/app/actions";
 
 interface UsersManagerProps {
   initialUsers: User[];
@@ -52,6 +64,8 @@ const emptyAddForm = {
     nombre: "",
     apellido: "",
     email: "",
+    password: "",
+    confirmPassword: "",
     role: "invitado" as EmployeeRole,
 };
 
@@ -61,6 +75,7 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [editFormState, setEditFormState] = useState<Partial<User>>({});
@@ -70,13 +85,13 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
   const filteredUsers = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
     if (!lowerCaseSearchTerm) {
-      return users;
+      return users.sort((a, b) => a.apellido.localeCompare(b.apellido));
     }
     return users.filter((user) => {
       const fullName = `${user.nombre} ${user.apellido}`.toLowerCase();
       const email = user.email.toLowerCase();
       return fullName.includes(lowerCaseSearchTerm) || email.includes(lowerCaseSearchTerm);
-    });
+    }).sort((a, b) => a.apellido.localeCompare(b.apellido));
   }, [users, searchTerm]);
 
 
@@ -107,14 +122,6 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
           nombre: editFormState.nombre,
           apellido: editFormState.apellido,
         };
-
-        if (editFormState.email.toLowerCase() !== editingUser.email.toLowerCase()) {
-            const q = query(collection(db, 'users'), where("email", "==", editFormState.email.toLowerCase()));
-            const existing = await getDocs(q);
-            if (!existing.empty) {
-                throw new Error('Ya existe otro usuario con este correo electrónico.');
-            }
-        }
         
         const userDocRef = doc(db, "users", editingUser.id);
         await updateDoc(userDocRef, userDataToUpdate);
@@ -141,8 +148,8 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
   };
   
   const handleAddUser = () => {
-    const { nombre, apellido, email, role } = addFormState;
-    if (!nombre || !apellido || !email || !role) {
+    const { nombre, apellido, email, role, password, confirmPassword } = addFormState;
+    if (!nombre || !apellido || !email || !role || !password || !confirmPassword) {
       toast({
         title: "Error de validación",
         description: "Debe completar todos los campos obligatorios (*).",
@@ -150,23 +157,25 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
       });
       return;
     }
+
+    if (password !== confirmPassword) {
+        toast({
+            title: "Error de validación",
+            description: "Las contraseñas no coinciden.",
+            variant: "destructive",
+        });
+        return;
+    }
     
     startTransition(async () => {
       try {
-        const dataToSave = {
+        const newUser = await createUser({
             nombre: addFormState.nombre,
             apellido: addFormState.apellido,
-            email: addFormState.email.toLowerCase(),
+            email: addFormState.email,
             role: addFormState.role,
-        };
-        const q = query(collection(db, 'users'), where("email", "==", dataToSave.email));
-        const existing = await getDocs(q);
-        if (!existing.empty) {
-            throw new Error('Ya existe un usuario con este correo electrónico.');
-        }
+        }, password);
 
-        const docRef = await addDoc(collection(db, "users"), dataToSave);
-        const newUser = { id: docRef.id, ...dataToSave };
         setUsers((prev) => [...prev, newUser]);
         toast({
           title: "Usuario Creado",
@@ -181,6 +190,29 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
           variant: "destructive",
         });
       }
+    });
+  };
+
+  const handleDeleteUser = () => {
+    if (!userToDelete) return;
+    startTransition(async () => {
+        try {
+            await deleteUser(userToDelete.id);
+            setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+            toast({
+                title: "Usuario eliminado",
+                description: `El usuario "${userToDelete.nombre} ${userToDelete.apellido}" ha sido eliminado con éxito.`,
+            });
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : "Ocurrió un error inesperado.";
+            toast({
+                title: "Error al eliminar",
+                description: errorMessage,
+                variant: "destructive",
+            });
+        } finally {
+            setUserToDelete(null);
+        }
     });
   };
 
@@ -245,13 +277,23 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
                             </TableCell>
                             <TableCell className="text-right space-x-1">
                                 <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleOpenEditDialog(user)}
-                                disabled={isPending}
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleOpenEditDialog(user)}
+                                    disabled={isPending}
                                 >
-                                <Pencil className="h-4 w-4" />
-                                <span className="sr-only">Editar {user.email}</span>
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="sr-only">Editar {user.email}</span>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:bg-destructive/10"
+                                    onClick={() => setUserToDelete(user)}
+                                    disabled={isPending}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Eliminar {user.email}</span>
                                 </Button>
                             </TableCell>
                           </TableRow>
@@ -274,7 +316,7 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Usuario</DialogTitle>
-            <DialogDescription>Modifique los datos del usuario y del empleado asociado.</DialogDescription>
+            <DialogDescription>Modifique los datos del usuario.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
              <div className="space-y-2">
@@ -376,6 +418,28 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
                   />
                </div>
                <div className="space-y-2">
+                  <Label htmlFor="password-add">Contraseña *</Label>
+                  <Input 
+                    id="password-add"
+                    type="password"
+                    value={addFormState.password} 
+                    onChange={(e) => setAddFormState(p => ({...p, password: e.target.value}))} 
+                    placeholder="Mínimo 6 caracteres"
+                    disabled={isPending}
+                  />
+               </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword-add">Confirmar Contraseña *</Label>
+                  <Input 
+                    id="confirmPassword-add"
+                    type="password"
+                    value={addFormState.confirmPassword} 
+                    onChange={(e) => setAddFormState(p => ({...p, confirmPassword: e.target.value}))} 
+                    placeholder="Repita la contraseña"
+                    disabled={isPending}
+                  />
+               </div>
+               <div className="space-y-2">
                     <Label htmlFor="role-add">Rol del Sistema *</Label>
                     <Select onValueChange={(value: EmployeeRole) => setAddFormState(p => ({...p, role: value}))} value={addFormState.role} disabled={isPending}>
                         <SelectTrigger id="role-add"><SelectValue placeholder="Seleccionar un rol" /></SelectTrigger>
@@ -394,6 +458,29 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción no se puede deshacer. Se eliminará permanentemente al usuario "{`${userToDelete?.nombre} ${userToDelete?.apellido}`}" de la base de datos y del sistema de autenticación.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setUserToDelete(null)} disabled={isPending}>
+                    Cancelar
+                </AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleDeleteUser} 
+                  disabled={isPending}
+                  className={buttonVariants({ variant: "destructive" })}
+                >
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar usuario"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
