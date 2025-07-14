@@ -1,10 +1,34 @@
 
+'use client';
+
+import { useState, useEffect } from 'react';
 import EmployeesManager from "@/components/employees-manager";
 import { getEmployees, getObras } from "@/app/actions";
+import type { Employee, Obra } from '@/types';
+import { Loader2 } from 'lucide-react';
 
-export default async function EmpleadosPage() {
-  const initialEmployees = await getEmployees();
-  const initialObras = await getObras();
+export default function EmpleadosPage() {
+  const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
+  const [initialObras, setInitialObras] = useState<Obra[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [employeesData, obrasData] = await Promise.all([
+          getEmployees(),
+          getObras(),
+        ]);
+        setInitialEmployees(employeesData);
+        setInitialObras(obrasData);
+      } catch (error) {
+        console.error("Failed to fetch employees data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
   return (
     <>
@@ -18,7 +42,13 @@ export default async function EmpleadosPage() {
               Añada, vea y gestione los empleados de Sacde.
             </p>
           </header>
-          <EmployeesManager initialEmployees={initialEmployees} initialObras={initialObras} />
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <EmployeesManager initialEmployees={initialEmployees} initialObras={initialObras} />
+          )}
         </div>
       </main>
     </>

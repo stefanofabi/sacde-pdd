@@ -1,17 +1,49 @@
 
+'use client';
+
+import { useState, useEffect } from 'react';
 import AbsenceTypesManager from "@/components/absence-types-manager";
 import PhasesManager from "@/components/phases-manager";
 import SpecialHourTypesManager from "@/components/special-hour-types-manager";
 import UnproductiveHourTypesManager from "@/components/unproductive-hour-types-manager";
 import { getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTypes } from "@/app/actions";
-import { Settings } from "lucide-react";
+import { Settings, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import type { AbsenceType, Phase, SpecialHourType, UnproductiveHourType } from '@/types';
 
-export default async function AjustesPage() {
-  const initialAbsenceTypes = await getAbsenceTypes();
-  const initialPhases = await getPhases();
-  const initialSpecialHourTypes = await getSpecialHourTypes();
-  const initialUnproductiveHourTypes = await getUnproductiveHourTypes();
+export default function AjustesPage() {
+  const [initialAbsenceTypes, setInitialAbsenceTypes] = useState<AbsenceType[]>([]);
+  const [initialPhases, setInitialPhases] = useState<Phase[]>([]);
+  const [initialSpecialHourTypes, setInitialSpecialHourTypes] = useState<SpecialHourType[]>([]);
+  const [initialUnproductiveHourTypes, setInitialUnproductiveHourTypes] = useState<UnproductiveHourType[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [
+          absenceTypesData,
+          phasesData,
+          specialHourTypesData,
+          unproductiveHourTypesData,
+        ] = await Promise.all([
+          getAbsenceTypes(),
+          getPhases(),
+          getSpecialHourTypes(),
+          getUnproductiveHourTypes(),
+        ]);
+        setInitialAbsenceTypes(absenceTypesData);
+        setInitialPhases(phasesData);
+        setInitialSpecialHourTypes(specialHourTypesData);
+        setInitialUnproductiveHourTypes(unproductiveHourTypesData);
+      } catch (error) {
+        console.error("Failed to fetch settings data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
   return (
     <>
@@ -26,15 +58,21 @@ export default async function AjustesPage() {
               Configure las opciones de la aplicación.
             </p>
           </header>
-          <div className="space-y-8">
-            <AbsenceTypesManager initialAbsenceTypes={initialAbsenceTypes} />
-            <Separator />
-            <PhasesManager initialPhases={initialPhases} />
-            <Separator />
-            <SpecialHourTypesManager initialSpecialHourTypes={initialSpecialHourTypes} />
-            <Separator />
-            <UnproductiveHourTypesManager initialUnproductiveHourTypes={initialUnproductiveHourTypes} />
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="space-y-8">
+              <AbsenceTypesManager initialAbsenceTypes={initialAbsenceTypes} />
+              <Separator />
+              <PhasesManager initialPhases={initialPhases} />
+              <Separator />
+              <SpecialHourTypesManager initialSpecialHourTypes={initialSpecialHourTypes} />
+              <Separator />
+              <UnproductiveHourTypesManager initialUnproductiveHourTypes={initialUnproductiveHourTypes} />
+            </div>
+          )}
         </div>
       </main>
     </>

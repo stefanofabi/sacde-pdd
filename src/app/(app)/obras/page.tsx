@@ -1,9 +1,29 @@
 
+'use client';
+
+import { useState, useEffect } from 'react';
 import ObrasManager from "@/components/obras-manager";
 import { getObras } from "@/app/actions";
+import type { Obra } from '@/types';
+import { Loader2 } from 'lucide-react';
 
-export default async function ObrasPage() {
-  const initialObras = await getObras();
+export default function ObrasPage() {
+  const [initialObras, setInitialObras] = useState<Obra[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const obrasData = await getObras();
+        setInitialObras(obrasData);
+      } catch (error) {
+        console.error("Failed to fetch obras data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
   return (
     <>
@@ -17,7 +37,13 @@ export default async function ObrasPage() {
               Añada, vea y gestione las obras de Sacde.
             </p>
           </header>
-          <ObrasManager initialObras={initialObras} />
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <ObrasManager initialObras={initialObras} />
+          )}
         </div>
       </main>
     </>

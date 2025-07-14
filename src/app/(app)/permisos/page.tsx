@@ -1,11 +1,37 @@
 
+'use client';
+
+import { useState, useEffect } from 'react';
 import PermissionsManager from "@/components/permissions-manager";
 import { getPermissions, getEmployees, getAbsenceTypes } from "@/app/actions";
+import type { Permission, Employee, AbsenceType } from '@/types';
+import { Loader2 } from 'lucide-react';
 
-export default async function PermisosPage() {
-  const initialPermissions = await getPermissions();
-  const initialEmployees = await getEmployees();
-  const initialAbsenceTypes = await getAbsenceTypes();
+export default function PermisosPage() {
+  const [initialPermissions, setInitialPermissions] = useState<Permission[]>([]);
+  const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
+  const [initialAbsenceTypes, setInitialAbsenceTypes] = useState<AbsenceType[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [permissionsData, employeesData, absenceTypesData] = await Promise.all([
+          getPermissions(),
+          getEmployees(),
+          getAbsenceTypes(),
+        ]);
+        setInitialPermissions(permissionsData);
+        setInitialEmployees(employeesData);
+        setInitialAbsenceTypes(absenceTypesData);
+      } catch (error) {
+        console.error("Failed to fetch permissions data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
   return (
     <>
@@ -19,11 +45,17 @@ export default async function PermisosPage() {
               Cargue, vea y gestione los permisos de los empleados de Sacde.
             </p>
           </header>
-          <PermissionsManager 
-            initialPermissions={initialPermissions}
-            initialEmployees={initialEmployees}
-            initialAbsenceTypes={initialAbsenceTypes}
-          />
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <PermissionsManager
+              initialPermissions={initialPermissions}
+              initialEmployees={initialEmployees}
+              initialAbsenceTypes={initialAbsenceTypes}
+            />
+          )}
         </div>
       </main>
     </>
