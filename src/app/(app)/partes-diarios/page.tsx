@@ -3,15 +3,15 @@
 
 import { useState, useEffect } from 'react';
 import DailyLaborReport from "@/components/daily-labor-report";
-import { getCrews, getEmployees, getDailyLabor, getObras, getDailyLaborNotifications, getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTypes, getPermissions } from "@/app/actions";
-import type { Crew, Employee, DailyLaborData, Obra, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission } from '@/types';
+import { getCrews, getEmployees, getDailyLabor, getProjects, getDailyLaborNotifications, getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTypes, getPermissions } from "@/app/actions";
+import type { Crew, Employee, DailyLaborData, Project, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission } from '@/types';
 import { Loader2 } from 'lucide-react';
 
 export default function PartesDiariosPage() {
   const [initialCrews, setInitialCrews] = useState<Crew[]>([]);
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [initialLaborData, setInitialLaborData] = useState<DailyLaborData>({});
-  const [initialObras, setInitialObras] = useState<Obra[]>([]);
+  const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [initialNotificationData, setInitialNotificationData] = useState<DailyLaborNotificationData>({});
   const [initialAbsenceTypes, setInitialAbsenceTypes] = useState<AbsenceType[]>([]);
   const [initialPhases, setInitialPhases] = useState<Phase[]>([]);
@@ -27,7 +27,7 @@ export default function PartesDiariosPage() {
           crewsData,
           employeesData,
           laborData,
-          obrasData,
+          projectsData,
           notificationData,
           absenceTypesData,
           phasesData,
@@ -38,7 +38,7 @@ export default function PartesDiariosPage() {
           getCrews(),
           getEmployees(),
           getDailyLabor(),
-          getObras(),
+          getProjects(),
           getDailyLaborNotifications(),
           getAbsenceTypes(),
           getPhases(),
@@ -49,7 +49,7 @@ export default function PartesDiariosPage() {
         setInitialCrews(crewsData);
         setInitialEmployees(employeesData);
         setInitialLaborData(laborData);
-        setInitialObras(obrasData);
+        setInitialProjects(projectsData);
         setInitialNotificationData(notificationData);
         setInitialAbsenceTypes(absenceTypesData);
         setInitialPhases(phasesData);
@@ -86,7 +86,7 @@ export default function PartesDiariosPage() {
               initialCrews={initialCrews}
               initialEmployees={initialEmployees}
               initialLaborData={initialLaborData}
-              initialObras={initialObras}
+              initialProjects={initialProjects}
               initialNotificationData={initialNotificationData}
               initialAbsenceTypes={initialAbsenceTypes}
               initialPhases={initialPhases}

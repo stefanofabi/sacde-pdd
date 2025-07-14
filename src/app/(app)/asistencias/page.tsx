@@ -3,29 +3,29 @@
 
 import { useState, useEffect } from 'react';
 import AttendanceTracker from "@/components/attendance-tracker";
-import { getCrews, getAttendance, getObras, getEmployees } from "@/app/actions";
-import type { Crew, AttendanceData, Obra, Employee } from '@/types';
+import { getCrews, getAttendance, getProjects, getEmployees } from "@/app/actions";
+import type { Crew, AttendanceData, Project, Employee } from '@/types';
 import { Loader2 } from 'lucide-react';
 
 export default function AsistenciasPage() {
   const [initialCrews, setInitialCrews] = useState<Crew[]>([]);
   const [initialAttendance, setInitialAttendance] = useState<AttendanceData>({});
-  const [initialObras, setInitialObras] = useState<Obra[]>([]);
+  const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [crewsData, attendanceData, obrasData, employeesData] = await Promise.all([
+        const [crewsData, attendanceData, projectsData, employeesData] = await Promise.all([
           getCrews(),
           getAttendance(),
-          getObras(),
+          getProjects(),
           getEmployees(),
         ]);
         setInitialCrews(crewsData);
         setInitialAttendance(attendanceData);
-        setInitialObras(obrasData);
+        setInitialProjects(projectsData);
         setInitialEmployees(employeesData);
       } catch (error) {
         console.error("Failed to fetch attendance data:", error);
@@ -56,7 +56,7 @@ export default function AsistenciasPage() {
             <AttendanceTracker
               initialCrews={initialCrews}
               initialAttendance={initialAttendance}
-              initialObras={initialObras}
+              initialProjects={initialProjects}
               initialEmployees={initialEmployees}
             />
           )}

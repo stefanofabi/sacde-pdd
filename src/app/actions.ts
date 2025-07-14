@@ -4,7 +4,7 @@
 import { db, auth as clientAuth } from '@/lib/firebase'; // Renamed to avoid confusion
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch, documentId } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import type { Crew, AttendanceData, Obra, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
+import type { Crew, AttendanceData, Project, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, CrewPhaseAssignment, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
 import { format, subDays } from 'date-fns';
 
 async function readCollection<T>(collectionName: string): Promise<T[]> {
@@ -74,8 +74,8 @@ export async function getEmployees(): Promise<Employee[]> {
   return readCollection<Employee>('employees');
 }
 
-export async function getObras(): Promise<Obra[]> {
-  return readCollection<Obra>('obras');
+export async function getProjects(): Promise<Project[]> {
+  return readCollection<Project>('projects');
 }
 
 export async function getAttendance(): Promise<AttendanceData> {
@@ -285,8 +285,8 @@ export async function deleteEmployee(employeeId: string): Promise<void> {
     await deleteDocument('employees', employeeId);
 }
 
-export async function deleteObra(obraId: string): Promise<void> {
-    await deleteDocument('obras', obraId);
+export async function deleteProject(projectId: string): Promise<void> {
+    await deleteDocument('projects', projectId);
 }
 
 export async function updateAttendanceSentStatus(dateKey: string, attendanceId: string, sent: boolean): Promise<AttendanceEntry> {

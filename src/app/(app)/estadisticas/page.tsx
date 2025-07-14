@@ -3,15 +3,15 @@
 
 import { useState, useEffect } from 'react';
 import StatisticsDashboard from "@/components/statistics-dashboard";
-import { getCrews, getEmployees, getDailyLabor, getObras, getAbsenceTypes, getSpecialHourTypes, getUnproductiveHourTypes } from "@/app/actions";
+import { getCrews, getEmployees, getDailyLabor, getProjects, getAbsenceTypes, getSpecialHourTypes, getUnproductiveHourTypes } from "@/app/actions";
 import { BarChart3, Loader2 } from "lucide-react";
-import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, SpecialHourType, UnproductiveHourType } from '@/types';
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType } from '@/types';
 
 export default function EstadisticasPage() {
   const [crews, setCrews] = useState<Crew[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [dailyLabor, setDailyLabor] = useState<DailyLaborData>({});
-  const [obras, setObras] = useState<Obra[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [absenceTypes, setAbsenceTypes] = useState<AbsenceType[]>([]);
   const [specialHourTypes, setSpecialHourTypes] = useState<SpecialHourType[]>([]);
   const [unproductiveHourTypes, setUnproductiveHourTypes] = useState<UnproductiveHourType[]>([]);
@@ -24,7 +24,7 @@ export default function EstadisticasPage() {
           crewsData,
           employeesData,
           dailyLaborData,
-          obrasData,
+          projectsData,
           absenceTypesData,
           specialHourTypesData,
           unproductiveHourTypesData
@@ -32,7 +32,7 @@ export default function EstadisticasPage() {
           getCrews(),
           getEmployees(),
           getDailyLabor(),
-          getObras(),
+          getProjects(),
           getAbsenceTypes(),
           getSpecialHourTypes(),
           getUnproductiveHourTypes()
@@ -40,7 +40,7 @@ export default function EstadisticasPage() {
         setCrews(crewsData);
         setEmployees(employeesData);
         setDailyLabor(dailyLaborData);
-        setObras(obrasData);
+        setProjects(projectsData);
         setAbsenceTypes(absenceTypesData);
         setSpecialHourTypes(specialHourTypesData);
         setUnproductiveHourTypes(unproductiveHourTypesData);
@@ -75,7 +75,7 @@ export default function EstadisticasPage() {
               initialCrews={crews}
               initialEmployees={employees}
               initialDailyLabor={dailyLabor}
-              initialObras={obras}
+              initialProjects={projects}
               initialAbsenceTypes={absenceTypes}
               initialSpecialHourTypes={specialHourTypes}
               initialUnproductiveHourTypes={unproductiveHourTypes}

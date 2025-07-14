@@ -5,7 +5,7 @@ export interface User {
   role: EmployeeRole;
 }
 
-export interface Obra {
+export interface Project {
   id: string;
   identifier: string;
   name: string;
@@ -27,7 +27,7 @@ export interface CrewPhaseAssignment {
 export interface Crew {
   id: string;
   name: string;
-  obraId: string;
+  projectId: string;
   capatazId: string;
   apuntadorId: string;
   jefeDeObraId: string;
@@ -61,7 +61,7 @@ export interface Employee {
   apellido: string;
   nombre: string;
   fechaIngreso: string; // ISO date string e.g. "2023-10-27"
-  obraId: string;
+  projectId: string;
   denominacionPosicion: string;
   condicion: EmployeeCondition;
   estado: EmployeeStatus;

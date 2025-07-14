@@ -33,13 +33,13 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { MultiSelectCombobox, type ComboboxOption } from "@/components/ui/multi-select-combobox";
 import { Calendar as CalendarIcon, Users, Clock, AlertCircle, UserX, Percent } from "lucide-react";
-import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, LegacyDailyLaborEntry } from "@/types";
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, LegacyDailyLaborEntry } from "@/types";
 
 interface StatisticsDashboardProps {
   initialCrews: Crew[];
   initialEmployees: Employee[];
   initialDailyLabor: DailyLaborData;
-  initialObras: Obra[];
+  initialProjects: Project[];
   initialAbsenceTypes: AbsenceType[];
   initialSpecialHourTypes: SpecialHourType[];
   initialUnproductiveHourTypes: UnproductiveHourType[];
@@ -51,7 +51,7 @@ export default function StatisticsDashboard({
   initialCrews,
   initialEmployees,
   initialDailyLabor,
-  initialObras,
+  initialProjects,
   initialAbsenceTypes,
 }: StatisticsDashboardProps) {
 
@@ -59,19 +59,19 @@ export default function StatisticsDashboard({
     from: addDays(new Date(), -7),
     to: new Date(),
   });
-  const [selectedObras, setSelectedObras] = useState<string[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [selectedCrews, setSelectedCrews] = useState<string[]>([]);
 
-  const obraOptions: ComboboxOption[] = useMemo(() =>
-    initialObras.map(o => ({ value: o.id, label: o.name })),
-    [initialObras]
+  const projectOptions: ComboboxOption[] = useMemo(() =>
+    initialProjects.map(o => ({ value: o.id, label: o.name })),
+    [initialProjects]
   );
   
   const crewOptions: ComboboxOption[] = useMemo(() =>
     initialCrews
-      .filter(c => selectedObras.length === 0 || selectedObras.includes(c.obraId))
+      .filter(c => selectedProjects.length === 0 || selectedProjects.includes(c.projectId))
       .map(c => ({ value: c.id, label: c.name })),
-    [initialCrews, selectedObras]
+    [initialCrews, selectedProjects]
   );
   
   const absenceTypeMap = useMemo(() => new Map(initialAbsenceTypes.map(at => [at.id, at.name])), [initialAbsenceTypes]);
@@ -159,14 +159,14 @@ export default function StatisticsDashboard({
       absenceByCrewChartData,
       hoursChartData,
     };
-  }, [date, selectedObras, selectedCrews, initialDailyLabor, crewOptions, absenceTypeMap, crewMap]);
+  }, [date, selectedProjects, selectedCrews, initialDailyLabor, crewOptions, absenceTypeMap, crewMap]);
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
-          <CardDescription>Seleccione un rango de fechas, obras y cuadrillas para analizar.</CardDescription>
+          <CardDescription>Seleccione un rango de fechas, proyectos y cuadrillas para analizar.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row gap-4">
           <Popover>
@@ -204,13 +204,13 @@ export default function StatisticsDashboard({
             </PopoverContent>
           </Popover>
           <MultiSelectCombobox
-            options={obraOptions}
-            selected={selectedObras}
-            onChange={setSelectedObras}
-            placeholder="Seleccionar obras..."
+            options={projectOptions}
+            selected={selectedProjects}
+            onChange={setSelectedProjects}
+            placeholder="Seleccionar proyectos..."
             className="w-full md:w-[250px]"
-            selectAllLabel="Seleccionar todas las obras"
-            deselectAllLabel="Deseleccionar todas las obras"
+            selectAllLabel="Seleccionar todos los proyectos"
+            deselectAllLabel="Deseleccionar todos los proyectos"
           />
           <MultiSelectCombobox
             options={crewOptions}

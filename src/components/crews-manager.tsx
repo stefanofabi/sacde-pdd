@@ -48,7 +48,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, PlusCircle, Trash2, Pencil, Plus, X, Search, CalendarIcon } from "lucide-react";
-import type { Crew, Obra, Employee, Phase, CrewPhaseAssignment } from "@/types";
+import type { Crew, Project, Employee, Phase, CrewPhaseAssignment } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addCrew, deleteCrew, updateCrew } from "@/app/actions";
 import { ScrollArea } from "./ui/scroll-area";
@@ -61,14 +61,14 @@ import { es } from "date-fns/locale";
 
 interface CrewsManagerProps {
   initialCrews: Crew[];
-  initialObras: Obra[];
+  initialProjects: Project[];
   initialEmployees: Employee[];
   initialPhases: Phase[];
 }
 
 const emptyForm = {
     name: "",
-    obraId: "",
+    projectId: "",
     capatazId: "",
     apuntadorId: "",
     jefeDeObraId: "",
@@ -77,13 +77,13 @@ const emptyForm = {
     assignedPhases: [] as CrewPhaseAssignment[],
 };
 
-export default function CrewsManager({ initialCrews, initialObras, initialEmployees, initialPhases }: CrewsManagerProps) {
+export default function CrewsManager({ initialCrews, initialProjects, initialEmployees, initialPhases }: CrewsManagerProps) {
   const { toast } = useToast();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
   const [isCrewDialogOpen, setIsCrewDialogOpen] = useState(false);
   const [crewToDelete, setCrewToDelete] = useState<Crew | null>(null);
   const [editingCrew, setEditingCrew] = useState<Crew | null>(null);
-  const [selectedObraId, setSelectedObraId] = useState<string>("all");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   
   const [newCrewState, setNewCrewState] = useState(emptyForm);
@@ -108,14 +108,14 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
             }))
         });
       } else {
-        const initialObraId = selectedObraId !== 'all' ? selectedObraId : "";
-        setNewCrewState({...emptyForm, obraId: initialObraId});
+        const initialProjectId = selectedProjectId !== 'all' ? selectedProjectId : "";
+        setNewCrewState({...emptyForm, projectId: initialProjectId});
       }
     } else {
       setPersonnelSearchTerm("");
       setPhaseAssignment({ phaseId: "" });
     }
-  }, [editingCrew, isCrewDialogOpen, selectedObraId]);
+  }, [editingCrew, isCrewDialogOpen, selectedProjectId]);
 
   const employeeNameMap = useMemo(() => {
     return Object.fromEntries(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido}`]));
@@ -166,8 +166,8 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
 
     let crews = allCrews;
-    if (selectedObraId !== "all") {
-        crews = crews.filter(crew => crew.obraId === selectedObraId);
+    if (selectedProjectId !== "all") {
+        crews = crews.filter(crew => crew.projectId === selectedProjectId);
     }
     
     if (!lowerCaseSearchTerm) {
@@ -181,7 +181,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
         (employeeNameMap[crew.jefeDeObraId] || '').toLowerCase().includes(lowerCaseSearchTerm) ||
         (employeeNameMap[crew.controlGestionId] || '').toLowerCase().includes(lowerCaseSearchTerm)
     );
-  }, [allCrews, selectedObraId, searchTerm, employeeNameMap]);
+  }, [allCrews, selectedProjectId, searchTerm, employeeNameMap]);
   
   const handleInputChange = (field: keyof typeof emptyForm, value: any) => {
     setNewCrewState(prev => ({ ...prev, [field]: value }));
@@ -216,8 +216,8 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
   };
 
   const handleSaveCrew = () => {
-    const { name, obraId, capatazId, apuntadorId, jefeDeObraId, controlGestionId } = newCrewState;
-    if (!name.trim() || !obraId || !capatazId || !apuntadorId || !jefeDeObraId || !controlGestionId) {
+    const { name, projectId, capatazId, apuntadorId, jefeDeObraId, controlGestionId } = newCrewState;
+    if (!name.trim() || !projectId || !capatazId || !apuntadorId || !jefeDeObraId || !controlGestionId) {
       toast({
         title: "Error de validación",
         description: "Debe completar todos los campos para crear una cuadrilla.",
@@ -295,7 +295,7 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                 <div>
                     <CardTitle>Lista de Cuadrillas</CardTitle>
                     <CardDescription>
-                        Busque, filtre por obra o gestione las cuadrillas existentes.
+                        Busque, filtre por proyecto o gestione las cuadrillas existentes.
                     </CardDescription>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -308,15 +308,15 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                             className="pl-10 w-full sm:w-[200px]"
                         />
                     </div>
-                    <Select onValueChange={setSelectedObraId} defaultValue="all">
+                    <Select onValueChange={setSelectedProjectId} defaultValue="all">
                         <SelectTrigger className="w-full sm:w-[250px]">
-                            <SelectValue placeholder="Filtrar por obra..." />
+                            <SelectValue placeholder="Filtrar por proyecto..." />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">Todas las Obras</SelectItem>
-                            {initialObras.map((obra) => (
-                                <SelectItem key={obra.id} value={obra.id}>
-                                    {obra.name}
+                            <SelectItem value="all">Todos los Proyectos</SelectItem>
+                            {initialProjects.map((project) => (
+                                <SelectItem key={project.id} value={project.id}>
+                                    {project.name}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -408,11 +408,11 @@ export default function CrewsManager({ initialCrews, initialObras, initialEmploy
                 <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Ej. Equipo de Montaje" disabled={isPending}/>
               </div>
               <div>
-                <Label htmlFor="crew-obra">Obra</Label>
-                 <Select onValueChange={(value) => handleInputChange('obraId', value)} value={newCrewState.obraId} disabled={isPending}>
-                  <SelectTrigger><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
+                <Label htmlFor="crew-project">Proyecto</Label>
+                 <Select onValueChange={(value) => handleInputChange('projectId', value)} value={newCrewState.projectId} disabled={isPending}>
+                  <SelectTrigger><SelectValue placeholder="Seleccione un proyecto" /></SelectTrigger>
                   <SelectContent>
-                    {initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}
+                    {initialProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

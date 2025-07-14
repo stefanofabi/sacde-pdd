@@ -63,7 +63,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft } from "lucide-react";
 import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, Employee, DailyLaborData, Obra, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry, Permission } from "@/types";
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry, Permission } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
@@ -73,7 +73,7 @@ interface DailyLaborReportProps {
   initialCrews: Crew[];
   initialEmployees: Employee[];
   initialLaborData: DailyLaborData;
-  initialObras: Obra[];
+  initialProjects: Project[];
   initialNotificationData: DailyLaborNotificationData;
   initialAbsenceTypes: AbsenceType[];
   initialPhases: Phase[];
@@ -93,7 +93,7 @@ export default function DailyLaborReport({
   initialCrews, 
   initialEmployees, 
   initialLaborData, 
-  initialObras, 
+  initialProjects, 
   initialNotificationData, 
   initialAbsenceTypes, 
   initialPhases,
@@ -107,7 +107,7 @@ export default function DailyLaborReport({
   const [laborData, setLaborData] = useState<DailyLaborData>(initialLaborData);
   const [notificationData, setNotificationData] = useState<DailyLaborNotificationData>(initialNotificationData);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [selectedObraId, setSelectedObraId] = useState<string>("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedCrewId, setSelectedCrewId] = useState<string>("");
   const [laborEntries, setLaborEntries] = useState<Record<string, LaborEntryState>>({});
   
@@ -136,30 +136,30 @@ export default function DailyLaborReport({
     : "Seleccione una fecha";
 
   const employeeMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, emp])), [initialEmployees]);
-  const obraMap = useMemo(() => new Map(initialObras.map(o => [o.id, o.name])), [initialObras]);
+  const projectMap = useMemo(() => new Map(initialProjects.map(p => [p.id, p.name])), [initialProjects]);
   const phaseMap = useMemo(() => new Map(initialPhases.map(p => [p.id, p])), [initialPhases]);
   const crewMap = useMemo(() => new Map(initialCrews.map(c => [c.id, c])), [initialCrews]);
 
 
-  const obrasWithCrews = useMemo(() => {
-    const obraIdsWithCrews = new Set(initialCrews.map(crew => crew.obraId));
-    return initialObras.filter(obra => obraIdsWithCrews.has(obra.id));
-  }, [initialCrews, initialObras]);
+  const projectsWithCrews = useMemo(() => {
+    const projectIdsWithCrews = new Set(initialCrews.map(crew => crew.projectId));
+    return initialProjects.filter(project => projectIdsWithCrews.has(project.id));
+  }, [initialCrews, initialProjects]);
   
   const crewOptions = useMemo(() => {
-    if (!selectedObraId) return [];
-    const crews = initialCrews.filter(c => c.obraId === selectedObraId);
+    if (!selectedProjectId) return [];
+    const crews = initialCrews.filter(c => c.projectId === selectedProjectId);
     const options = crews.map(c => ({ value: c.id, label: c.name }));
      if (crews.length > 1) {
         options.unshift({ value: 'all', label: "Todas las Cuadrillas" });
     }
     return options;
-  }, [initialCrews, selectedObraId]);
+  }, [initialCrews, selectedProjectId]);
 
   const crewsForListView = useMemo(() => {
-    if (!selectedObraId) return [];
-    return initialCrews.filter(c => c.obraId === selectedObraId);
-  }, [initialCrews, selectedObraId]);
+    if (!selectedProjectId) return [];
+    return initialCrews.filter(c => c.projectId === selectedProjectId);
+  }, [initialCrews, selectedProjectId]);
 
   const availableCrewsForMove = useMemo(() => {
     return initialCrews
@@ -167,8 +167,8 @@ export default function DailyLaborReport({
             c.id !== selectedCrewId && 
             !notificationData[formattedDate]?.[c.id]?.notified
         )
-        .map(c => ({ value: c.id, label: `${c.name} (${obraMap.get(c.obraId) || "Sin Obra"})` }));
-  }, [initialCrews, selectedCrewId, notificationData, formattedDate, obraMap]);
+        .map(c => ({ value: c.id, label: `${c.name} (${projectMap.get(c.projectId) || "Sin Proyecto"})` }));
+  }, [initialCrews, selectedCrewId, notificationData, formattedDate, projectMap]);
 
   const selectedCrew = useMemo(() => {
     if (selectedCrewId === 'all') return null;
@@ -579,12 +579,12 @@ export default function DailyLaborReport({
   };
 
   useEffect(() => {
-    if (selectedObraId) {
-        const crewsForObra = initialCrews.filter(c => c.obraId === selectedObraId);
-        if (crewsForObra.length > 1) {
+    if (selectedProjectId) {
+        const crewsForProject = initialCrews.filter(c => c.projectId === selectedProjectId);
+        if (crewsForProject.length > 1) {
             setSelectedCrewId("all");
-        } else if (crewsForObra.length === 1) {
-            setSelectedCrewId(crewsForObra[0].id);
+        } else if (crewsForProject.length === 1) {
+            setSelectedCrewId(crewsForProject[0].id);
         } else {
             setSelectedCrewId("");
         }
@@ -592,7 +592,7 @@ export default function DailyLaborReport({
         setSelectedCrewId("");
     }
     setLaborEntries({});
-  }, [selectedObraId, initialCrews]);
+  }, [selectedProjectId, initialCrews]);
 
   // Special Hours Modal Logic
   const handleOpenSpecialHoursModal = (employee: Employee) => {
@@ -699,7 +699,7 @@ export default function DailyLaborReport({
       <CardHeader>
         <CardTitle>Carga de Horas por Empleado</CardTitle>
         <CardDescription>
-          Seleccione fecha, obra y cuadrilla para registrar las horas o ausencias del personal.
+          Seleccione fecha, proyecto y cuadrilla para registrar las horas o ausencias del personal.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -716,13 +716,13 @@ export default function DailyLaborReport({
             </PopoverContent>
           </Popover>
 
-          <Select value={selectedObraId} onValueChange={setSelectedObraId} disabled={isPending}>
+          <Select value={selectedProjectId} onValueChange={setSelectedProjectId} disabled={isPending}>
             <SelectTrigger className="w-full sm:w-[250px]">
-              <SelectValue placeholder="Seleccione una obra" />
+              <SelectValue placeholder="Seleccione un proyecto" />
             </SelectTrigger>
             <SelectContent>
-              {obrasWithCrews.map(obra => (
-                <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>
+              {projectsWithCrews.map(project => (
+                <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -733,13 +733,13 @@ export default function DailyLaborReport({
             onValueChange={setSelectedCrewId}
             placeholder="Seleccione una cuadrilla"
             searchPlaceholder="Buscar cuadrilla..."
-            emptyMessage="No hay cuadrillas para esta obra."
-            disabled={!selectedObraId || isPending}
+            emptyMessage="No hay cuadrillas para este proyecto."
+            disabled={!selectedProjectId || isPending}
             className="w-full sm:w-[250px]"
           />
         </div>
         
-        {selectedCrewId === 'all' && selectedObraId ? (
+        {selectedCrewId === 'all' && selectedProjectId ? (
             <div className="rounded-lg border">
               <Table>
                 <TableHeader>
@@ -784,7 +784,7 @@ export default function DailyLaborReport({
                   ) : (
                     <TableRow>
                       <TableCell colSpan={4} className="h-24 text-center">
-                        No hay partes para mostrar para esta obra y fecha.
+                        No hay partes para mostrar para este proyecto y fecha.
                       </TableCell>
                     </TableRow>
                   )}
@@ -1057,7 +1057,7 @@ export default function DailyLaborReport({
           </div>
         ) : (
             <div className="flex items-center justify-center h-40 text-muted-foreground border-2 border-dashed rounded-lg">
-                <p>Seleccione una obra y una cuadrilla para ver al personal.</p>
+                <p>Seleccione un proyecto y una cuadrilla para ver al personal.</p>
             </div>
         )}
       </CardContent>

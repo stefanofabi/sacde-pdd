@@ -3,13 +3,13 @@
 
 import { useState, useEffect } from 'react';
 import CrewsManager from "@/components/crews-manager";
-import { getCrews, getObras, getEmployees, getPhases } from "@/app/actions";
-import type { Crew, Obra, Employee, Phase } from '@/types';
+import { getCrews, getProjects, getEmployees, getPhases } from "@/app/actions";
+import type { Crew, Project, Employee, Phase } from '@/types';
 import { Loader2 } from 'lucide-react';
 
 export default function CuadrillasPage() {
   const [initialCrews, setInitialCrews] = useState<Crew[]>([]);
-  const [initialObras, setInitialObras] = useState<Obra[]>([]);
+  const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [initialPhases, setInitialPhases] = useState<Phase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,14 +17,14 @@ export default function CuadrillasPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [crewsData, obrasData, employeesData, phasesData] = await Promise.all([
+        const [crewsData, projectsData, employeesData, phasesData] = await Promise.all([
           getCrews(),
-          getObras(),
+          getProjects(),
           getEmployees(),
           getPhases(),
         ]);
         setInitialCrews(crewsData);
-        setInitialObras(obrasData);
+        setInitialProjects(projectsData);
         setInitialEmployees(employeesData);
         setInitialPhases(phasesData);
       } catch (error) {
@@ -55,7 +55,7 @@ export default function CuadrillasPage() {
           ) : (
             <CrewsManager
               initialCrews={initialCrews}
-              initialObras={initialObras}
+              initialProjects={initialProjects}
               initialEmployees={initialEmployees}
               initialPhases={initialPhases}
             />

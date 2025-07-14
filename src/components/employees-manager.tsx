@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide, Search, Pencil, FileSpreadsheet } from "lucide-react";
-import type { Employee, Obra, EmployeeCondition, EmployeeStatus } from "@/types";
+import type { Employee, Project, EmployeeCondition, EmployeeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { addEmployee, deleteEmployee, updateEmployee } from "@/app/actions";
 import { format } from "date-fns";
@@ -60,7 +60,7 @@ import * as XLSX from 'xlsx';
 
 interface EmployeesManagerProps {
   initialEmployees: Employee[];
-  initialObras: Obra[];
+  initialProjects: Project[];
 }
 
 const emptyForm = {
@@ -69,7 +69,7 @@ const emptyForm = {
     apellido: "",
     nombre: "",
     fechaIngreso: undefined as Date | undefined,
-    obraId: "",
+    projectId: "",
     denominacionPosicion: "",
     condicion: "" as EmployeeCondition | "",
     estado: "" as EmployeeStatus | "",
@@ -77,10 +77,10 @@ const emptyForm = {
     correo: "",
 }
 
-export default function EmployeesManager({ initialEmployees, initialObras }: EmployeesManagerProps) {
+export default function EmployeesManager({ initialEmployees, initialProjects }: EmployeesManagerProps) {
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
-  const [obras, setObras] = useState<Obra[]>(initialObras);
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -95,12 +95,12 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
   }, [initialEmployees]);
 
   useEffect(() => {
-    setObras(initialObras);
-  }, [initialObras]);
+    setProjects(initialProjects);
+  }, [initialProjects]);
 
-  const obraNameMap = useMemo(() => {
-    return Object.fromEntries(obras.map(obra => [obra.id, obra.name]));
-  }, [obras]);
+  const projectNameMap = useMemo(() => {
+    return Object.fromEntries(projects.map(project => [project.id, project.name]));
+  }, [projects]);
 
   const filteredEmployees = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -146,9 +146,9 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
   };
 
   const handleSaveEmployee = () => {
-    const { legajo, apellido, nombre, obraId, denominacionPosicion, condicion, estado, fechaIngreso } = formState;
+    const { legajo, apellido, nombre, projectId, denominacionPosicion, condicion, estado, fechaIngreso } = formState;
 
-    const requiredFields: (keyof typeof formState)[] = ['legajo', 'apellido', 'nombre', 'obraId', 'denominacionPosicion', 'condicion', 'estado'];
+    const requiredFields: (keyof typeof formState)[] = ['legajo', 'apellido', 'nombre', 'projectId', 'denominacionPosicion', 'condicion', 'estado'];
     const missingField = requiredFields.some(field => !formState[field]);
 
     if (missingField || !fechaIngreso) {
@@ -240,7 +240,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                 "Nombre": emp.nombre,
                 "CUIL": emp.cuil || '',
                 "Fecha de Ingreso": emp.fechaIngreso ? format(new Date(emp.fechaIngreso + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }) : '',
-                "Obra": obraNameMap[emp.obraId] || 'N/A',
+                "Proyecto": projectNameMap[emp.projectId] || 'N/A',
                 "Posición": emp.denominacionPosicion,
                 "Condición": emp.condicion,
                 "Estado": emp.estado,
@@ -315,7 +315,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                         <TableRow>
                             <TableHead>Legajo</TableHead>
                             <TableHead>Apellido y Nombre</TableHead>
-                            <TableHead>Obra</TableHead>
+                            <TableHead>Proyecto</TableHead>
                             <TableHead>Condición</TableHead>
                             <TableHead>Estado</TableHead>
                             <TableHead className="text-right w-[120px]">Acciones</TableHead>
@@ -327,7 +327,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                                 <TableRow key={emp.id}>
                                     <TableCell className="font-mono">{emp.legajo}</TableCell>
                                     <TableCell className="font-medium">{`${emp.apellido}, ${emp.nombre}`}</TableCell>
-                                    <TableCell>{obraNameMap[emp.obraId] || 'N/A'}</TableCell>
+                                    <TableCell>{projectNameMap[emp.projectId] || 'N/A'}</TableCell>
                                     <TableCell>
                                         <Badge variant={emp.condicion === 'mensual' ? 'secondary' : 'outline'}>{emp.condicion === "jornal" ? "Jornal" : "Mensual"}</Badge>
                                     </TableCell>
@@ -441,10 +441,10 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                   </Popover>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="obraId" className="text-right">Obra *</Label>
-                   <Select onValueChange={(value) => handleInputChange('obraId', value)} value={formState.obraId} disabled={isPending}>
-                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-                    <SelectContent>{obras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}</SelectContent>
+                  <Label htmlFor="projectId" className="text-right">Proyecto *</Label>
+                   <Select onValueChange={(value) => handleInputChange('projectId', value)} value={formState.projectId} disabled={isPending}>
+                    <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione un proyecto" /></SelectTrigger>
+                    <SelectContent>{projects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">

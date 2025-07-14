@@ -23,73 +23,73 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { Obra } from "@/types";
+import type { Project } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { deleteObra } from "@/app/actions";
+import { deleteProject } from "@/app/actions";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-interface ObrasManagerProps {
-  initialObras: Obra[];
+interface ProjectsManagerProps {
+  initialProjects: Project[];
 }
 
-export default function ObrasManager({ initialObras }: ObrasManagerProps) {
+export default function ProjectsManager({ initialProjects }: ProjectsManagerProps) {
   const { toast } = useToast();
-  const [allObras, setAllObras] = useState<Obra[]>(initialObras.sort((a, b) => a.name.localeCompare(b.name)));
-  const [newObra, setNewObra] = useState({ name: "", identifier: "" });
-  const [obraToDelete, setObraToDelete] = useState<Obra | null>(null);
+  const [allProjects, setAllProjects] = useState<Project[]>(initialProjects.sort((a, b) => a.name.localeCompare(b.name)));
+  const [newProject, setNewProject] = useState({ name: "", identifier: "" });
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const handleAddObra = () => {
-    if (!newObra.name.trim() || !newObra.identifier.trim()) {
+  const handleAddProject = () => {
+    if (!newProject.name.trim() || !newProject.identifier.trim()) {
       toast({
         title: "Error de validación",
-        description: "El nombre y el identificador de la obra no pueden estar vacíos.",
+        description: "El nombre y el identificador del proyecto no pueden estar vacíos.",
         variant: "destructive",
       });
       return;
     }
     startTransition(async () => {
       try {
-        const obrasRef = collection(db, 'obras');
-        const q = query(obrasRef, where("identifier", "==", newObra.identifier.toUpperCase()));
+        const projectsRef = collection(db, 'projects');
+        const q = query(projectsRef, where("identifier", "==", newProject.identifier.toUpperCase()));
         const existing = await getDocs(q);
         if (!existing.empty) {
-            throw new Error('Ya existe una obra con el mismo identificador.');
+            throw new Error('Ya existe un proyecto con el mismo identificador.');
         }
 
-        const dataToSave = { name: newObra.name, identifier: newObra.identifier.toUpperCase() };
-        const docRef = await addDoc(obrasRef, dataToSave);
-        const addedObra = { id: docRef.id, ...dataToSave };
+        const dataToSave = { name: newProject.name, identifier: newProject.identifier.toUpperCase() };
+        const docRef = await addDoc(projectsRef, dataToSave);
+        const addedProject = { id: docRef.id, ...dataToSave };
 
-        setAllObras((prev) => [...prev, addedObra].sort((a, b) => a.name.localeCompare(b.name)));
-        setNewObra({ name: "", identifier: "" });
+        setAllProjects((prev) => [...prev, addedProject].sort((a, b) => a.name.localeCompare(b.name)));
+        setNewProject({ name: "", identifier: "" });
         toast({
-          title: "Obra agregada",
-          description: `La obra "${addedObra.name}" ha sido creada.`,
+          title: "Proyecto agregado",
+          description: `El proyecto "${addedProject.name}" ha sido creado.`,
         });
       } catch (error) {
         toast({
           title: "Error",
-          description: error instanceof Error ? error.message : "No se pudo agregar la obra.",
+          description: error instanceof Error ? error.message : "No se pudo agregar el proyecto.",
           variant: "destructive",
         });
       }
     });
   };
   
-  const handleDeleteObra = () => {
-    if (!obraToDelete) return;
+  const handleDeleteProject = () => {
+    if (!projectToDelete) return;
 
     startTransition(async () => {
       try {
-        await deleteObra(obraToDelete.id);
-        setAllObras((prev) => prev.filter((o) => o.id !== obraToDelete.id));
+        await deleteProject(projectToDelete.id);
+        setAllProjects((prev) => prev.filter((o) => o.id !== projectToDelete.id));
         toast({
-          title: "Obra eliminada",
-          description: `La obra "${obraToDelete.name}" ha sido eliminada con éxito.`,
+          title: "Proyecto eliminado",
+          description: `El proyecto "${projectToDelete.name}" ha sido eliminado con éxito.`,
         });
       } catch (error) {
         toast({
@@ -98,7 +98,7 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
           variant: "destructive",
         });
       } finally {
-        setObraToDelete(null);
+        setProjectToDelete(null);
       }
     });
   };
@@ -107,75 +107,75 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Obras</CardTitle>
+          <CardTitle>Lista de Proyectos</CardTitle>
           <CardDescription>
-            Aquí puede ver todas las obras existentes, agregar nuevas o eliminarlas.
+            Aquí puede ver todos los proyectos existentes, agregar nuevos o eliminarlos.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">Agregar Nueva Obra</h3>
+              <h3 className="font-semibold">Agregar Nuevo Proyecto</h3>
               <div className="flex flex-col sm:flex-row items-end gap-2">
                 <div className="w-full sm:w-auto flex-1">
-                  <Label htmlFor="new-obra-identifier" className="text-xs font-semibold">Identificador</Label>
+                  <Label htmlFor="new-project-identifier" className="text-xs font-semibold">Identificador</Label>
                   <Input
-                    id="new-obra-identifier"
+                    id="new-project-identifier"
                     placeholder="Ej. PC01"
-                    value={newObra.identifier}
-                    onChange={(e) => setNewObra(prev => ({ ...prev, identifier: e.target.value }))}
+                    value={newProject.identifier}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, identifier: e.target.value }))}
                     disabled={isPending}
                   />
                 </div>
                 <div className="w-full sm:w-auto flex-[2]">
-                  <Label htmlFor="new-obra-name" className="text-xs font-semibold">Nombre de la Obra</Label>
+                  <Label htmlFor="new-project-name" className="text-xs font-semibold">Nombre del Proyecto</Label>
                   <Input
-                    id="new-obra-name"
-                    placeholder="Nombre de la nueva obra"
-                    value={newObra.name}
-                    onChange={(e) => setNewObra(prev => ({ ...prev, name: e.target.value }))}
+                    id="new-project-name"
+                    placeholder="Nombre del nuevo proyecto"
+                    value={newProject.name}
+                    onChange={(e) => setNewProject(prev => ({ ...prev, name: e.target.value }))}
                     disabled={isPending}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                          handleAddObra();
+                          handleAddProject();
                       }
                     }}
                   />
                 </div>
-                <Button onClick={handleAddObra} disabled={isPending || !newObra.name.trim() || !newObra.identifier.trim()}>
+                <Button onClick={handleAddProject} disabled={isPending || !newProject.name.trim() || !newProject.identifier.trim()}>
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Agregar
                 </Button>
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">Obras Existentes ({allObras.length})</h3>
+              <h3 className="font-semibold">Proyectos Existentes ({allProjects.length})</h3>
               <ScrollArea className="h-72 rounded-md border">
                 <div className="p-4">
-                  {allObras.length > 0 ? (
+                  {allProjects.length > 0 ? (
                     <ul className="space-y-2">
-                      {allObras.map((obra) => (
-                        <li key={obra.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                      {allProjects.map((project) => (
+                        <li key={project.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
                           <div className="flex items-center gap-3">
-                              <Badge variant="secondary" className="font-mono">{obra.identifier.toUpperCase()}</Badge>
-                              <p className="font-medium">{obra.name}</p>
+                              <Badge variant="secondary" className="font-mono">{project.identifier.toUpperCase()}</Badge>
+                              <p className="font-medium">{project.name}</p>
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
                             className="text-destructive hover:bg-destructive/10"
-                            onClick={() => setObraToDelete(obra)}
+                            onClick={() => setProjectToDelete(project)}
                             disabled={isPending}
                           >
                             <Trash2 className="h-4 w-4" />
-                            <span className="sr-only">Eliminar {obra.name}</span>
+                            <span className="sr-only">Eliminar {project.name}</span>
                           </Button>
                         </li>
                       ))}
                     </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground p-2 text-center">
-                      No hay obras creadas.
+                      No hay proyectos creados.
                     </p>
                   )}
                 </div>
@@ -185,24 +185,24 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
         </CardContent>
       </Card>
       
-      <AlertDialog open={!!obraToDelete} onOpenChange={(open) => !open && setObraToDelete(null)}>
+      <AlertDialog open={!!projectToDelete} onOpenChange={(open) => !open && setProjectToDelete(null)}>
         <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Se eliminará permanentemente la obra "{obraToDelete?.name}". Esta acción fallará si la obra tiene cuadrillas o empleados asignados.
+                    Esta acción no se puede deshacer. Se eliminará permanentemente el proyecto "{projectToDelete?.name}". Esta acción fallará si el proyecto tiene cuadrillas o empleados asignados.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setObraToDelete(null)} disabled={isPending}>
+                <AlertDialogCancel onClick={() => setProjectToDelete(null)} disabled={isPending}>
                     Cancelar
                 </AlertDialogCancel>
                 <AlertDialogAction 
-                  onClick={handleDeleteObra} 
+                  onClick={handleDeleteProject} 
                   disabled={isPending}
                   className={buttonVariants({ variant: "destructive" })}
                 >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar obra"}
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar proyecto"}
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

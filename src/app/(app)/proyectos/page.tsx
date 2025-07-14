@@ -2,22 +2,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import ObrasManager from "@/components/obras-manager";
-import { getObras } from "@/app/actions";
-import type { Obra } from '@/types';
+import ProjectsManager from "@/components/projects-manager";
+import { getProjects } from "@/app/actions";
+import type { Project } from '@/types';
 import { Loader2 } from 'lucide-react';
 
-export default function ObrasPage() {
-  const [initialObras, setInitialObras] = useState<Obra[]>([]);
+export default function ProyectosPage() {
+  const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const obrasData = await getObras();
-        setInitialObras(obrasData);
+        const projectsData = await getProjects();
+        setInitialProjects(projectsData);
       } catch (error) {
-        console.error("Failed to fetch obras data:", error);
+        console.error("Failed to fetch projects data:", error);
       } finally {
         setLoading(false);
       }
@@ -31,10 +31,10 @@ export default function ObrasPage() {
         <div className="max-w-4xl mx-auto">
           <header className="mb-8">
             <h1 className="text-4xl font-bold text-primary font-headline">
-              Gestión de Obras
+              Gestión de Proyectos
             </h1>
             <p className="text-muted-foreground mt-2">
-              Añada, vea y gestione las obras de Sacde.
+              Añada, vea y gestione los proyectos de Sacde.
             </p>
           </header>
           {loading ? (
@@ -42,7 +42,7 @@ export default function ObrasPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <ObrasManager initialObras={initialObras} />
+            <ProjectsManager initialProjects={initialProjects} />
           )}
         </div>
       </main>
