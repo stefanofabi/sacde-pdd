@@ -285,15 +285,6 @@ export async function deleteEmployee(employeeId: string): Promise<void> {
     await deleteDocument('employees', employeeId);
 }
 
-export async function addObra(newObra: Omit<Obra, 'id'>): Promise<Obra> {
-    const q = query(collection(db, 'obras'), where("identifier", "==", newObra.identifier.toUpperCase()));
-    const existing = await getDocs(q);
-    if (!existing.empty) {
-        throw new Error('Ya existe una obra con el mismo identificador.');
-    }
-    return addDocument('obras', newObra);
-}
-
 export async function deleteObra(obraId: string): Promise<void> {
     await deleteDocument('obras', obraId);
 }

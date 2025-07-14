@@ -25,9 +25,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Obra } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addObra, deleteObra } from "@/app/actions";
+import { deleteObra } from "@/app/actions";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface ObrasManagerProps {
   initialObras: Obra[];
@@ -51,7 +53,17 @@ export default function ObrasManager({ initialObras }: ObrasManagerProps) {
     }
     startTransition(async () => {
       try {
-        const addedObra = await addObra({ name: newObra.name, identifier: newObra.identifier.toUpperCase() });
+        const obrasRef = collection(db, 'obras');
+        const q = query(obrasRef, where("identifier", "==", newObra.identifier.toUpperCase()));
+        const existing = await getDocs(q);
+        if (!existing.empty) {
+            throw new Error('Ya existe una obra con el mismo identificador.');
+        }
+
+        const dataToSave = { name: newObra.name, identifier: newObra.identifier.toUpperCase() };
+        const docRef = await addDoc(obrasRef, dataToSave);
+        const addedObra = { id: docRef.id, ...dataToSave };
+
         setAllObras((prev) => [...prev, addedObra].sort((a, b) => a.name.localeCompare(b.name)));
         setNewObra({ name: "", identifier: "" });
         toast({
