@@ -9,41 +9,34 @@ import { getUserByEmail } from '@/app/actions';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
-  user: User | null;
-  isAuthenticated: boolean;
+  user: User | null | undefined; // undefined: initial check, null: not logged in, User: logged in
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
-  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null | undefined>(undefined); // Start as undefined
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
         try {
-          // Obtiene los datos del usuario de Firestore.
           const appUser = await getUserByEmail(fbUser.email!);
           setUser(appUser);
         } catch (error) {
           console.error("Failed to fetch app user, signing out.", error);
-          await signOut(auth); // Desloguear si hay un error al obtener los datos.
+          await signOut(auth);
           setUser(null);
         }
       } else {
         setUser(null);
       }
-      // Marcar la carga como finalizada solo después de que todo el proceso ha terminado.
-      setLoading(false);
     });
 
-    // Limpiar el listener al desmontar el componente.
     return () => unsubscribe();
   }, []);
 
@@ -51,25 +44,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!password) {
        throw new Error("Password is required.");
     }
-    // Solo inicia sesión. El listener onAuthStateChanged se encargará
-    // de actualizar el estado de la aplicación de forma centralizada y robusta.
     await signInWithEmailAndPassword(auth, email, password);
+    // onAuthStateChanged will handle the rest
   };
 
   const logout = async () => {
     await signOut(auth);
-    // El listener onAuthStateChanged se encargará de poner user y firebaseUser a null.
+    // onAuthStateChanged will set user to null
   };
-
-  const isAuthenticated = !loading && !!user && !!firebaseUser;
 
   const authContextValue: AuthContextType = {
     firebaseUser,
     user,
-    isAuthenticated,
     login,
     logout,
-    loading,
   };
 
   return (
