@@ -80,6 +80,7 @@ const emptyForm = {
 export default function EmployeesManager({ initialEmployees, initialObras }: EmployeesManagerProps) {
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+  const [obras, setObras] = useState<Obra[]>(initialObras);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -93,9 +94,13 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
     setEmployees(initialEmployees);
   }, [initialEmployees]);
 
-  const obraNameMap = useMemo(() => {
-    return Object.fromEntries(initialObras.map(obra => [obra.id, obra.name]));
+  useEffect(() => {
+    setObras(initialObras);
   }, [initialObras]);
+
+  const obraNameMap = useMemo(() => {
+    return Object.fromEntries(obras.map(obra => [obra.id, obra.name]));
+  }, [obras]);
 
   const filteredEmployees = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -439,7 +444,7 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
                   <Label htmlFor="obraId" className="text-right">Obra *</Label>
                    <Select onValueChange={(value) => handleInputChange('obraId', value)} value={formState.obraId} disabled={isPending}>
                     <SelectTrigger className="col-span-3"><SelectValue placeholder="Seleccione una obra" /></SelectTrigger>
-                    <SelectContent>{initialObras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}</SelectContent>
+                    <SelectContent>{obras.map((obra) => <SelectItem key={obra.id} value={obra.id}>{obra.name}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
@@ -521,3 +526,5 @@ export default function EmployeesManager({ initialEmployees, initialObras }: Emp
     </>
   );
 }
+
+    
