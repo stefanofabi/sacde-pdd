@@ -18,28 +18,55 @@ import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { LogOut, Loader2 } from 'lucide-react';
 
+function DebugAuthPanel() {
+  const { firebaseUser, user } = useAuth();
+  
+  if (process.env.NODE_ENV !== 'production') {
+    return (
+      <div className="fixed bottom-4 left-4 z-50 bg-card border-2 border-destructive rounded-lg p-4 shadow-lg max-w-sm w-full text-xs">
+        <h3 className="font-bold text-base mb-2 text-destructive">Debug Info</h3>
+        <div>
+          <p className="font-semibold">Firebase User (Auth):</p>
+          <pre className="mt-1 p-2 bg-muted rounded overflow-x-auto">
+            {JSON.stringify(firebaseUser, null, 2) || 'null'}
+          </pre>
+        </div>
+        <div className="mt-2">
+          <p className="font-semibold">App User (Firestore):</p>
+          <pre className="mt-1 p-2 bg-muted rounded overflow-x-auto">
+            {JSON.stringify(user, null, 2) || 'null'}
+          </pre>
+        </div>
+      </div>
+    );
+  }
+  
+  return null;
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const router = useRouter();
 
   React.useEffect(() => {
+    // user es undefined durante la comprobación inicial.
     // Si la comprobación ha terminado (user no es undefined) y el resultado es null (no autenticado)
     if (user === null) {
       router.replace(`/login`);
     }
   }, [user, router]);
 
-  // user es undefined durante la comprobación inicial.
+  // Muestra una pantalla de carga mientras el estado del usuario es 'undefined' (comprobación inicial).
   if (user === undefined) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <DebugAuthPanel />
       </div>
     );
   }
 
-  // Si la carga ha finalizado y el usuario existe (no es null ni undefined), mostrar el layout.
-  // Si user es null, el useEffect ya habrá iniciado la redirección.
+  // Si la carga ha finalizado y el usuario existe (es un objeto), mostrar el layout principal.
   if (user) {
     const displayName = user?.email;
     return (
@@ -83,16 +110,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Sidebar>
         <SidebarInset>
           {children}
+          <DebugAuthPanel />
         </SidebarInset>
       </SidebarProvider>
     );
   }
 
-  // Fallback para el caso en que el user sea null pero el redirect aún no se haya completado.
+  // Fallback para el caso en que user sea null pero el redirect aún no se haya completado.
   // Muestra una pantalla de carga para evitar un parpadeo de contenido incorrecto.
   return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <DebugAuthPanel />
       </div>
   );
 }
