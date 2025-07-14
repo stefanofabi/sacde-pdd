@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import EmployeesManager from "@/components/employees-manager";
-import { getEmployees, getProjects } from "@/app/actions";
+import { getDocs, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import type { Employee, Project } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
@@ -16,34 +17,30 @@ export default function EmpleadosPage() {
 
   useEffect(() => {
     async function fetchData() {
-      // Double-check user existence before fetching
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+      if (!user) return;
       setLoading(true);
       try {
-        const [employeesData, projectsData] = await Promise.all([
-          getEmployees(),
-          getProjects(),
+        const [employeesSnapshot, projectsSnapshot] = await Promise.all([
+          getDocs(collection(db, 'employees')),
+          getDocs(collection(db, 'projects'))
         ]);
+        
+        const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
+        const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];
+
         setInitialEmployees(employeesData);
         setInitialProjects(projectsData);
       } catch (error) {
-        console.error("Failed to fetch employees data:", error);
+        console.error("Failed to fetch employees or projects data:", error);
       } finally {
         setLoading(false);
       }
     }
 
-    // This logic ensures fetching only happens when auth is resolved and a user exists.
-    if (!authLoading) {
-      if (user) {
-        fetchData();
-      } else {
-        // If auth is done and there's no user, stop loading.
-        setLoading(false);
-      }
+    if (!authLoading && user) {
+      fetchData();
+    } else if (!authLoading && !user) {
+      setLoading(false);
     }
   }, [user, authLoading]);
 
