@@ -59,15 +59,16 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
   const { toast } = useToast();
   
   const [users, setUsers] = useState<User[]>(initialUsers);
+  const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editFormState, setEditFormState] = useState<Partial<User>>({});
+  const [editFormState, setEditFormState] = useState<Partial<User & Employee>>({});
   const [addFormState, setAddFormState] = useState(emptyAddForm);
   const [isPending, startTransition] = useTransition();
 
-  const employeeMap = useMemo(() => new Map(initialEmployees.map(e => [e.id, e])), [initialEmployees]);
+  const employeeMap = useMemo(() => new Map(employees.map(e => [e.id, e])), [employees]);
   
   const filteredUsers = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -91,10 +92,13 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
 
 
   const handleOpenEditDialog = (user: User) => {
+    const employee = employeeMap.get(user.employeeId);
     setEditingUser(user);
     setEditFormState({
       email: user.email,
       role: user.role,
+      nombre: employee?.nombre,
+      apellido: employee?.apellido
     });
     setIsEditDialogOpen(true);
   };
@@ -105,16 +109,16 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
   }
 
   const handleSaveUser = () => {
-    if (!editingUser || !editFormState.email || !editFormState.role) return;
+    if (!editingUser || !editFormState.email || !editFormState.role || !editFormState.nombre || !editFormState.apellido) return;
 
     startTransition(async () => {
       try {
-        const dataToUpdate = { 
+        const userDataToUpdate = { 
           email: editFormState.email, 
           role: editFormState.role,
         };
 
-        if (editFormState.email && editFormState.email.toLowerCase() !== editingUser.email.toLowerCase()) {
+        if (editFormState.email.toLowerCase() !== editingUser.email.toLowerCase()) {
             const q = query(collection(db, 'users'), where("email", "==", editFormState.email.toLowerCase()));
             const existing = await getDocs(q);
             if (!existing.empty) {
@@ -122,15 +126,26 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
             }
         }
         
-        await updateDoc(doc(db, "users", editingUser.id), dataToUpdate);
+        const employeeDataToUpdate = {
+            nombre: editFormState.nombre,
+            apellido: editFormState.apellido,
+        };
+
+        const userDocRef = doc(db, "users", editingUser.id);
+        const employeeDocRef = doc(db, "employees", editingUser.employeeId);
+
+        await updateDoc(userDocRef, userDataToUpdate);
+        await updateDoc(employeeDocRef, employeeDataToUpdate);
         
-        const updatedUser = { ...editingUser, ...dataToUpdate } as User;
+        const updatedUser = { ...editingUser, ...userDataToUpdate } as User;
         setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+
+        const updatedEmployee = { ...employeeMap.get(editingUser.employeeId)!, ...employeeDataToUpdate } as Employee;
+        setEmployees(prev => prev.map(e => e.id === updatedEmployee.id ? updatedEmployee : e));
         
-        const employee = employeeMap.get(updatedUser.employeeId);
         toast({
           title: "Usuario Actualizado",
-          description: `El usuario "${employee?.nombre} ${employee?.apellido}" ha sido actualizado.`,
+          description: `El usuario "${updatedEmployee.nombre} ${updatedEmployee.apellido}" ha sido actualizado.`,
         });
         
         setIsEditDialogOpen(false);
@@ -284,14 +299,26 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Usuario</DialogTitle>
-            <DialogDescription>Modifique el rol y el email del usuario.</DialogDescription>
+            <DialogDescription>Modifique los datos del usuario y del empleado asociado.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-             <div className="font-medium">
-                {editingUser && employeeMap.has(editingUser.employeeId) 
-                    ? `${employeeMap.get(editingUser.employeeId)?.apellido}, ${employeeMap.get(editingUser.employeeId)?.nombre}`
-                    : 'Usuario'
-                }
+             <div className="space-y-2">
+                <Label htmlFor="apellido-edit">Apellido</Label>
+                <Input 
+                    id="apellido-edit"
+                    value={editFormState.apellido || ''} 
+                    onChange={(e) => setEditFormState(prev => ({ ...prev, apellido: e.target.value }))} 
+                    disabled={isPending}
+                />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="nombre-edit">Nombre</Label>
+                <Input 
+                    id="nombre-edit"
+                    value={editFormState.nombre || ''} 
+                    onChange={(e) => setEditFormState(prev => ({ ...prev, nombre: e.target.value }))} 
+                    disabled={isPending}
+                />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="email-edit">Email</Label>
