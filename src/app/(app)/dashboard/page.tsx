@@ -2,14 +2,13 @@
 'use client';
 
 import * as React from 'react';
-import { getCrews, getEmployees, getDailyLabor, getObras, getAttendance, getDailyLaborNotifications, getPermissions, getAbsenceTypes } from "@/app/actions";
+import { getAttendance, getDailyLabor, getDailyLaborNotifications, getEmployees, getPermissions } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayoutDashboard, ClipboardList, ClipboardCheck, Users, UserCheck, BarChart3, AlertCircle, Loader2 } from "lucide-react";
-import { format, isWithinInterval } from "date-fns";
+import { format, isWithinInterval, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import type { AttendanceData, DailyLaborData, DailyLaborNotificationData, Employee, Permission, AbsenceType, Crew } from "@/types";
 
 export default function DashboardPage() {
   const [loading, setLoading] = React.useState(true);
@@ -20,7 +19,7 @@ export default function DashboardPage() {
     personalConPermisoHoy: 0,
   });
   
-  const today = new Date();
+  const today = startOfToday();
   const todayKey = format(today, "yyyy-MM-dd");
 
   React.useEffect(() => {
