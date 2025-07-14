@@ -40,8 +40,8 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Pencil, PlusCircle } from "lucide-react";
 import type { EmployeeRole, User, Employee } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { updateUser, addUser } from "@/app/actions";
-import { Combobox } from "./ui/combobox";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, updateDoc, doc, query, where, getDocs } from "firebase/firestore";
 
 interface UsersManagerProps {
   initialUsers: User[];
@@ -73,19 +73,12 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
       return users;
     }
     return users.filter((user) => {
-      const employee = employeeMap.get(user.id);
-      const fullName = employee ? `${employee.nombre} ${employee.apellido}`.toLowerCase() : '';
       const email = user.email.toLowerCase();
+      const employee = initialEmployees.find(e => e.correo?.toLowerCase() === email);
+      const fullName = employee ? `${employee.nombre} ${employee.apellido}`.toLowerCase() : '';
       return fullName.includes(lowerCaseSearchTerm) || email.includes(lowerCaseSearchTerm);
     });
-  }, [users, searchTerm, employeeMap]);
-  
-  const unassignedEmployees = useMemo(() => {
-    const assignedEmployeeIds = new Set(users.map(u => u.id));
-    return initialEmployees
-      .filter(e => !assignedEmployeeIds.has(e.id))
-      .map(e => ({ value: e.id, label: `${e.apellido}, ${e.nombre} (L: ${e.legajo})` }));
-  }, [users, initialEmployees]);
+  }, [users, searchTerm, initialEmployees]);
 
   const handleOpenEditDialog = (user: User) => {
     setEditingUser(user);
@@ -106,10 +99,22 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
 
     startTransition(async () => {
       try {
-        const updatedUser = await updateUser(editingUser.id, { 
+        const dataToUpdate = { 
           email: editFormState.email, 
           role: editFormState.role,
-        });
+        };
+
+        if (editFormState.email && editFormState.email.toLowerCase() !== editingUser.email.toLowerCase()) {
+            const q = query(collection(db, 'users'), where("email", "==", editFormState.email.toLowerCase()));
+            const existing = await getDocs(q);
+            if (!existing.empty) {
+                throw new Error('Ya existe otro usuario con este correo electrónico.');
+            }
+        }
+        
+        await updateDoc(doc(db, "users", editingUser.id), dataToUpdate);
+        
+        const updatedUser = { ...editingUser, ...dataToUpdate };
         setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
         
         toast({
@@ -143,7 +148,11 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
     
     startTransition(async () => {
       try {
-        const newUser = await addUser(addFormState);
+        const docRef = await addDoc(collection(db, "users"), {
+            email: addFormState.email.toLowerCase(),
+            role: addFormState.role,
+        });
+        const newUser = { id: docRef.id, ...addFormState };
         setUsers((prev) => [...prev, newUser]);
         toast({
           title: "Usuario Creado",
@@ -185,7 +194,7 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
                 <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder="Buscar por email..."
+                    placeholder="Buscar por email o nombre..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 w-full sm:w-[250px]"
@@ -204,35 +213,41 @@ export default function UsersManager({ initialUsers, initialEmployees }: UsersMa
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>
+                  <TableHead>Nombre y Apellido</TableHead>
                   <TableHead>Rol</TableHead>
                   <TableHead className="text-right w-[120px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                        <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.email}</TableCell>
-                        <TableCell>
-                            <Badge variant="secondary">{roleOptions.find(r => r.value === user.role)?.label || user.role}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right space-x-1">
-                            <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenEditDialog(user)}
-                            disabled={isPending}
-                            >
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Editar {user.email}</span>
-                            </Button>
-                        </TableCell>
-                        </TableRow>
-                    ))
+                  filteredUsers.map((user) => {
+                        const employee = initialEmployees.find(e => e.correo?.toLowerCase() === user.email.toLowerCase());
+                        const fullName = employee ? `${employee.apellido}, ${employee.nombre}` : 'N/A';
+                        return (
+                          <TableRow key={user.id}>
+                          <TableCell className="font-medium">{user.email}</TableCell>
+                          <TableCell>{fullName}</TableCell>
+                          <TableCell>
+                              <Badge variant="secondary">{roleOptions.find(r => r.value === user.role)?.label || user.role}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right space-x-1">
+                              <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEditDialog(user)}
+                              disabled={isPending}
+                              >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Editar {user.email}</span>
+                              </Button>
+                          </TableCell>
+                          </TableRow>
+                        );
+                    })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="h-24 text-center">
-                      {users.length === 0 ? "No hay usuarios." : "No se encontraron usuarios con el filtro aplicado."}
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      {initialUsers.length === 0 ? "No hay usuarios." : "No se encontraron usuarios con el filtro aplicado."}
                     </TableCell>
                   </TableRow>
                 )}

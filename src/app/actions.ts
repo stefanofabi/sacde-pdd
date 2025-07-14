@@ -52,20 +52,6 @@ async function updateDocument<T extends object>(collectionName: string, docId: s
     }
 }
 
-async function deleteDocument(collectionName: string, docId: string): Promise<void> {
-    try {
-        const docRef = doc(db, collectionName, docId);
-        await deleteDoc(docRef);
-    } catch (error) {
-        console.error(`Error deleting document ${collectionName}/${docId}:`, error);
-        throw new Error('Could not write data to Firestore.');
-    }
-}
-
-export async function getUsers(): Promise<User[]> {
-  return readCollection<User>('users');
-}
-
 export async function getAttendance(): Promise<AttendanceData> {
   const attendanceCollection = await readCollection<{ date: string } & AttendanceEntry>('attendance');
   const attendanceData: AttendanceData = {};
@@ -135,7 +121,7 @@ export async function addUnproductiveHourType(newType: Omit<UnproductiveHourType
 }
 
 export async function deleteUnproductiveHourType(typeId: string): Promise<void> {
-    await deleteDocument('unproductive-hour-types', typeId);
+    await deleteDoc(doc(db, 'unproductive-hour-types', typeId));
 }
 
 export async function addSpecialHourType(newType: Omit<SpecialHourType, 'id'>): Promise<SpecialHourType> {
@@ -148,7 +134,7 @@ export async function addSpecialHourType(newType: Omit<SpecialHourType, 'id'>): 
 }
 
 export async function deleteSpecialHourType(typeId: string): Promise<void> {
-    await deleteDocument('special-hour-types', typeId);
+    await deleteDoc(doc(db, 'special-hour-types', typeId));
 }
 
 export async function addPhase(newPhase: Omit<Phase, 'id'>): Promise<Phase> {
@@ -161,7 +147,7 @@ export async function addPhase(newPhase: Omit<Phase, 'id'>): Promise<Phase> {
 }
 
 export async function deletePhase(phaseId: string): Promise<void> {
-    await deleteDocument('phases', phaseId);
+    await deleteDoc(doc(db, 'phases', phaseId));
 }
 
 export async function addAbsenceType(newAbsenceType: Omit<AbsenceType, 'id'>): Promise<AbsenceType> {
@@ -174,7 +160,7 @@ export async function addAbsenceType(newAbsenceType: Omit<AbsenceType, 'id'>): P
 }
 
 export async function deleteAbsenceType(absenceTypeId: string): Promise<void> {
-    await deleteDocument('absence-types', absenceTypeId);
+    await deleteDoc(doc(db, 'absence-types', absenceTypeId));
 }
 
 export async function moveEmployeeBetweenCrews(dateKey: string, employeeId: string, sourceCrewId: string, destinationCrewId: string): Promise<void> {
@@ -238,21 +224,6 @@ export async function saveDailyLabor(dateKey: string, crewId: string, laborData:
     await batch.commit();
 }
 
-export async function updateEmployee(employeeId: string, updatedData: Partial<Omit<Employee, 'id'>>): Promise<Employee> {
-    await updateDocument('employees', employeeId, updatedData);
-    const updatedDoc = await readDoc<Employee>('employees', employeeId);
-    if (!updatedDoc) throw new Error("Failed to update employee.");
-    return updatedDoc;
-}
-
-export async function deleteEmployee(employeeId: string): Promise<void> {
-    await deleteDocument('employees', employeeId);
-}
-
-export async function deleteProject(projectId: string): Promise<void> {
-    await deleteDocument('projects', projectId);
-}
-
 export async function updateAttendanceSentStatus(dateKey: string, attendanceId: string, sent: boolean): Promise<AttendanceEntry> {
     const attendanceRef = collection(db, 'attendance');
     const q = query(attendanceRef, where("date", "==", dateKey), where(documentId(), "==", attendanceId));
@@ -287,7 +258,7 @@ export async function addAttendanceRequest(dateKey: string, crewId: string, resp
 }
 
 export async function deleteAttendanceRequest(dateKey: string, attendanceId: string): Promise<void> {
-    await deleteDocument('attendance', attendanceId);
+    await deleteDoc(doc(db, 'attendance', attendanceId));
 }
 
 export async function clonePreviousDayAttendance(dateKey: string): Promise<AttendanceData> {
@@ -326,39 +297,14 @@ export async function addPermission(newPermission: Omit<Permission, 'id'>): Prom
 }
 
 export async function updatePermission(permissionId: string, updatedData: Partial<Omit<Permission, 'id'>>): Promise<Permission> {
-    await updateDocument('permissions', permissionId, updatedData);
+    await updateDoc(doc(db, 'permissions', permissionId, updatedData));
     const updatedDoc = await readDoc<Permission>('permissions', permissionId);
     if (!updatedDoc) throw new Error("Failed to update permission.");
     return updatedDoc;
 }
 
 export async function deletePermission(permissionId: string): Promise<void> {
-    await deleteDocument('permissions', permissionId);
-}
-
-export async function addUser(newUser: Omit<User, 'id'>): Promise<User> {
-    const dataToSave = {
-        ...newUser,
-        email: newUser.email.toLowerCase(), // Always save email in lowercase
-    };
-    return addDocument('users', dataToSave);
-}
-
-export async function updateUser(userId: string, updatedData: Partial<Omit<User, 'id'>>): Promise<User> {
-    const dataToUpdate = { ...updatedData };
-    if (dataToUpdate.email) {
-        dataToUpdate.email = dataToUpdate.email.toLowerCase(); // Always update to lowercase
-        const q = query(collection(db, 'users'), where("email", "==", dataToUpdate.email));
-        const existing = await getDocs(q);
-        if (!existing.empty && existing.docs[0].id !== userId) {
-            throw new Error('Ya existe otro usuario con este correo electrónico.');
-        }
-    }
-
-    await updateDocument('users', userId, dataToUpdate);
-    const updatedDoc = await readDoc<User>('users', userId);
-    if (!updatedDoc) throw new Error("Failed to update user.");
-    return updatedDoc;
+    await deleteDoc(doc(db, 'permissions', permissionId));
 }
 
 interface RegisterUserInput {
@@ -397,16 +343,9 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
         email: lowerCaseEmail,
         role: 'invitado' as EmployeeRole,
     };
-    await addUser(newUserData);
+    await addDoc(collection(db, 'users'), newUserData);
 }
 
-// Client-side functions for reading data
-export async function getEmployees(): Promise<Employee[]> {
-  const employeesSnapshot = await getDocs(collection(db, 'employees'));
-  return employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
-}
-
-export async function getProjects(): Promise<Project[]> {
-  const projectsSnapshot = await getDocs(collection(db, 'projects'));
-  return projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];
+export async function deleteProject(projectId: string): Promise<void> {
+    await deleteDoc(doc(db, 'projects', projectId));
 }

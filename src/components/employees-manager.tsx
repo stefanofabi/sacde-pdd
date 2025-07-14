@@ -52,13 +52,12 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide, Search, Pencil, FileSpreadsheet } from "lucide-react";
 import type { Employee, Project, EmployeeCondition, EmployeeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { updateEmployee, deleteEmployee } from "@/app/actions";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import * as XLSX from 'xlsx';
 import { db } from "@/lib/firebase";
-import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { addDoc, collection, getDocs, query, where, doc, updateDoc, deleteDoc } from "firebase/firestore";
 
 interface EmployeesManagerProps {
   initialEmployees: Employee[];
@@ -178,13 +177,14 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
         estado: formState.estado as EmployeeStatus,
     };
     
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, ...dataToSave } = employeeData;
-
     startTransition(async () => {
       try {
         if (editingEmployee) {
-           const updatedEmployee = await updateEmployee(editingEmployee.id, dataToSave);
+           // eslint-disable-next-line @typescript-eslint/no-unused-vars
+           const { id, ...dataToUpdate } = employeeData;
+           const docRef = doc(db, "employees", editingEmployee.id);
+           await updateDoc(docRef, dataToUpdate);
+           const updatedEmployee = { id: editingEmployee.id, ...dataToUpdate } as Employee;
            setEmployees(prev => prev.map(e => e.id === updatedEmployee.id ? updatedEmployee : e));
            toast({
             title: "Empleado actualizado",
@@ -192,11 +192,13 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
            });
         } else {
             const employeesRef = collection(db, 'employees');
-            const q = query(employeesRef, where("legajo", "==", dataToSave.legajo));
+            const q = query(employeesRef, where("legajo", "==", employeeData.legajo));
             const existing = await getDocs(q);
-            if (!existing.empty && dataToSave.legajo) {
+            if (!existing.empty && employeeData.legajo) {
                 throw new Error('Ya existe un empleado con el mismo legajo.');
             }
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { id, ...dataToSave } = employeeData;
             const docRef = await addDoc(employeesRef, dataToSave);
             const newEmployee = { id: docRef.id, ...dataToSave };
 
@@ -223,7 +225,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
 
     startTransition(async () => {
       try {
-        await deleteEmployee(employeeToDelete.id);
+        await deleteDoc(doc(db, "employees", employeeToDelete.id));
         setEmployees((prev) => prev.filter((e) => e.id !== employeeToDelete.id));
         toast({
           title: "Empleado eliminado",
