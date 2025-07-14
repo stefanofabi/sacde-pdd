@@ -70,14 +70,6 @@ export async function getCrews(): Promise<Crew[]> {
   return readCollection<Crew>('crews');
 }
 
-export async function getEmployees(): Promise<Employee[]> {
-  return readCollection<Employee>('employees');
-}
-
-export async function getProjects(): Promise<Project[]> {
-  return readCollection<Project>('projects');
-}
-
 export async function getAttendance(): Promise<AttendanceData> {
   const attendanceCollection = await readCollection<{ date: string } & AttendanceEntry>('attendance');
   const attendanceData: AttendanceData = {};
@@ -261,15 +253,6 @@ export async function updateCrew(crewId: string, updatedCrewData: Partial<Omit<C
     return updatedDoc;
 }
 
-export async function addEmployee(newEmployee: Omit<Employee, 'id'>): Promise<Employee> {
-    const q = query(collection(db, 'employees'), where("legajo", "==", newEmployee.legajo));
-    const existing = await getDocs(q);
-    if (!existing.empty && newEmployee.legajo) {
-        throw new Error('Ya existe un empleado con el mismo legajo.');
-    }
-    return addDocument('employees', newEmployee);
-}
-
 export async function updateEmployee(employeeId: string, updatedData: Partial<Omit<Employee, 'id'>>): Promise<Employee> {
     await updateDocument('employees', employeeId, updatedData);
     const updatedDoc = await readDoc<Employee>('employees', employeeId);
@@ -434,4 +417,15 @@ export async function registerUser(input: RegisterUserInput): Promise<void> {
         role: 'invitado' as EmployeeRole,
     };
     await addUser(newUserData);
+}
+
+// Client-side functions for reading data
+export async function getEmployees(): Promise<Employee[]> {
+  const employeesSnapshot = await getDocs(collection(db, 'employees'));
+  return employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
+}
+
+export async function getProjects(): Promise<Project[]> {
+  const projectsSnapshot = await getDocs(collection(db, 'projects'));
+  return projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];
 }

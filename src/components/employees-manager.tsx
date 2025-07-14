@@ -52,11 +52,13 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, PlusCircle, Trash2, CalendarIcon as CalendarIconLucide, Search, Pencil, FileSpreadsheet } from "lucide-react";
 import type { Employee, Project, EmployeeCondition, EmployeeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addEmployee, deleteEmployee, updateEmployee } from "@/app/actions";
+import { updateEmployee, deleteEmployee } from "@/app/actions";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import * as XLSX from 'xlsx';
+import { db } from "@/lib/firebase";
+import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
 
 interface EmployeesManagerProps {
   initialEmployees: Employee[];
@@ -189,7 +191,15 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
             description: `El empleado "${updatedEmployee.nombre} ${updatedEmployee.apellido}" ha sido actualizado.`,
            });
         } else {
-            const newEmployee = await addEmployee(dataToSave);
+            const employeesRef = collection(db, 'employees');
+            const q = query(employeesRef, where("legajo", "==", dataToSave.legajo));
+            const existing = await getDocs(q);
+            if (!existing.empty && dataToSave.legajo) {
+                throw new Error('Ya existe un empleado con el mismo legajo.');
+            }
+            const docRef = await addDoc(employeesRef, dataToSave);
+            const newEmployee = { id: docRef.id, ...dataToSave };
+
             setEmployees((prev) => [...prev, newEmployee]);
             toast({
               title: "Empleado agregado",
@@ -526,5 +536,3 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
     </>
   );
 }
-
-    
