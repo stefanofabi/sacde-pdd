@@ -18,32 +18,6 @@ import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { LogOut, Loader2 } from 'lucide-react';
 
-function DebugAuthPanel() {
-  const { firebaseUser, user } = useAuth();
-  
-  if (process.env.NODE_ENV !== 'production') {
-    return (
-      <div className="fixed bottom-4 left-4 z-50 bg-card border-2 border-destructive rounded-lg p-4 shadow-lg max-w-sm w-full text-xs">
-        <h3 className="font-bold text-base mb-2 text-destructive">Debug Info</h3>
-        <div>
-          <p className="font-semibold">Firebase User (Auth):</p>
-          <pre className="mt-1 p-2 bg-muted rounded overflow-x-auto">
-            {JSON.stringify(firebaseUser, null, 2) || 'null'}
-          </pre>
-        </div>
-        <div className="mt-2">
-          <p className="font-semibold">App User (Firestore):</p>
-          <pre className="mt-1 p-2 bg-muted rounded overflow-x-auto">
-            {JSON.stringify(user, null, 2) || 'null'}
-          </pre>
-        </div>
-      </div>
-    );
-  }
-  
-  return null;
-}
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, loading } = useAuth();
   const router = useRouter();
@@ -58,7 +32,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <DebugAuthPanel />
       </div>
     );
   }
@@ -106,7 +79,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Sidebar>
         <SidebarInset>
           {children}
-          <DebugAuthPanel />
         </SidebarInset>
       </SidebarProvider>
     );
@@ -115,7 +87,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <DebugAuthPanel />
       </div>
   );
 }
