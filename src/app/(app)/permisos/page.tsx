@@ -6,8 +6,10 @@ import PermissionsManager from "@/components/permissions-manager";
 import { getPermissions, getEmployees, getAbsenceTypes } from "@/app/actions";
 import type { Permission, Employee, AbsenceType } from '@/types';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 export default function PermisosPage() {
+  const { user, loading: authLoading } = useAuth();
   const [initialPermissions, setInitialPermissions] = useState<Permission[]>([]);
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [initialAbsenceTypes, setInitialAbsenceTypes] = useState<AbsenceType[]>([]);
@@ -15,6 +17,8 @@ export default function PermisosPage() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!user) return;
+      setLoading(true);
       try {
         const [permissionsData, employeesData, absenceTypesData] = await Promise.all([
           getPermissions(),
@@ -30,8 +34,11 @@ export default function PermisosPage() {
         setLoading(false);
       }
     }
-    fetchData();
-  }, []);
+    
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [user, authLoading]);
 
   return (
     <>
@@ -45,7 +52,7 @@ export default function PermisosPage() {
               Cargue, vea y gestione los permisos de los empleados de Sacde.
             </p>
           </header>
-          {loading ? (
+          {loading || authLoading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

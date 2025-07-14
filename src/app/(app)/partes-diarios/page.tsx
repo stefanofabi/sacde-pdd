@@ -6,8 +6,10 @@ import DailyLaborReport from "@/components/daily-labor-report";
 import { getCrews, getEmployees, getDailyLabor, getProjects, getDailyLaborNotifications, getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTypes, getPermissions } from "@/app/actions";
 import type { Crew, Employee, DailyLaborData, Project, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission } from '@/types';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 export default function PartesDiariosPage() {
+  const { user, loading: authLoading } = useAuth();
   const [initialCrews, setInitialCrews] = useState<Crew[]>([]);
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [initialLaborData, setInitialLaborData] = useState<DailyLaborData>({});
@@ -22,6 +24,8 @@ export default function PartesDiariosPage() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!user) return;
+      setLoading(true);
       try {
         const [
           crewsData,
@@ -62,8 +66,11 @@ export default function PartesDiariosPage() {
         setLoading(false);
       }
     }
-    fetchData();
-  }, []);
+    
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [user, authLoading]);
 
   return (
     <>
@@ -77,7 +84,7 @@ export default function PartesDiariosPage() {
               Registre las horas trabajadas por el personal de cada cuadrilla.
             </p>
           </header>
-          {loading ? (
+          {loading || authLoading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

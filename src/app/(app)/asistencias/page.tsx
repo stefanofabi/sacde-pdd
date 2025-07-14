@@ -6,8 +6,10 @@ import AttendanceTracker from "@/components/attendance-tracker";
 import { getCrews, getAttendance, getProjects, getEmployees } from "@/app/actions";
 import type { Crew, AttendanceData, Project, Employee } from '@/types';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 export default function AsistenciasPage() {
+  const { user, loading: authLoading } = useAuth();
   const [initialCrews, setInitialCrews] = useState<Crew[]>([]);
   const [initialAttendance, setInitialAttendance] = useState<AttendanceData>({});
   const [initialProjects, setInitialProjects] = useState<Project[]>([]);
@@ -16,6 +18,8 @@ export default function AsistenciasPage() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!user) return;
+      setLoading(true);
       try {
         const [crewsData, attendanceData, projectsData, employeesData] = await Promise.all([
           getCrews(),
@@ -33,8 +37,11 @@ export default function AsistenciasPage() {
         setLoading(false);
       }
     }
-    fetchData();
-  }, []);
+
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [user, authLoading]);
 
   return (
     <>
@@ -48,7 +55,7 @@ export default function AsistenciasPage() {
               Plataforma para el seguimiento de asistencias de cuadrillas de Sacde.
             </p>
           </header>
-          {loading ? (
+          {loading || authLoading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

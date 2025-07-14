@@ -10,8 +10,10 @@ import { getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTyp
 import { Settings, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import type { AbsenceType, Phase, SpecialHourType, UnproductiveHourType } from '@/types';
+import { useAuth } from '@/context/auth-context';
 
 export default function AjustesPage() {
+  const { user, loading: authLoading } = useAuth();
   const [initialAbsenceTypes, setInitialAbsenceTypes] = useState<AbsenceType[]>([]);
   const [initialPhases, setInitialPhases] = useState<Phase[]>([]);
   const [initialSpecialHourTypes, setInitialSpecialHourTypes] = useState<SpecialHourType[]>([]);
@@ -20,6 +22,8 @@ export default function AjustesPage() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!user) return;
+      setLoading(true);
       try {
         const [
           absenceTypesData,
@@ -42,8 +46,11 @@ export default function AjustesPage() {
         setLoading(false);
       }
     }
-    fetchData();
-  }, []);
+
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [user, authLoading]);
 
   return (
     <>
@@ -58,7 +65,7 @@ export default function AjustesPage() {
               Configure las opciones de la aplicación.
             </p>
           </header>
-          {loading ? (
+          {loading || authLoading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

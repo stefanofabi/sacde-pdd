@@ -6,8 +6,10 @@ import StatisticsDashboard from "@/components/statistics-dashboard";
 import { getCrews, getEmployees, getDailyLabor, getProjects, getAbsenceTypes, getSpecialHourTypes, getUnproductiveHourTypes } from "@/app/actions";
 import { BarChart3, Loader2 } from "lucide-react";
 import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType } from '@/types';
+import { useAuth } from '@/context/auth-context';
 
 export default function EstadisticasPage() {
+  const { user, loading: authLoading } = useAuth();
   const [crews, setCrews] = useState<Crew[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [dailyLabor, setDailyLabor] = useState<DailyLaborData>({});
@@ -19,6 +21,8 @@ export default function EstadisticasPage() {
 
   useEffect(() => {
     async function fetchData() {
+      if (!user) return;
+      setLoading(true);
       try {
         const [
           crewsData,
@@ -50,8 +54,11 @@ export default function EstadisticasPage() {
         setLoading(false);
       }
     }
-    fetchData();
-  }, []);
+    
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [user, authLoading]);
 
   return (
     <>
@@ -66,7 +73,7 @@ export default function EstadisticasPage() {
               Analice los datos de asistencia y productividad con filtros y gráficos.
             </p>
           </header>
-          {loading ? (
+          {loading || authLoading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

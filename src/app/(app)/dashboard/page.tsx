@@ -9,8 +9,10 @@ import { format, isWithinInterval, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { useAuth } from '@/context/auth-context';
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = React.useState(true);
   const [metrics, setMetrics] = React.useState({
     partesPendientesRealizar: 0,
@@ -24,6 +26,7 @@ export default function DashboardPage() {
 
   React.useEffect(() => {
     async function fetchDashboardData() {
+      if (!user) return;
       try {
         setLoading(true);
         const [
@@ -85,8 +88,10 @@ export default function DashboardPage() {
       }
     }
 
-    fetchDashboardData();
-  }, [todayKey]);
+    if (!authLoading) {
+      fetchDashboardData();
+    }
+  }, [user, authLoading, todayKey]);
 
   const quickLinks = [
     { href: "/asistencias", label: "Gestionar Asistencias", icon: ClipboardCheck },
@@ -108,7 +113,7 @@ export default function DashboardPage() {
           </p>
         </header>
 
-        {loading ? (
+        {loading || authLoading ? (
           <div className="flex justify-center items-center h-48">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>

@@ -6,14 +6,18 @@ import UsersManager from "@/components/users-manager";
 import { getUsers, getEmployees } from "@/app/actions";
 import type { User, Employee } from '@/types';
 import { UserCog, Loader2 } from "lucide-react";
+import { useAuth } from '@/context/auth-context';
 
 export default function UsuariosPage() {
+  const { user, loading: authLoading } = useAuth();
   const [initialUsers, setInitialUsers] = useState<User[]>([]);
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
+      if (!user) return;
+      setLoading(true);
       try {
         const [users, employees] = await Promise.all([
             getUsers(),
@@ -28,8 +32,10 @@ export default function UsuariosPage() {
       }
     }
 
-    fetchData();
-  }, []);
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [user, authLoading]);
 
   return (
     <>
@@ -44,7 +50,7 @@ export default function UsuariosPage() {
               Modifique los roles y datos de los usuarios del sistema.
             </p>
           </header>
-          {loading ? (
+          {loading || authLoading ? (
             <div className="flex items-center justify-center h-64">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

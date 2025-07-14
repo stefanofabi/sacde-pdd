@@ -6,13 +6,17 @@ import ProjectsManager from "@/components/projects-manager";
 import { getProjects } from "@/app/actions";
 import type { Project } from '@/types';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 export default function ProyectosPage() {
+  const { user, loading: authLoading } = useAuth();
   const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
+      if (!user) return;
+      setLoading(true);
       try {
         const projectsData = await getProjects();
         setInitialProjects(projectsData);
@@ -22,8 +26,11 @@ export default function ProyectosPage() {
         setLoading(false);
       }
     }
-    fetchData();
-  }, []);
+
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [user, authLoading]);
 
   return (
     <>
@@ -37,7 +44,7 @@ export default function ProyectosPage() {
               Añada, vea y gestione los proyectos de Sacde.
             </p>
           </header>
-          {loading ? (
+          {loading || authLoading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

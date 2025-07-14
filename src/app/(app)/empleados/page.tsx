@@ -6,14 +6,18 @@ import EmployeesManager from "@/components/employees-manager";
 import { getEmployees, getProjects } from "@/app/actions";
 import type { Employee, Project } from '@/types';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
 
 export default function EmpleadosPage() {
+  const { user, loading: authLoading } = useAuth();
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
+      if (!user) return; // Don't fetch if no user
+      setLoading(true);
       try {
         const [employeesData, projectsData] = await Promise.all([
           getEmployees(),
@@ -27,8 +31,11 @@ export default function EmpleadosPage() {
         setLoading(false);
       }
     }
-    fetchData();
-  }, []);
+
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [user, authLoading]);
 
   return (
     <>
@@ -42,7 +49,7 @@ export default function EmpleadosPage() {
               Añada, vea y gestione los empleados de Sacde.
             </p>
           </header>
-          {loading ? (
+          {loading || authLoading ? (
             <div className="flex justify-center items-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
