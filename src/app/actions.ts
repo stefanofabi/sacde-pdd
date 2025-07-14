@@ -66,10 +66,6 @@ export async function getUsers(): Promise<User[]> {
   return readCollection<User>('users');
 }
 
-export async function getCrews(): Promise<Crew[]> {
-  return readCollection<Crew>('crews');
-}
-
 export async function getAttendance(): Promise<AttendanceData> {
   const attendanceCollection = await readCollection<{ date: string } & AttendanceEntry>('attendance');
   const attendanceData: AttendanceData = {};
@@ -242,26 +238,11 @@ export async function saveDailyLabor(dateKey: string, crewId: string, laborData:
     await batch.commit();
 }
 
-export async function addCrew(newCrew: Omit<Crew, 'id'>): Promise<Crew> {
-  return addDocument('crews', newCrew);
-}
-
-export async function updateCrew(crewId: string, updatedCrewData: Partial<Omit<Crew, 'id'>>): Promise<Crew> {
-    await updateDocument('crews', crewId, updatedCrewData);
-    const updatedDoc = await readDoc<Crew>('crews', crewId);
-    if (!updatedDoc) throw new Error("Failed to update crew.");
-    return updatedDoc;
-}
-
 export async function updateEmployee(employeeId: string, updatedData: Partial<Omit<Employee, 'id'>>): Promise<Employee> {
     await updateDocument('employees', employeeId, updatedData);
     const updatedDoc = await readDoc<Employee>('employees', employeeId);
     if (!updatedDoc) throw new Error("Failed to update employee.");
     return updatedDoc;
-}
-
-export async function deleteCrew(crewId: string): Promise<void> {
-    await deleteDocument('crews', crewId);
 }
 
 export async function deleteEmployee(employeeId: string): Promise<void> {

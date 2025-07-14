@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import CrewsManager from "@/components/crews-manager";
-import { getCrews, getProjects, getEmployees, getPhases } from "@/app/actions";
+import { getDocs, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import type { Crew, Project, Employee, Phase } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
@@ -21,12 +22,18 @@ export default function CuadrillasPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const [crewsData, projectsData, employeesData, phasesData] = await Promise.all([
-          getCrews(),
-          getProjects(),
-          getEmployees(),
-          getPhases(),
+        const [crewsSnapshot, projectsSnapshot, employeesSnapshot, phasesSnapshot] = await Promise.all([
+          getDocs(collection(db, 'crews')),
+          getDocs(collection(db, 'projects')),
+          getDocs(collection(db, 'employees')),
+          getDocs(collection(db, 'phases')),
         ]);
+        
+        const crewsData = crewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Crew[];
+        const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];
+        const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
+        const phasesData = phasesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Phase[];
+
         setInitialCrews(crewsData);
         setInitialProjects(projectsData);
         setInitialEmployees(employeesData);

@@ -50,7 +50,6 @@ import {
 import { Loader2, PlusCircle, Trash2, Pencil, Plus, X, Search, CalendarIcon } from "lucide-react";
 import type { Crew, Project, Employee, Phase, CrewPhaseAssignment } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addCrew, deleteCrew, updateCrew } from "@/app/actions";
 import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
@@ -58,6 +57,8 @@ import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
 import { Calendar } from "./ui/calendar";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 
 interface CrewsManagerProps {
   initialCrews: Crew[];
@@ -228,14 +229,17 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
     startTransition(async () => {
       try {
         if (editingCrew) {
-          const updatedCrew = await updateCrew(editingCrew.id, newCrewState);
+          const docRef = doc(db, "crews", editingCrew.id);
+          await updateDoc(docRef, newCrewState);
+          const updatedCrew = { id: editingCrew.id, ...newCrewState } as Crew;
           setAllCrews(prev => prev.map(c => c.id === updatedCrew.id ? updatedCrew : c));
           toast({
             title: "Cuadrilla actualizada",
             description: `La cuadrilla "${updatedCrew.name}" ha sido actualizada.`,
           });
         } else {
-          const newCrew = await addCrew(newCrewState);
+          const docRef = await addDoc(collection(db, "crews"), newCrewState);
+          const newCrew = { id: docRef.id, ...newCrewState } as Crew;
           setAllCrews((prev) => [...prev, newCrew]);
           toast({
             title: "Cuadrilla agregada",
@@ -259,7 +263,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
 
     startTransition(async () => {
       try {
-        await deleteCrew(crewToDelete.id);
+        await deleteDoc(doc(db, "crews", crewToDelete.id));
         setAllCrews((prev) => prev.filter((c) => c.id !== crewToDelete.id));
         toast({
           title: "Cuadrilla eliminada",
