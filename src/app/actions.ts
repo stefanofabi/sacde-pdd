@@ -175,68 +175,12 @@ export async function getAbsenceTypes(): Promise<AbsenceType[]> {
   return readCollection<AbsenceType>('absence-types');
 }
 
-export async function getPhases(): Promise<Phase[]> {
-  return readCollection<Phase>('phases');
-}
-
 export async function getSpecialHourTypes(): Promise<SpecialHourType[]> {
   return readCollection<SpecialHourType>('special-hour-types');
 }
 
 export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]> {
     return readCollection<UnproductiveHourType>('unproductive-hour-types');
-}
-
-export async function addUnproductiveHourType(newType: Omit<UnproductiveHourType, 'id'>): Promise<UnproductiveHourType> {
-    const q = query(collection(db, 'unproductive-hour-types'), where("code", "==", newType.code.toUpperCase()));
-    const existing = await getDocs(q);
-    if (!existing.empty) {
-        throw new Error('Ya existe un tipo de hora improductiva con el mismo código.');
-    }
-    return addDocument('unproductive-hour-types', newType);
-}
-
-export async function deleteUnproductiveHourType(typeId: string): Promise<void> {
-    await deleteDoc(doc(db, 'unproductive-hour-types', typeId));
-}
-
-export async function addSpecialHourType(newType: Omit<SpecialHourType, 'id'>): Promise<SpecialHourType> {
-    const q = query(collection(db, 'special-hour-types'), where("code", "==", newType.code.toUpperCase()));
-    const existing = await getDocs(q);
-    if (!existing.empty) {
-        throw new Error('Ya existe un tipo de hora especial con el mismo código.');
-    }
-    return addDocument('special-hour-types', newType);
-}
-
-export async function deleteSpecialHourType(typeId: string): Promise<void> {
-    await deleteDoc(doc(db, 'special-hour-types', typeId));
-}
-
-export async function addPhase(newPhase: Omit<Phase, 'id'>): Promise<Phase> {
-    const q = query(collection(db, 'phases'), where("name", "==", newPhase.name));
-    const existing = await getDocs(q);
-    if (!existing.empty) {
-        throw new Error('Ya existe una fase con el mismo nombre.');
-    }
-    return addDocument('phases', newPhase);
-}
-
-export async function deletePhase(phaseId: string): Promise<void> {
-    await deleteDoc(doc(db, 'phases', phaseId));
-}
-
-export async function addAbsenceType(newAbsenceType: Omit<AbsenceType, 'id'>): Promise<AbsenceType> {
-    const q = query(collection(db, 'absence-types'), where("code", "==", newAbsenceType.code.toUpperCase()));
-    const existing = await getDocs(q);
-    if (!existing.empty) {
-        throw new Error('Ya existe un tipo de ausencia con el mismo código.');
-    }
-    return addDocument('absence-types', newAbsenceType);
-}
-
-export async function deleteAbsenceType(absenceTypeId: string): Promise<void> {
-    await deleteDoc(doc(db, 'absence-types', absenceTypeId));
 }
 
 export async function addPermission(newPermission: Omit<Permission, 'id'>): Promise<Permission> {

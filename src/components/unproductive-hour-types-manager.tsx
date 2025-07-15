@@ -25,9 +25,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { UnproductiveHourType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addUnproductiveHourType, deleteUnproductiveHourType } from "@/app/actions";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { db } from "@/lib/firebase";
+import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 
 interface UnproductiveHourTypesManagerProps {
   initialUnproductiveHourTypes: UnproductiveHourType[];
@@ -51,7 +52,17 @@ export default function UnproductiveHourTypesManager({ initialUnproductiveHourTy
     }
     startTransition(async () => {
       try {
-        const addedType = await addUnproductiveHourType({ name: newType.name, code: newType.code.toUpperCase() });
+        const collectionRef = collection(db, 'unproductive-hour-types');
+        const q = query(collectionRef, where("code", "==", newType.code.toUpperCase()));
+        const existing = await getDocs(q);
+        if (!existing.empty) {
+            throw new Error('Ya existe un tipo de hora improductiva con el mismo código.');
+        }
+        
+        const dataToSave = { name: newType.name, code: newType.code.toUpperCase() };
+        const docRef = await addDoc(collectionRef, dataToSave);
+        const addedType = { id: docRef.id, ...dataToSave };
+
         setAllTypes((prev) => [...prev, addedType].sort((a, b) => a.name.localeCompare(b.name)));
         setNewType({ name: "", code: "" });
         toast({
@@ -73,7 +84,7 @@ export default function UnproductiveHourTypesManager({ initialUnproductiveHourTy
 
     startTransition(async () => {
       try {
-        await deleteUnproductiveHourType(typeToDelete.id);
+        await deleteDoc(doc(db, 'unproductive-hour-types', typeToDelete.id));
         setAllTypes((prev) => prev.filter((o) => o.id !== typeToDelete.id));
         toast({
           title: "Tipo eliminado",

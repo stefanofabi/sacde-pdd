@@ -25,9 +25,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { SpecialHourType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addSpecialHourType, deleteSpecialHourType } from "@/app/actions";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { db } from "@/lib/firebase";
+import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 
 interface SpecialHourTypesManagerProps {
   initialSpecialHourTypes: SpecialHourType[];
@@ -51,7 +52,17 @@ export default function SpecialHourTypesManager({ initialSpecialHourTypes }: Spe
     }
     startTransition(async () => {
       try {
-        const addedType = await addSpecialHourType({ name: newType.name, code: newType.code.toUpperCase() });
+        const collectionRef = collection(db, 'special-hour-types');
+        const q = query(collectionRef, where("code", "==", newType.code.toUpperCase()));
+        const existing = await getDocs(q);
+        if (!existing.empty) {
+            throw new Error('Ya existe un tipo de hora especial con el mismo código.');
+        }
+
+        const dataToSave = { name: newType.name, code: newType.code.toUpperCase() };
+        const docRef = await addDoc(collectionRef, dataToSave);
+        const addedType = { id: docRef.id, ...dataToSave };
+
         setAllTypes((prev) => [...prev, addedType].sort((a, b) => a.name.localeCompare(b.name)));
         setNewType({ name: "", code: "" });
         toast({
@@ -73,7 +84,7 @@ export default function SpecialHourTypesManager({ initialSpecialHourTypes }: Spe
 
     startTransition(async () => {
       try {
-        await deleteSpecialHourType(typeToDelete.id);
+        await deleteDoc(doc(db, 'special-hour-types', typeToDelete.id));
         setAllTypes((prev) => prev.filter((o) => o.id !== typeToDelete.id));
         toast({
           title: "Tipo eliminado",

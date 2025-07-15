@@ -25,9 +25,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Phase } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addPhase, deletePhase } from "@/app/actions";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { db } from "@/lib/firebase";
+import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 
 interface PhasesManagerProps {
   initialPhases: Phase[];
@@ -51,7 +52,17 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
     }
     startTransition(async () => {
       try {
-        const addedPhase = await addPhase({ name: newPhase.name, pepElement: newPhase.pepElement.toUpperCase() });
+        const collectionRef = collection(db, 'phases');
+        const q = query(collectionRef, where("name", "==", newPhase.name));
+        const existing = await getDocs(q);
+        if (!existing.empty) {
+            throw new Error('Ya existe una fase con el mismo nombre.');
+        }
+
+        const dataToSave = { name: newPhase.name, pepElement: newPhase.pepElement.toUpperCase() };
+        const docRef = await addDoc(collectionRef, dataToSave);
+        const addedPhase = { id: docRef.id, ...dataToSave };
+
         setAllPhases((prev) => [...prev, addedPhase].sort((a, b) => a.name.localeCompare(b.name)));
         setNewPhase({ name: "", pepElement: "" });
         toast({
@@ -73,7 +84,7 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
 
     startTransition(async () => {
       try {
-        await deletePhase(phaseToDelete.id);
+        await deleteDoc(doc(db, 'phases', phaseToDelete.id));
         setAllPhases((prev) => prev.filter((p) => p.id !== phaseToDelete.id));
         toast({
           title: "Fase eliminada",

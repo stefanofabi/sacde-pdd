@@ -25,9 +25,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { AbsenceType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addAbsenceType, deleteAbsenceType } from "@/app/actions";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { db } from "@/lib/firebase";
+import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 
 interface AbsenceTypesManagerProps {
   initialAbsenceTypes: AbsenceType[];
@@ -51,7 +52,17 @@ export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceType
     }
     startTransition(async () => {
       try {
-        const addedType = await addAbsenceType({ name: newAbsenceType.name, code: newAbsenceType.code.toUpperCase() });
+        const collectionRef = collection(db, 'absence-types');
+        const q = query(collectionRef, where("code", "==", newAbsenceType.code.toUpperCase()));
+        const existing = await getDocs(q);
+        if (!existing.empty) {
+            throw new Error('Ya existe un tipo de ausencia con el mismo código.');
+        }
+
+        const dataToSave = { name: newAbsenceType.name, code: newAbsenceType.code.toUpperCase() };
+        const docRef = await addDoc(collectionRef, dataToSave);
+        const addedType = { id: docRef.id, ...dataToSave };
+
         setAllAbsenceTypes((prev) => [...prev, addedType].sort((a, b) => a.name.localeCompare(b.name)));
         setNewAbsenceType({ name: "", code: "" });
         toast({
@@ -73,7 +84,7 @@ export default function AbsenceTypesManager({ initialAbsenceTypes }: AbsenceType
 
     startTransition(async () => {
       try {
-        await deleteAbsenceType(typeToDelete.id);
+        await deleteDoc(doc(db, 'absence-types', typeToDelete.id));
         setAllAbsenceTypes((prev) => prev.filter((o) => o.id !== typeToDelete.id));
         toast({
           title: 'Tipo eliminado',
