@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
-import type { Crew, AttendanceData, Project, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
+import type { Crew, Project, Employee, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { adminApp } from '@/lib/firebase-admin'; // Assumes admin app is initialized
 
@@ -12,8 +12,8 @@ import { adminApp } from '@/lib/firebase-admin'; // Assumes admin app is initial
 const adminAuth = getAdminAuth(adminApp);
 
 
-export async function createUser(userData: Omit<User, 'id'>, password: string): Promise<User> {
-  const { email, nombre, apellido, role } = userData;
+export async function createUser(userData: Omit<User, 'id' | 'authUid'>, password: string): Promise<User> {
+  const { nombre, apellido, email, role } = userData;
 
   // 1. Check if user exists in Firestore
   const usersRef = collection(db, 'users');
@@ -54,7 +54,7 @@ export async function createUser(userData: Omit<User, 'id'>, password: string): 
 
   try {
     const docRef = await addDoc(collection(db, "users"), dataToSave);
-    return { id: docRef.id, ...dataToSave };
+    return { id: docRef.id, ...dataToSave } as User;
   } catch (firestoreError) {
     // Cleanup: If Firestore write fails, delete the Auth user
     await adminAuth.deleteUser(createdAuthUser.uid);
@@ -135,6 +135,10 @@ async function updateDocument<T extends object>(collectionName: string, docId: s
         console.error(`Error updating document ${collectionName}/${docId}:`, error);
         throw new Error('Could not write data to Firestore.');
     }
+}
+
+export async function getProjects(): Promise<Project[]> {
+    return readCollection<Project>('projects');
 }
 
 export async function getPermissions(): Promise<Permission[]> {

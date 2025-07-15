@@ -3,10 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import DailyLaborReport from "@/components/daily-labor-report";
-import { getCrews, getEmployees, getDailyLabor, getProjects, getDailyLaborNotifications, getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTypes, getPermissions } from "@/app/actions";
+import { getDailyLabor, getProjects, getDailyLaborNotifications, getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTypes, getPermissions } from "@/app/actions";
 import type { Crew, Employee, DailyLaborData, Project, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function PartesDiariosPage() {
   const { user, loading: authLoading } = useAuth();
@@ -28,8 +30,8 @@ export default function PartesDiariosPage() {
       setLoading(true);
       try {
         const [
-          crewsData,
-          employeesData,
+          crewsSnapshot,
+          employeesSnapshot,
           laborData,
           projectsData,
           notificationData,
@@ -39,8 +41,8 @@ export default function PartesDiariosPage() {
           unproductiveHourTypesData,
           permissionsData
         ] = await Promise.all([
-          getCrews(),
-          getEmployees(),
+          getDocs(collection(db, 'crews')),
+          getDocs(collection(db, 'employees')),
           getDailyLabor(),
           getProjects(),
           getDailyLaborNotifications(),
@@ -50,6 +52,10 @@ export default function PartesDiariosPage() {
           getUnproductiveHourTypes(),
           getPermissions()
         ]);
+
+        const crewsData = crewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Crew[];
+        const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
+
         setInitialCrews(crewsData);
         setInitialEmployees(employeesData);
         setInitialLaborData(laborData);
