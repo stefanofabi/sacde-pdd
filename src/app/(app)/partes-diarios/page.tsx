@@ -3,8 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import DailyLaborReport from "@/components/daily-labor-report";
-import { getDailyLabor, getProjects, getDailyLaborNotifications, getAbsenceTypes, getPhases, getSpecialHourTypes, getUnproductiveHourTypes, getPermissions } from "@/app/actions";
-import type { Crew, Employee, DailyLaborData, Project, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission } from '@/types';
+import type { Crew, Employee, DailyLaborData, Project, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission, LegacyDailyLaborEntry, DailyLaborEntry } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
@@ -32,35 +31,61 @@ export default function PartesDiariosPage() {
         const [
           crewsSnapshot,
           employeesSnapshot,
-          laborData,
-          projectsData,
-          notificationData,
-          absenceTypesData,
-          phasesData,
-          specialHourTypesData,
-          unproductiveHourTypesData,
-          permissionsData
+          laborSnapshot,
+          projectsSnapshot,
+          notificationSnapshot,
+          absenceTypesSnapshot,
+          phasesSnapshot,
+          specialHourTypesSnapshot,
+          unproductiveHourTypesSnapshot,
+          permissionsSnapshot
         ] = await Promise.all([
           getDocs(collection(db, 'crews')),
           getDocs(collection(db, 'employees')),
-          getDailyLabor(),
-          getProjects(),
-          getDailyLaborNotifications(),
-          getAbsenceTypes(),
-          getPhases(),
-          getSpecialHourTypes(),
-          getUnproductiveHourTypes(),
-          getPermissions()
+          getDocs(collection(db, 'daily-labor')),
+          getDocs(collection(db, 'projects')),
+          getDocs(collection(db, 'daily-labor-notifications')),
+          getDocs(collection(db, 'absence-types')),
+          getDocs(collection(db, 'phases')),
+          getDocs(collection(db, 'special-hour-types')),
+          getDocs(collection(db, 'unproductive-hour-types')),
+          getDocs(collection(db, 'permissions')),
         ]);
 
         const crewsData = crewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Crew[];
         const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
+        const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];
+        const absenceTypesData = absenceTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AbsenceType[];
+        const phasesData = phasesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Phase[];
+        const specialHourTypesData = specialHourTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SpecialHourType[];
+        const unproductiveHourTypesData = unproductiveHourTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UnproductiveHourType[];
+        const permissionsData = permissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Permission[];
+
+        const laborData: DailyLaborData = {};
+        laborSnapshot.docs.forEach(doc => {
+            const entry = { id: doc.id, ...doc.data() } as { date: string } & (DailyLaborEntry | LegacyDailyLaborEntry);
+            const { date, ...rest } = entry;
+            if (!laborData[date]) {
+                laborData[date] = [];
+            }
+            laborData[date].push(rest);
+        });
+        
+        const notificationsData: DailyLaborNotificationData = {};
+        notificationSnapshot.docs.forEach(doc => {
+            const entry = doc.data() as { date: string; crewId: string; notified: boolean; notifiedAt: string };
+            const { date, crewId, notified, notifiedAt } = entry;
+            if (!notificationsData[date]) {
+                notificationsData[date] = {};
+            }
+            notificationsData[date][crewId] = { notified, notifiedAt };
+        });
 
         setInitialCrews(crewsData);
         setInitialEmployees(employeesData);
         setInitialLaborData(laborData);
         setInitialProjects(projectsData);
-        setInitialNotificationData(notificationData);
+        setInitialNotificationData(notificationsData);
         setInitialAbsenceTypes(absenceTypesData);
         setInitialPhases(phasesData);
         setInitialSpecialHourTypes(specialHourTypesData);

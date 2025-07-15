@@ -239,67 +239,6 @@ export async function deleteAbsenceType(absenceTypeId: string): Promise<void> {
     await deleteDoc(doc(db, 'absence-types', absenceTypeId));
 }
 
-export async function moveEmployeeBetweenCrews(dateKey: string, employeeId: string, sourceCrewId: string, destinationCrewId: string): Promise<void> {
-  const dailyLaborRef = collection(db, 'daily-labor');
-  const q = query(dailyLaborRef, where("date", "==", dateKey), where("crewId", "==", sourceCrewId), where("employeeId", "==", employeeId));
-  const snapshot = await getDocs(q);
-  
-  const batch = writeBatch(db);
-  snapshot.docs.forEach(doc => {
-      batch.delete(doc.ref);
-  });
-
-  const newEntry = {
-      date: dateKey,
-      employeeId,
-      crewId: destinationCrewId,
-      productiveHours: {},
-      unproductiveHours: {},
-      absenceReason: null,
-      specialHours: {},
-      manual: true,
-  };
-  const newDocRef = doc(collection(db, "daily-labor"));
-  batch.set(newDocRef, newEntry);
-  
-  await batch.commit();
-}
-
-
-export async function notifyDailyLabor(dateKey: string, crewId: string): Promise<void> {
-  const notificationsRef = collection(db, 'daily-labor-notifications');
-  const q = query(notificationsRef, where("date", "==", dateKey), where("crewId", "==", crewId));
-  const snapshot = await getDocs(q);
-  
-  const notificationData = {
-    date: dateKey,
-    crewId,
-    notified: true,
-    notifiedAt: new Date().toISOString(),
-  };
-
-  if (snapshot.empty) {
-    await addDoc(notificationsRef, notificationData);
-  } else {
-    await updateDoc(snapshot.docs[0].ref, notificationData);
-  }
-}
-
-export async function saveDailyLabor(dateKey: string, crewId: string, laborData: Omit<DailyLaborEntry, 'id' | 'crewId'>[]): Promise<void> {
-    const batch = writeBatch(db);
-    const laborRef = collection(db, 'daily-labor');
-    const q = query(laborRef, where("date", "==", dateKey), where("crewId", "==", crewId));
-    const oldDocs = await getDocs(q);
-    oldDocs.forEach(doc => batch.delete(doc.ref));
-
-    laborData.forEach(data => {
-        const newDocRef = doc(laborRef);
-        batch.set(newDocRef, { date: dateKey, crewId, ...data });
-    });
-
-    await batch.commit();
-}
-
 export async function addPermission(newPermission: Omit<Permission, 'id'>): Promise<Permission> {
     return addDocument('permissions', newPermission);
 }

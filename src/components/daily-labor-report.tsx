@@ -65,9 +65,11 @@ import { format, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, Employee, DailyLaborData, Project, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry, Permission } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { saveDailyLabor, notifyDailyLabor, moveEmployeeBetweenCrews } from "@/app/actions";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
+import { db } from "@/lib/firebase";
+import { collection, doc, query, where, getDocs, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
+
 
 interface DailyLaborReportProps {
   initialCrews: Crew[];
@@ -372,54 +374,65 @@ export default function DailyLaborReport({
       return;
     }
 
-    const payloadToSave: Omit<DailyLaborEntry, 'id' | 'crewId'>[] = [];
-    
-    personnelForTable.forEach(emp => {
-      const stateEntry = laborEntries[emp.id];
-      if (!stateEntry) return;
-
-      const isManual = !selectedCrew?.employeeIds.includes(emp.id);
-
-      const totalProductive = Object.values(stateEntry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
-      const totalUnproductive = Object.values(stateEntry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
-      const totalHours = totalProductive + totalUnproductive;
-      const hasNovelty = stateEntry.absenceReason || totalHours > 0 || isManual;
-      
-      if (hasNovelty) {
-         payloadToSave.push({ 
-           employeeId: emp.id, 
-           absenceReason: stateEntry.absenceReason,
-           productiveHours: stateEntry.productiveHours,
-           unproductiveHours: stateEntry.unproductiveHours,
-           specialHours: stateEntry.specialHours,
-           manual: isManual, 
-         });
-      }
-    });
-
     startTransition(async () => {
-      try {
-        await saveDailyLabor(formattedDate, selectedCrewId, payloadToSave);
+        try {
+            const batch = writeBatch(db);
+            const laborRef = collection(db, 'daily-labor');
+            const q = query(laborRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
+            const oldDocs = await getDocs(q);
+            oldDocs.forEach(doc => batch.delete(doc.ref));
 
-        const otherCrewEntries = (laborData[formattedDate] || []).filter(entry => entry.crewId !== selectedCrewId);
-        const newCrewEntries: DailyLaborEntry[] = payloadToSave.map(d => ({ ...d, id: crypto.randomUUID(), crewId: selectedCrewId }));
-        
-        setLaborData(prev => ({
-            ...prev,
-            [formattedDate]: [...otherCrewEntries, ...newCrewEntries]
-        }));
-        
-        toast({
-          title: "Datos Guardados",
-          description: "Las horas y ausencias se han registrado correctamente.",
-        });
-      } catch (error) {
-        toast({
-          title: "Error al Guardar",
-          description: "No se pudieron guardar los datos.",
-          variant: "destructive",
-        });
-      }
+            const newCrewEntries: DailyLaborEntry[] = [];
+            
+            personnelForTable.forEach(emp => {
+                const stateEntry = laborEntries[emp.id];
+                if (!stateEntry) return;
+
+                const isManual = !selectedCrew?.employeeIds.includes(emp.id);
+
+                const totalProductive = Object.values(stateEntry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                const totalUnproductive = Object.values(stateEntry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                const totalHours = totalProductive + totalUnproductive;
+                const hasNovelty = stateEntry.absenceReason || totalHours > 0 || isManual;
+                
+                if (hasNovelty) {
+                    const dataToSave = { 
+                        date: formattedDate,
+                        crewId: selectedCrewId,
+                        employeeId: emp.id, 
+                        absenceReason: stateEntry.absenceReason,
+                        productiveHours: stateEntry.productiveHours,
+                        unproductiveHours: stateEntry.unproductiveHours,
+                        specialHours: stateEntry.specialHours,
+                        manual: isManual, 
+                    };
+                    const newDocRef = doc(laborRef);
+                    batch.set(newDocRef, dataToSave);
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { date, crewId, ...rest } = dataToSave;
+                    newCrewEntries.push({ id: newDocRef.id, crewId: selectedCrewId, ...rest });
+                }
+            });
+
+            await batch.commit();
+
+            const otherCrewEntries = (laborData[formattedDate] || []).filter(entry => entry.crewId !== selectedCrewId);
+            setLaborData(prev => ({
+                ...prev,
+                [formattedDate]: [...otherCrewEntries, ...newCrewEntries]
+            }));
+            
+            toast({
+              title: "Datos Guardados",
+              description: "Las horas y ausencias se han registrado correctamente.",
+            });
+        } catch (error) {
+            toast({
+                title: "Error al Guardar",
+                description: "No se pudieron guardar los datos.",
+                variant: "destructive",
+            });
+        }
     });
   };
 
@@ -428,7 +441,23 @@ export default function DailyLaborReport({
 
     startTransition(async () => {
         try {
-            await notifyDailyLabor(formattedDate, selectedCrewId);
+            const notificationsRef = collection(db, 'daily-labor-notifications');
+            const q = query(notificationsRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
+            const snapshot = await getDocs(q);
+            
+            const notificationDataPayload = {
+                date: formattedDate,
+                crewId: selectedCrewId,
+                notified: true,
+                notifiedAt: new Date().toISOString(),
+            };
+
+            if (snapshot.empty) {
+                await addDoc(notificationsRef, notificationDataPayload);
+            } else {
+                await updateDoc(snapshot.docs[0].ref, notificationDataPayload);
+            }
+
             setNotificationData(prev => ({
                 ...prev,
                 [formattedDate]: {
@@ -516,11 +545,33 @@ export default function DailyLaborReport({
   };
 
   const handleMoveEmployee = () => {
-    if (!employeeToMove || !destinationCrewId || !selectedCrewId || formattedDate || selectedCrewId === 'all') return;
+    if (!employeeToMove || !destinationCrewId || !selectedCrewId || !formattedDate || selectedCrewId === 'all') return;
     
     startTransition(async () => {
         try {
-            await moveEmployeeBetweenCrews(formattedDate, employeeToMove.id, selectedCrewId, destinationCrewId);
+            const batch = writeBatch(db);
+            const dailyLaborRef = collection(db, 'daily-labor');
+            const q = query(dailyLaborRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId), where("employeeId", "==", employeeToMove.id));
+            const snapshot = await getDocs(q);
+
+            snapshot.docs.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            const newEntry = {
+                date: formattedDate,
+                employeeId: employeeToMove.id,
+                crewId: destinationCrewId,
+                productiveHours: {},
+                unproductiveHours: {},
+                absenceReason: null,
+                specialHours: {},
+                manual: true,
+            };
+            const newDocRef = doc(collection(db, "daily-labor"));
+            batch.set(newDocRef, newEntry);
+            
+            await batch.commit();
 
             const updatedLaborData = { ...laborData };
             const currentDayEntries = updatedLaborData[formattedDate] || [];
@@ -542,39 +593,67 @@ export default function DailyLaborReport({
             });
         }
     });
-};
+  };
 
   const handleAddManualEmployee = () => {
-    if (employeeToAdd && selectedCrewId && selectedCrewId !== 'all') {
-        startTransition(async () => {
-            const newEntry: DailyLaborEntry = {
-                id: crypto.randomUUID(),
-                employeeId: employeeToAdd,
+    if (!employeeToAdd || !selectedCrewId || selectedCrewId === 'all' || !formattedDate) return;
+
+    startTransition(async () => {
+        try {
+            const batch = writeBatch(db);
+            const laborRef = collection(db, 'daily-labor');
+            const newEntryData = {
+                date: formattedDate,
                 crewId: selectedCrewId,
+                employeeId: employeeToAdd,
                 productiveHours: {},
                 unproductiveHours: {},
                 absenceReason: null,
                 specialHours: {},
-                manual: true
+                manual: true,
             };
+            const newDocRef = doc(laborRef);
+            batch.set(newDocRef, newEntryData);
+            await batch.commit();
+            
+            // Update local state
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const {date, crewId, ...rest} = newEntryData;
+            const newEntryForState = { id: newDocRef.id, crewId, ...rest };
+
             setLaborData(prev => ({
                 ...prev,
-                [formattedDate]: [...(prev[formattedDate] || []), newEntry]
+                [formattedDate]: [...(prev[formattedDate] || []), newEntryForState]
             }));
 
             setEmployeeToAdd("");
             setIsAddEmployeeDialogOpen(false);
-        });
-    }
+            toast({ title: "Empleado agregado" });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo agregar al empleado.", variant: "destructive" });
+        }
+    });
   };
 
   const handleRemoveManualEmployee = (employeeId: string) => {
-    if (selectedCrewId === 'all') return;
+    if (selectedCrewId === 'all' || !formattedDate) return;
+    
     startTransition(async () => {
-       const updatedEntries = (laborData[formattedDate] || []).filter(e => !(e.crewId === selectedCrewId && e.employeeId === employeeId));
-       const newLaborData = { ...laborData, [formattedDate]: updatedEntries };
-       await saveDailyLabor(formattedDate, selectedCrewId, newLaborData[formattedDate] || []);
-       setLaborData(newLaborData);
+        try {
+            const batch = writeBatch(db);
+            const laborRef = collection(db, 'daily-labor');
+            const q = query(laborRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId), where("employeeId", "==", employeeId));
+            const snapshot = await getDocs(q);
+            snapshot.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+            
+            const updatedEntries = (laborData[formattedDate] || []).filter(e => !(e.crewId === selectedCrewId && e.employeeId === employeeId));
+            setLaborData(prev => ({ ...prev, [formattedDate]: updatedEntries }));
+
+            toast({ title: "Empleado removido" });
+        } catch (error) {
+            toast({ title: "Error", description: "No se pudo remover al empleado.", variant: "destructive" });
+        }
     });
   };
 
