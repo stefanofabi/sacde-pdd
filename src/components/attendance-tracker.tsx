@@ -62,11 +62,12 @@ import {
   UserPlus,
   Trash2,
 } from "lucide-react";
-import { format, startOfToday } from "date-fns";
+import { format, startOfToday, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, AttendanceData, Project, Employee, AttendanceEntry } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addAttendanceRequest, updateAttendanceSentStatus, clonePreviousDayAttendance, deleteAttendanceRequest } from "@/app/actions";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, doc, updateDoc, deleteDoc, query, where, getDocs, writeBatch } from "firebase/firestore";
 
 interface AttendanceTrackerProps {
   initialCrews: Crew[];
@@ -160,7 +161,17 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
 
     startTransition(async () => {
       try {
-        const updatedEntry = await updateAttendanceSentStatus(dateKey, entryId, sent);
+        const entryRef = doc(db, 'attendance', entryId);
+        const sentAt = sent ? new Date().toISOString() : null;
+        await updateDoc(entryRef, { sent, sentAt });
+        
+        const updatedEntry = { 
+          id: entryId, 
+          ...((attendance[dateKey] || []).find(e => e.id === entryId) as AttendanceEntry),
+          sent,
+          sentAt
+        };
+
         setAttendance((prev) => {
            const newDailyData = (prev[dateKey] || []).map(e => e.id === entryId ? updatedEntry : e);
            return { ...prev, [dateKey]: newDailyData };
@@ -188,12 +199,24 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     
     startTransition(async () => {
       try {
-        const newEntry = await addAttendanceRequest(dateKey, newRequestState.crewId, newRequestState.responsibleId);
+        const newEntryData = {
+            date: dateKey,
+            crewId: newRequestState.crewId,
+            responsibleId: newRequestState.responsibleId,
+            sent: false,
+            sentAt: null,
+        };
+
+        const docRef = await addDoc(collection(db, 'attendance'), newEntryData);
+        const newEntry = { id: docRef.id, ...newEntryData };
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { date, ...rest } = newEntry;
+
         setAttendance(prev => {
             const currentEntries = prev[dateKey] || [];
             return {
                 ...prev,
-                [dateKey]: [...currentEntries, newEntry]
+                [dateKey]: [...currentEntries, rest]
             };
         });
         setNewRequestState({ projectId: "", crewId: "", responsibleId: "" });
@@ -218,7 +241,7 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
 
     startTransition(async () => {
       try {
-        await deleteAttendanceRequest(dateKey, requestToDelete.id);
+        await deleteDoc(doc(db, 'attendance', requestToDelete.id));
         setAttendance((prev) => {
           const updatedDailyData = (prev[dateKey] || []).filter(e => e.id !== requestToDelete.id);
           return { ...prev, [dateKey]: updatedDailyData };
@@ -244,8 +267,41 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
       const dateKey = format(selectedDate, "yyyy-MM-dd");
       startTransition(async () => {
         try {
-            const newAttendance = await clonePreviousDayAttendance(dateKey);
-            setAttendance(newAttendance);
+            const targetDate = new Date(dateKey);
+            const previousDate = subDays(targetDate, 1);
+            const previousDateKey = format(previousDate, "yyyy-MM-dd");
+
+            const qPrev = query(collection(db, 'attendance'), where("date", "==", previousDateKey));
+            const prevSnapshot = await getDocs(qPrev);
+            
+            const batch = writeBatch(db);
+
+            const qCurrent = query(collection(db, 'attendance'), where("date", "==", dateKey));
+            const currentSnapshot = await getDocs(qCurrent);
+            currentSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+
+            const newEntriesForState: AttendanceEntry[] = [];
+            prevSnapshot.docs.forEach(docSnap => {
+                const entry = docSnap.data();
+                const newEntry = {
+                    date: dateKey,
+                    crewId: entry.crewId,
+                    responsibleId: entry.responsibleId,
+                    sent: false,
+                    sentAt: null,
+                };
+                const newDocRef = doc(collection(db, "attendance"));
+                batch.set(newDocRef, newEntry);
+                newEntriesForState.push({ id: newDocRef.id, ...newEntry });
+            });
+
+            await batch.commit();
+
+            // Update state
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const newAttendanceForState = newEntriesForState.map(({ date, ...rest }) => rest);
+
+            setAttendance(prev => ({ ...prev, [dateKey]: newAttendanceForState }));
             setIsCloneDialogOpen(false);
             toast({
                 title: "Día clonado",

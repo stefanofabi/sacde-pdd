@@ -24,16 +24,27 @@ export default function AsistenciasPage() {
       setLoading(true);
       try {
         const [
-          attendanceData,
+          attendanceSnapshot,
           crewsSnapshot,
           projectsSnapshot,
           employeesSnapshot
         ] = await Promise.all([
-          getAttendance(),
+          getDocs(collection(db, 'attendance')),
           getDocs(collection(db, 'crews')),
           getDocs(collection(db, 'projects')),
           getDocs(collection(db, 'employees')),
         ]);
+
+        const attendanceData: AttendanceData = {};
+        attendanceSnapshot.forEach(docSnap => {
+          const entry = { id: docSnap.id, ...docSnap.data() };
+          const { date, ...rest } = entry;
+          if (!attendanceData[date]) {
+              attendanceData[date] = [];
+          }
+          // @ts-ignore
+          attendanceData[date].push(rest);
+        });
 
         const crewsData = crewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Crew[];
         const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];

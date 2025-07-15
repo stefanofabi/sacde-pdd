@@ -2,9 +2,8 @@
 'use server';
 
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch, documentId } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
 import type { Crew, AttendanceData, Project, Employee, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
-import { format, subDays } from 'date-fns';
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { adminApp } from '@/lib/firebase-admin'; // Assumes admin app is initialized
 
@@ -136,19 +135,6 @@ async function updateDocument<T extends object>(collectionName: string, docId: s
         console.error(`Error updating document ${collectionName}/${docId}:`, error);
         throw new Error('Could not write data to Firestore.');
     }
-}
-
-export async function getAttendance(): Promise<AttendanceData> {
-  const attendanceCollection = await readCollection<{ date: string } & AttendanceEntry>('attendance');
-  const attendanceData: AttendanceData = {};
-  attendanceCollection.forEach(entry => {
-    const { date, ...rest } = entry;
-    if (!attendanceData[date]) {
-        attendanceData[date] = [];
-    }
-    attendanceData[date].push(rest);
-  });
-  return attendanceData;
 }
 
 export async function getPermissions(): Promise<Permission[]> {
@@ -308,74 +294,6 @@ export async function saveDailyLabor(dateKey: string, crewId: string, laborData:
     });
 
     await batch.commit();
-}
-
-export async function updateAttendanceSentStatus(dateKey: string, attendanceId: string, sent: boolean): Promise<AttendanceEntry> {
-    const attendanceRef = collection(db, 'attendance');
-    const q = query(attendanceRef, where("date", "==", dateKey), where(documentId(), "==", attendanceId));
-    const snapshot = await getDocs(q);
-
-    if (snapshot.empty) {
-        throw new Error('Attendance entry not found.');
-    }
-
-    const docToUpdate = snapshot.docs[0];
-    const sentAt = sent ? new Date().toISOString() : null;
-    await updateDoc(docToUpdate.ref, { sent, sentAt });
-
-    const updatedData = (await getDoc(docToUpdate.ref)).data();
-    return { id: docToUpdate.id, ...updatedData } as AttendanceEntry;
-}
-
-export async function addAttendanceRequest(dateKey: string, crewId: string, responsibleId: string): Promise<AttendanceEntry> {
-  const newEntryData = {
-      date: dateKey,
-      crewId,
-      responsibleId,
-      sent: false,
-      sentAt: null,
-  };
-
-  const docRef = await addDoc(collection(db, 'attendance'), newEntryData);
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { date, ...rest } = newEntryData;
-  return { id: docRef.id, ...rest };
-}
-
-export async function deleteAttendanceRequest(dateKey: string, attendanceId: string): Promise<void> {
-    await deleteDoc(doc(db, 'attendance', attendanceId));
-}
-
-export async function clonePreviousDayAttendance(dateKey: string): Promise<AttendanceData> {
-    const targetDate = new Date(dateKey);
-    const previousDate = subDays(targetDate, 1);
-    const previousDateKey = format(previousDate, "yyyy-MM-dd");
-
-    const q = query(collection(db, 'attendance'), where("date", "==", previousDateKey));
-    const snapshot = await getDocs(q);
-
-    const batch = writeBatch(db);
-
-    const currentEntriesQuery = query(collection(db, 'attendance'), where("date", "==", dateKey));
-    const currentSnapshot = await getDocs(currentEntriesQuery);
-    currentSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-
-    snapshot.docs.forEach(docSnap => {
-        const entry = docSnap.data();
-        const newEntry = {
-            date: dateKey,
-            crewId: entry.crewId,
-            responsibleId: entry.responsibleId,
-            sent: false,
-            sentAt: null,
-        };
-        const newDocRef = doc(collection(db, "attendance"));
-        batch.set(newDocRef, newEntry);
-    });
-
-    await batch.commit();
-    return getAttendance();
 }
 
 export async function addPermission(newPermission: Omit<Permission, 'id'>): Promise<Permission> {

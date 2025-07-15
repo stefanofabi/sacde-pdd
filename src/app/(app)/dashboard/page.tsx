@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { getAttendance, getDailyLabor, getDailyLaborNotifications, getPermissions } from "@/app/actions";
+import { getDailyLabor, getDailyLaborNotifications, getPermissions } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayoutDashboard, ClipboardList, ClipboardCheck, Users, UserCheck, BarChart3, AlertCircle, Loader2 } from "lucide-react";
 import { format, isWithinInterval, startOfToday } from "date-fns";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Employee } from '@/types';
+import type { Employee, AttendanceData, AttendanceEntry } from '@/types';
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -33,18 +33,29 @@ export default function DashboardPage() {
       setLoading(true);
       try {
         const [
-          attendanceData,
+          attendanceSnapshot,
           dailyLaborData,
           notificationData,
           employeesSnapshot,
           permissions,
         ] = await Promise.all([
-          getAttendance(),
+          getDocs(collection(db, 'attendance')),
           getDailyLabor(),
           getDailyLaborNotifications(),
           getDocs(collection(db, 'employees')),
           getPermissions(),
         ]);
+
+        const attendanceData: AttendanceData = {};
+        attendanceSnapshot.forEach(docSnap => {
+          const entry = { id: docSnap.id, ...docSnap.data() } as {id: string, date: string} & Omit<AttendanceEntry, 'id'>;
+          const { date, ...rest } = entry;
+          if (!attendanceData[date]) {
+              attendanceData[date] = [];
+          }
+          // @ts-ignore
+          attendanceData[date].push(rest);
+        });
 
         const employees = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
 
