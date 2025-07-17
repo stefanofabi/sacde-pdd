@@ -1,6 +1,6 @@
 
 
-export type PermissionKey = 'dashboard' | 'crews' | 'employees' | 'users' | 'attendance' | 'dailyReports' | 'statistics' | 'permissions' | 'settings' | 'dailyReports.notify' | 'dailyReports.addManual' | 'dailyReports.moveEmployee';
+export type PermissionKey = 'dashboard' | 'crews' | 'employees' | 'users' | 'attendance' | 'dailyReports' | 'statistics' | 'permissions' | 'settings' | 'dailyReports.save' | 'dailyReports.notify' | 'dailyReports.addManual' | 'dailyReports.moveEmployee' | 'dailyReports.approveControl' | 'dailyReports.approvePM';
 
 export interface Role {
   id: string;

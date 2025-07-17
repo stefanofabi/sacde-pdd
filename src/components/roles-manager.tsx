@@ -77,9 +77,12 @@ const permissionGroups: { category: string; permissions: PermissionDefinition[] 
                 id: 'dailyReports', 
                 label: 'Gestión de Partes Diarios',
                 subPermissions: [
-                    { id: 'dailyReports.notify', label: 'Notificar Partes' },
+                    { id: 'dailyReports.save', label: 'Guardar Parte' },
+                    { id: 'dailyReports.notify', label: 'Notificar Parte' },
                     { id: 'dailyReports.addManual', label: 'Cargar Personal Manual' },
                     { id: 'dailyReports.moveEmployee', label: 'Mover Personal' },
+                    { id: 'dailyReports.approveControl', label: 'Aprobar (Control y Gestión)' },
+                    { id: 'dailyReports.approvePM', label: 'Aprobar (Jefe de Obra)' },
                 ]
             },
         ]

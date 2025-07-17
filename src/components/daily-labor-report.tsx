@@ -126,6 +126,7 @@ export default function DailyLaborReport({
   const [unproductiveHoursModalState, setUnproductiveHoursModalState] = useState<{ isOpen: boolean; employee: Employee | null }>({ isOpen: false, employee: null });
   const [modalUnproductiveHours, setModalUnproductiveHours] = useState<Record<string, number | null>>({});
 
+  const canSave = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.save'), [user]);
   const canNotify = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.notify'), [user]);
   const canAddManual = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.addManual'), [user]);
   const canMoveEmployee = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.moveEmployee'), [user]);
@@ -1129,7 +1130,7 @@ export default function DailyLaborReport({
                                 Volver al Listado
                             </Button>
                         )}
-                        <Button onClick={handleSave} disabled={isPending || !selectedCrewId}>
+                        <Button onClick={handleSave} disabled={isPending || !selectedCrewId || !canSave}>
                             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                             Guardar Parte
                         </Button>
