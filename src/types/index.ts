@@ -3,6 +3,7 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -11,6 +12,8 @@ export type PermissionKey =
   | 'crews.assignPhase'
   | 'crews.managePersonnel'
   | 'employees' 
+  | 'employees.view'
+  | 'employees.manage'
   | 'users' 
   | 'attendance' 
   | 'dailyReports' 
@@ -196,3 +199,5 @@ export interface DailyLaborNotificationData {
 
 // This type is now deprecated, use Role and PermissionKey instead.
 export type EmployeeRole = 'admin' | 'crew_manager' | 'foreman' | 'tallyman' | 'project_manager' | 'management_control' | 'recursos_humanos' | 'invitado';
+
+    

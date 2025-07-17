@@ -58,6 +58,7 @@ import { Separator } from "@/components/ui/separator";
 import * as XLSX from 'xlsx';
 import { db } from "@/lib/firebase";
 import { addDoc, collection, getDocs, query, where, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { useAuth } from "@/context/auth-context";
 
 interface EmployeesManagerProps {
   initialEmployees: Employee[];
@@ -80,6 +81,7 @@ const emptyForm = {
 
 export default function EmployeesManager({ initialEmployees, initialProjects }: EmployeesManagerProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [projects, setProjects] = useState<Project[]>(initialProjects);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
@@ -90,6 +92,8 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
   const [formState, setFormState] = useState(emptyForm);
 
   const [isPending, startTransition] = useTransition();
+
+  const canManage = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('employees.manage'), [user]);
 
   useEffect(() => {
     setEmployees(initialEmployees);
@@ -313,7 +317,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                         <FileSpreadsheet className="mr-2 h-4 w-4" />
                         Exportar a Excel
                     </Button>
-                    <Button onClick={handleOpenAddDialog}>
+                    <Button onClick={handleOpenAddDialog} disabled={!canManage}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Agregar Empleado
                     </Button>
@@ -354,7 +358,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => handleOpenEditDialog(emp)}
-                                            disabled={isPending}
+                                            disabled={isPending || !canManage}
                                         >
                                             <Pencil className="h-4 w-4" />
                                             <span className="sr-only">Editar {emp.nombre}</span>
@@ -364,7 +368,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                                             size="icon"
                                             className="text-destructive hover:bg-destructive/10"
                                             onClick={() => setEmployeeToDelete(emp)}
-                                            disabled={isPending}
+                                            disabled={isPending || !canManage}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                             <span className="sr-only">Eliminar {emp.nombre}</span>
@@ -505,7 +509,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
           </div>
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
-            <Button type="submit" onClick={handleSaveEmployee} disabled={isPending}>
+            <Button type="submit" onClick={handleSaveEmployee} disabled={isPending || !canManage}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editingEmployee ? "Guardar Cambios" : "Guardar Empleado"}
             </Button>
@@ -538,3 +542,5 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
     </>
   );
 }
+
+    

@@ -62,7 +62,6 @@ const permissionGroups: { category: string; permissions: PermissionDefinition[] 
         category: "Acceso General",
         permissions: [
             { id: 'dashboard', label: 'Acceso al Dashboard' },
-            { id: 'employees', label: 'Gestión de Empleados' },
             { id: 'users', label: 'Gestión de Usuarios' },
             { id: 'attendance', label: 'Gestión de Asistencias' },
             { id: 'statistics', label: 'Acceso a Estadísticas' },
@@ -79,6 +78,19 @@ const permissionGroups: { category: string; permissions: PermissionDefinition[] 
                     { id: 'crews.editInfo', label: 'Editar Información Principal' },
                     { id: 'crews.assignPhase', label: 'Asignar Fases' },
                     { id: 'crews.managePersonnel', label: 'Agregar/Eliminar Personal' },
+                ]
+            }
+        ]
+    },
+    {
+        category: "Gestión de Empleados",
+        permissions: [
+            {
+                id: 'employees',
+                label: 'Acceso General a Empleados',
+                subPermissions: [
+                    { id: 'employees.view', label: 'Visualizar Empleados' },
+                    { id: 'employees.manage', label: 'Gestionar Empleados (Crear/Editar/Eliminar)' },
                 ]
             }
         ]
@@ -378,3 +390,5 @@ export default function RolesManager({ initialRoles }: RolesManagerProps) {
     </>
   );
 }
+
+    
