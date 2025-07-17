@@ -87,8 +87,9 @@ const permissionGroups: { category: string; permissions: PermissionDefinition[] 
         permissions: [
             { 
                 id: 'dailyReports', 
-                label: 'Gestión de Partes Diarios',
+                label: 'Acceso General a Partes Diarios',
                 subPermissions: [
+                    { id: 'dailyReports.view', label: 'Visualizar Partes Diarios' },
                     { id: 'dailyReports.save', label: 'Guardar Parte' },
                     { id: 'dailyReports.notify', label: 'Notificar Parte' },
                     { id: 'dailyReports.addManual', label: 'Cargar Personal Manual' },

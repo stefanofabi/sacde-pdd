@@ -1,6 +1,7 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews' 
@@ -8,6 +9,7 @@ export type PermissionKey =
   | 'users' 
   | 'attendance' 
   | 'dailyReports' 
+  | 'dailyReports.view'
   | 'dailyReports.save' 
   | 'dailyReports.notify' 
   | 'dailyReports.addManual' 

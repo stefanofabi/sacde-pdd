@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { useRouter } from 'next/navigation';
 
 export default function PartesDiariosPage() {
   const { user, loading: authLoading } = useAuth();
@@ -22,8 +23,19 @@ export default function PartesDiariosPage() {
   const [initialUnproductiveHourTypes, setInitialUnproductiveHourTypes] = useState<UnproductiveHourType[]>([]);
   const [initialPermissions, setInitialPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
+    if (!authLoading && user) {
+        if (!user.is_superuser && !user.role?.permissions.includes('dailyReports')) {
+            router.replace('/dashboard');
+            return;
+        }
+        fetchData();
+    } else if (!authLoading && !user) {
+        router.replace('/login');
+    }
+
     async function fetchData() {
       if (!user) return;
       setLoading(true);
@@ -97,11 +109,7 @@ export default function PartesDiariosPage() {
         setLoading(false);
       }
     }
-    
-    if (user && !authLoading) {
-      fetchData();
-    }
-  }, [user, authLoading]);
+  }, [user, authLoading, router]);
 
   return (
     <>
