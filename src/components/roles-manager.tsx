@@ -67,7 +67,19 @@ const permissionGroups: { category: string; permissions: PermissionDefinition[] 
             { id: 'users', label: 'Gestión de Usuarios' },
             { id: 'attendance', label: 'Gestión de Asistencias' },
             { id: 'statistics', label: 'Acceso a Estadísticas' },
-            { id: 'permissions', label: 'Gestión de Ausentismos' },
+        ]
+    },
+    {
+        category: "Gestión de Ausentismos",
+        permissions: [
+            {
+                id: 'permissions',
+                label: 'Acceso General a Ausentismos',
+                subPermissions: [
+                    { id: 'permissions.view', label: 'Ver Ausentismos' },
+                    { id: 'permissions.manage', label: 'Gestionar Ausentismos (Crear/Editar/Eliminar)' },
+                ]
+            }
         ]
     },
     {
@@ -120,21 +132,29 @@ export default function RolesManager({ initialRoles }: RolesManagerProps) {
 
   const handlePermissionChange = (permissionId: PermissionKey, checked: boolean) => {
     setFormState(prev => {
-      let newPermissions: PermissionKey[];
-      const definition = permissionGroups.flatMap(g => g.permissions).find(p => p.id === permissionId);
+      let currentPermissions = new Set(prev.permissions);
+      const definition = allPermissions.find(p => p.id === permissionId);
 
       if (checked) {
-        newPermissions = [...prev.permissions, permissionId];
-      } else {
-        newPermissions = prev.permissions.filter(p => p !== permissionId);
-        // If a parent permission is unchecked, uncheck all its children
+        currentPermissions.add(permissionId);
+        // If a sub-permission is checked, ensure its parent is also checked
+        const parent = permissionGroups.flatMap(g => g.permissions).find(p => p.subPermissions?.some(sp => sp.id === permissionId));
+        if (parent) {
+          currentPermissions.add(parent.id);
+        }
+        // If a parent is checked, check all its children
         if (definition?.subPermissions) {
-          const subIds = definition.subPermissions.map(sp => sp.id);
-          newPermissions = newPermissions.filter(p => !subIds.includes(p));
+          definition.subPermissions.forEach(sp => currentPermissions.add(sp.id));
+        }
+      } else {
+        currentPermissions.delete(permissionId);
+        // If a parent is unchecked, uncheck all its children
+        if (definition?.subPermissions) {
+          definition.subPermissions.forEach(sp => currentPermissions.delete(sp.id));
         }
       }
 
-      return { ...prev, permissions: newPermissions };
+      return { ...prev, permissions: Array.from(currentPermissions) };
     });
   };
 

@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { useAuth } from "@/context/auth-context";
 
 interface PermissionsManagerProps {
   initialPermissions: Permission[];
@@ -80,6 +81,7 @@ const emptyForm = {
 
 export default function PermissionsManager({ initialPermissions, initialEmployees, initialAbsenceTypes }: PermissionsManagerProps) {
     const { toast } = useToast();
+    const { user } = useAuth();
     const [permissions, setPermissions] = useState<Permission[]>(initialPermissions);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [formState, setFormState] = useState(emptyForm);
@@ -88,6 +90,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     const [permissionToDelete, setPermissionToDelete] = useState<Permission | null>(null);
     const [editingPermission, setEditingPermission] = useState<Permission | null>(null);
     const [isPending, startTransition] = useTransition();
+
+    const canManage = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('permissions.manage'), [user]);
 
     const employeeMap = useMemo(() => {
         return new Map(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido} (L: ${emp.legajo})`]));
@@ -277,10 +281,12 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                     <SelectItem value="inactive">Inactivos</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Button onClick={handleOpenAddDialog}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Cargar Ausentismo
-                            </Button>
+                            {canManage && (
+                                <Button onClick={handleOpenAddDialog}>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Cargar Ausentismo
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </CardHeader>
@@ -295,7 +301,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                     <TableHead>Hasta</TableHead>
                                     <TableHead>Estado</TableHead>
                                     <TableHead>Observaciones</TableHead>
-                                    <TableHead className="text-right">Acciones</TableHead>
+                                    {canManage && <TableHead className="text-right">Acciones</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -313,32 +319,34 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="max-w-xs truncate" title={perm.observations}>{perm.observations}</TableCell>
-                                            <TableCell className="text-right space-x-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleOpenEditDialog(perm)}
-                                                    disabled={isPending}
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                    <span className="sr-only">Editar ausentismo para {employeeMap.get(perm.employeeId) || ""}</span>
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="text-destructive hover:bg-destructive/10"
-                                                    onClick={() => setPermissionToDelete(perm)}
-                                                    disabled={isPending}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                    <span className="sr-only">Eliminar ausentismo para {employeeMap.get(perm.employeeId) || ""}</span>
-                                                </Button>
-                                            </TableCell>
+                                            {canManage && (
+                                                <TableCell className="text-right space-x-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleOpenEditDialog(perm)}
+                                                        disabled={isPending}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                        <span className="sr-only">Editar ausentismo para {employeeMap.get(perm.employeeId) || ""}</span>
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="text-destructive hover:bg-destructive/10"
+                                                        onClick={() => setPermissionToDelete(perm)}
+                                                        disabled={isPending}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        <span className="sr-only">Eliminar ausentismo para {employeeMap.get(perm.employeeId) || ""}</span>
+                                                    </Button>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="h-24 text-center">
+                                        <TableCell colSpan={canManage ? 7 : 6} className="h-24 text-center">
                                             {permissions.length === 0 
                                                 ? "No hay ausentismos cargados."
                                                 : "No se encontraron ausentismos con los filtros aplicados."

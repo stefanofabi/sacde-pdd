@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -33,7 +34,13 @@ export function SidebarNavigation() {
     
     const navItems = user?.is_superuser 
         ? allNavItems
-        : allNavItems.filter(item => userPermissions.includes(item.permissionKey));
+        : allNavItems.filter(item => {
+            // Special check for ausentismos, show if user has view or manage permission
+            if (item.permissionKey === 'permissions') {
+                return userPermissions.includes('permissions.view') || userPermissions.includes('permissions.manage');
+            }
+            return userPermissions.includes(item.permissionKey)
+        });
 
     return (
         <SidebarMenu className="mt-4 gap-y-2">
