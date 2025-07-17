@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
-import type { Crew, Project, Employee, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, Phase, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
+import type { Crew, Project, Employee, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, Phase, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry } from '@/types';
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { adminApp } from '@/lib/firebase-admin'; // Assumes admin app is initialized
 
@@ -13,7 +13,7 @@ const adminAuth = getAdminAuth(adminApp);
 
 
 export async function createUser(userData: Omit<User, 'id' | 'authUid'>, password: string): Promise<User> {
-  const { nombre, apellido, email, role } = userData;
+  const { nombre, apellido, email, roleId } = userData;
 
   // 1. Check if user exists in Firestore
   const usersRef = collection(db, 'users');
@@ -48,7 +48,7 @@ export async function createUser(userData: Omit<User, 'id' | 'authUid'>, passwor
     nombre,
     apellido,
     email: email.toLowerCase(),
-    role,
+    roleId,
     authUid: createdAuthUser.uid, // Store the Auth UID
   };
 

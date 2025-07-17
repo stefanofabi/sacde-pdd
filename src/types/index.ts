@@ -1,11 +1,19 @@
 
 
+export type PermissionKey = 'dashboard' | 'crews' | 'employees' | 'users' | 'attendance' | 'dailyReports' | 'statistics' | 'permissions' | 'settings';
+
+export interface Role {
+  id: string;
+  name: string;
+  permissions: PermissionKey[];
+}
+
 export interface User {
   id: string;
   nombre: string;
   apellido: string;
   email: string;
-  role: EmployeeRole;
+  roleId: string;
   authUid?: string; // UID from Firebase Auth
 }
 
@@ -56,7 +64,6 @@ export type AttendanceData = Record<string, DailyAttendance>;
 
 export type EmployeeCondition = "jornal" | "mensual";
 export type EmployeeStatus = "activo" | "suspendido" | "baja";
-export type EmployeeRole = 'admin' | 'crew_manager' | 'foreman' | 'tallyman' | 'project_manager' | 'management_control' | 'recursos_humanos' | 'invitado';
 
 export interface Employee {
   id: string;
@@ -160,3 +167,6 @@ export interface DailyLaborNotificationData {
       };
   };
 }
+
+// This type is now deprecated, use Role and PermissionKey instead.
+export type EmployeeRole = 'admin' | 'crew_manager' | 'foreman' | 'tallyman' | 'project_manager' | 'management_control' | 'recursos_humanos' | 'invitado';

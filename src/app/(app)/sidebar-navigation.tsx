@@ -6,6 +6,19 @@ import { usePathname } from 'next/navigation';
 import { Briefcase, CalendarClock, Users, IdCard, UserCheck, ClipboardList, Settings, BarChart3, UserCog, LayoutDashboard } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { useAuth } from '@/context/auth-context';
+import type { PermissionKey } from '@/types';
+
+const allNavItems = [
+  { href: "/dashboard", icon: LayoutDashboard, permissionKey: "dashboard" as PermissionKey, label: "Dashboard" },
+  { href: "/cuadrillas", icon: Users, permissionKey: "crews" as PermissionKey, label: "Cuadrillas" },
+  { href: "/empleados", icon: IdCard, permissionKey: "employees" as PermissionKey, label: "Empleados" },
+  { href: "/usuarios", icon: UserCog, permissionKey: "users" as PermissionKey, label: "Usuarios" },
+  { href: "/asistencias", icon: CalendarClock, permissionKey: "attendance" as PermissionKey, label: "Asistencias" },
+  { href: "/partes-diarios", icon: ClipboardList, permissionKey: "dailyReports" as PermissionKey, label: "Partes Diarios" },
+  { href: "/estadisticas", icon: BarChart3, permissionKey: "statistics" as PermissionKey, label: "Estadísticas" },
+  { href: "/gestion-de-ausentismos", icon: UserCheck, permissionKey: "permissions" as PermissionKey, label: "Gestión de Ausentismos" },
+  { href: "/ajustes", icon: Settings, permissionKey: "settings" as PermissionKey, label: "Ajustes" },
+];
 
 export function SidebarNavigation() {
     const pathname = usePathname();
@@ -16,33 +29,9 @@ export function SidebarNavigation() {
         if (path === '/dashboard') return pathname === path;
         return pathname.startsWith(path) && path !== '/';
     };
-
-    const navItemsMap = {
-      dashboard: "Dashboard",
-      crews: "Cuadrillas",
-      employees: "Empleados",
-      users: "Usuarios",
-      attendance: "Asistencias",
-      dailyReports: "Partes Diarios",
-      permissions: "Gestión de Ausentismos",
-      settings: "Ajustes",
-      statistics: "Estadísticas",
-      logout: "Cerrar Sesión"
-    };
-
-    const allNavItems = [
-      { href: "/dashboard", icon: LayoutDashboard, translationKey: "dashboard", roles: ['admin', 'crew_manager', 'foreman', 'tallyman', 'project_manager', 'management_control', 'recursos_humanos', 'invitado'] },
-      { href: "/cuadrillas", icon: Users, translationKey: "crews", roles: ['admin', 'crew_manager'] },
-      { href: "/empleados", icon: IdCard, translationKey: "employees", roles: ['admin', 'recursos_humanos'] },
-      { href: "/usuarios", icon: UserCog, translationKey: "users", roles: ['admin'] },
-      { href: "/asistencias", icon: CalendarClock, translationKey: "attendance", roles: ['admin', 'foreman', 'tallyman', 'project_manager', 'management_control'] },
-      { href: "/partes-diarios", icon: ClipboardList, translationKey: "dailyReports", roles: ['admin', 'foreman', 'tallyman', 'project_manager', 'management_control'] },
-      { href: "/estadisticas", icon: BarChart3, translationKey: "statistics", roles: ['admin', 'recursos_humanos'] },
-      { href: "/gestion-de-ausentismos", icon: UserCheck, translationKey: "permissions", roles: ['admin', 'recursos_humanos'] },
-      { href: "/ajustes", icon: Settings, translationKey: "settings", roles: ['admin'] },
-    ];
     
-    const navItems = allNavItems.filter(item => user?.role && item.roles.includes(user.role));
+    const userPermissions = user?.role?.permissions || [];
+    const navItems = allNavItems.filter(item => userPermissions.includes(item.permissionKey));
 
     return (
         <SidebarMenu className="mt-4 gap-y-2">
@@ -51,7 +40,7 @@ export function SidebarNavigation() {
                 <Link href={item.href}>
                   <SidebarMenuButton isActive={isActive(item.href)}>
                     <item.icon />
-                    {navItemsMap[item.translationKey as keyof typeof navItemsMap]}
+                    {item.label}
                   </SidebarMenuButton>
                 </Link>
               </SidebarMenuItem>

@@ -5,13 +5,14 @@ import { useState, useEffect } from 'react';
 import UsersManager from "@/components/users-manager";
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { User } from '@/types';
+import type { User, Role } from '@/types';
 import { UserCog, Loader2 } from "lucide-react";
 import { useAuth } from '@/context/auth-context';
 
 export default function UsuariosPage() {
   const { user, loading: authLoading } = useAuth();
   const [initialUsers, setInitialUsers] = useState<User[]>([]);
+  const [initialRoles, setInitialRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,9 +20,14 @@ export default function UsuariosPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const [usersSnapshot, rolesSnapshot] = await Promise.all([
+            getDocs(collection(db, 'users')),
+            getDocs(collection(db, 'roles'))
+        ]);
         const usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
+        const rolesData = rolesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Role[];
         setInitialUsers(usersData);
+        setInitialRoles(rolesData);
       } catch (error) {
         console.error("Failed to fetch user data:", error);
       } finally {
@@ -52,7 +58,7 @@ export default function UsuariosPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <UsersManager initialUsers={initialUsers} initialEmployees={[]} />
+            <UsersManager initialUsers={initialUsers} initialRoles={initialRoles} />
           )}
         </div>
       </main>

@@ -14,6 +14,7 @@ export default function SettingsNavigation() {
         { value: 'fases', label: 'Fases' },
         { value: 'tipos-de-horas-especiales', label: 'Tipos de Horas Especiales' },
         { value: 'tipos-de-horas-improductivas', label: 'Tipos de Horas Improductivas' },
+        { value: 'roles', label: 'Roles' },
     ];
     
     const currentTab = pathname.split('/').pop() || 'proyectos';

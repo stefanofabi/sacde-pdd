@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Pencil, PlusCircle, Trash2 } from "lucide-react";
-import type { EmployeeRole, User } from "@/types";
+import type { Role, User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, getDocs } from "firebase/firestore";
@@ -57,7 +57,7 @@ import { createUser, deleteUser } from "@/app/actions";
 
 interface UsersManagerProps {
   initialUsers: User[];
-  initialEmployees: User[];
+  initialRoles: Role[];
 }
 
 const emptyAddForm = {
@@ -66,13 +66,14 @@ const emptyAddForm = {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "invitado" as EmployeeRole,
+    roleId: "",
 };
 
-export default function UsersManager({ initialUsers }: UsersManagerProps) {
+export default function UsersManager({ initialUsers, initialRoles }: UsersManagerProps) {
   const { toast } = useToast();
   
   const [users, setUsers] = useState<User[]>(initialUsers);
+  const [roles, setRoles] = useState<Role[]>(initialRoles);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -81,6 +82,8 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
   const [editFormState, setEditFormState] = useState<Partial<User>>({});
   const [addFormState, setAddFormState] = useState(emptyAddForm);
   const [isPending, startTransition] = useTransition();
+
+  const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r.name])), [roles]);
   
   const filteredUsers = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -99,7 +102,7 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
     setEditingUser(user);
     setEditFormState({
       email: user.email,
-      role: user.role,
+      roleId: user.roleId,
       nombre: user.nombre,
       apellido: user.apellido
     });
@@ -112,13 +115,13 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
   }
 
   const handleSaveUser = () => {
-    if (!editingUser || !editFormState.email || !editFormState.role || !editFormState.nombre || !editFormState.apellido) return;
+    if (!editingUser || !editFormState.email || !editFormState.roleId || !editFormState.nombre || !editFormState.apellido) return;
 
     startTransition(async () => {
       try {
         const userDataToUpdate = { 
           email: editFormState.email, 
-          role: editFormState.role,
+          roleId: editFormState.roleId,
           nombre: editFormState.nombre,
           apellido: editFormState.apellido,
         };
@@ -148,8 +151,8 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
   };
   
   const handleAddUser = () => {
-    const { nombre, apellido, email, role, password, confirmPassword } = addFormState;
-    if (!nombre || !apellido || !email || !role || !password || !confirmPassword) {
+    const { nombre, apellido, email, roleId, password, confirmPassword } = addFormState;
+    if (!nombre || !apellido || !email || !roleId || !password || !confirmPassword) {
       toast({
         title: "Error de validación",
         description: "Debe completar todos los campos obligatorios (*).",
@@ -173,7 +176,7 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
             nombre: addFormState.nombre,
             apellido: addFormState.apellido,
             email: addFormState.email,
-            role: addFormState.role,
+            roleId: addFormState.roleId,
         }, password);
 
         setUsers((prev) => [...prev, newUser]);
@@ -215,17 +218,6 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
         }
     });
   };
-
-  const roleOptions: { value: EmployeeRole; label: string }[] = [
-    { value: 'admin', label: "Administrador" },
-    { value: 'crew_manager', label: "Administrador de Cuadrillas" },
-    { value: 'foreman', label: "Capataz" },
-    { value: 'tallyman', label: "Apuntador" },
-    { value: 'project_manager', label: "Jefe de Obra" },
-    { value: 'management_control', label: "Control y Gestión" },
-    { value: 'recursos_humanos', label: "Recursos Humanos" },
-    { value: 'invitado', label: "Invitado" },
-  ];
 
   return (
     <>
@@ -273,7 +265,7 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
                             <TableCell className="font-medium">{fullName}</TableCell>
                             <TableCell>{user.email}</TableCell>
                             <TableCell>
-                                <Badge variant="secondary">{roleOptions.find(r => r.value === user.role)?.label || user.role}</Badge>
+                                <Badge variant="secondary">{roleMap.get(user.roleId) || 'Sin Rol'}</Badge>
                             </TableCell>
                             <TableCell className="text-right space-x-1">
                                 <Button
@@ -350,17 +342,17 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
             <div className="space-y-2">
                 <Label htmlFor="role-edit">Rol del Sistema</Label>
                 <Select 
-                    onValueChange={(value: EmployeeRole) => setEditFormState(prev => ({ ...prev, role: value }))} 
-                    value={editFormState.role} 
+                    onValueChange={(value: string) => setEditFormState(prev => ({ ...prev, roleId: value }))} 
+                    value={editFormState.roleId} 
                     disabled={isPending}
                 >
                     <SelectTrigger id="role-edit">
                     <SelectValue placeholder="Seleccionar un rol" />
                     </SelectTrigger>
                     <SelectContent>
-                    {roleOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
+                    {roles.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id}>
+                        {opt.name}
                         </SelectItem>
                     ))}
                     </SelectContent>
@@ -441,10 +433,10 @@ export default function UsersManager({ initialUsers }: UsersManagerProps) {
                </div>
                <div className="space-y-2">
                     <Label htmlFor="role-add">Rol del Sistema *</Label>
-                    <Select onValueChange={(value: EmployeeRole) => setAddFormState(p => ({...p, role: value}))} value={addFormState.role} disabled={isPending}>
+                    <Select onValueChange={(value: string) => setAddFormState(p => ({...p, roleId: value}))} value={addFormState.roleId} disabled={isPending}>
                         <SelectTrigger id="role-add"><SelectValue placeholder="Seleccionar un rol" /></SelectTrigger>
                         <SelectContent>
-                            {roleOptions.map((opt) => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
+                            {roles.map((opt) => <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>

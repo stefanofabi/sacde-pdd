@@ -2,14 +2,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import type { User } from '@/types';
+import type { User, Role } from '@/types';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, getDocs, query, where, addDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, doc, getDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
-  user: User | null; 
+  user: (User & { role: Role | null }) | null; 
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
@@ -18,7 +18,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-async function getUserByEmail(email: string): Promise<User | null> {
+async function getFullUser(email: string): Promise<(User & { role: Role | null }) | null> {
     try {
         const usersRef = collection(db, 'users');
         const q = query(usersRef, where("email", "==", email.toLowerCase()));
@@ -30,7 +30,17 @@ async function getUserByEmail(email: string): Promise<User | null> {
         }
 
         const userDoc = querySnapshot.docs[0];
-        return { id: userDoc.id, ...userDoc.data() } as User;
+        const userData = { id: userDoc.id, ...userDoc.data() } as User;
+
+        if (userData.roleId) {
+            const roleDocRef = doc(db, 'roles', userData.roleId);
+            const roleDoc = await getDoc(roleDocRef);
+            if (roleDoc.exists()) {
+                return { ...userData, role: { id: roleDoc.id, ...roleDoc.data() } as Role };
+            }
+        }
+        
+        return { ...userData, role: null };
     } catch (error) {
         console.error(`Error fetching user by email ${email}:`, error);
         return null;
@@ -39,15 +49,15 @@ async function getUserByEmail(email: string): Promise<User | null> {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<(User & { role: Role | null }) | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
-      if (fbUser) {
+      if (fbUser && fbUser.email) {
           try {
-            const appUser = await getUserByEmail(fbUser.email!);
+            const appUser = await getFullUser(fbUser.email);
             setUser(appUser);
           } catch (error) {
             console.error("Failed to fetch app user, signing out.", error);
