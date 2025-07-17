@@ -3,10 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import StatisticsDashboard from "@/components/statistics-dashboard";
-import { getCrews, getEmployees, getDailyLabor, getProjects, getAbsenceTypes, getSpecialHourTypes, getUnproductiveHourTypes } from "@/app/actions";
+import { getDailyLabor } from "@/app/actions";
 import { BarChart3, Loader2 } from "lucide-react";
 import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType } from '@/types';
 import { useAuth } from '@/context/auth-context';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function EstadisticasPage() {
   const { user, loading: authLoading } = useAuth();
@@ -25,29 +27,31 @@ export default function EstadisticasPage() {
       setLoading(true);
       try {
         const [
-          crewsData,
-          employeesData,
+          crewsSnapshot,
+          employeesSnapshot,
           dailyLaborData,
-          projectsData,
-          absenceTypesData,
-          specialHourTypesData,
-          unproductiveHourTypesData
+          projectsSnapshot,
+          absenceTypesSnapshot,
+          specialHourTypesSnapshot,
+          unproductiveHourTypesSnapshot
         ] = await Promise.all([
-          getCrews(),
-          getEmployees(),
+          getDocs(collection(db, 'crews')),
+          getDocs(collection(db, 'employees')),
           getDailyLabor(),
-          getProjects(),
-          getAbsenceTypes(),
-          getSpecialHourTypes(),
-          getUnproductiveHourTypes()
+          getDocs(collection(db, 'projects')),
+          getDocs(collection(db, 'absence-types')),
+          getDocs(collection(db, 'special-hour-types')),
+          getDocs(collection(db, 'unproductive-hour-types')),
         ]);
-        setCrews(crewsData);
-        setEmployees(employeesData);
+        
+        setCrews(crewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Crew[]);
+        setEmployees(employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[]);
         setDailyLabor(dailyLaborData);
-        setProjects(projectsData);
-        setAbsenceTypes(absenceTypesData);
-        setSpecialHourTypes(specialHourTypesData);
-        setUnproductiveHourTypes(unproductiveHourTypesData);
+        setProjects(projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[]);
+        setAbsenceTypes(absenceTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AbsenceType[]);
+        setSpecialHourTypes(specialHourTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SpecialHourType[]);
+        setUnproductiveHourTypes(unproductiveHourTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UnproductiveHourType[]);
+
       } catch (error) {
         console.error("Failed to fetch statistics data:", error);
       } finally {
