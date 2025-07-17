@@ -24,24 +24,24 @@ export default function SettingsNavigation() {
     const userPermissions = user?.role?.permissions || [];
 
     const visibleTabs = useMemo(() => {
+        if (!user) return [];
         return allTabs.filter(tab => {
-            const hasGeneralPermission = userPermissions.includes('settings');
-            const hasSpecificPermission = userPermissions.includes(tab.permission);
-            return user?.is_superuser || hasGeneralPermission || hasSpecificPermission;
+            if (user.is_superuser) return true;
+            if (userPermissions.includes('settings')) return true;
+            return userPermissions.includes(tab.permission);
         });
     }, [user, userPermissions]);
 
     const currentTab = pathname.split('/').pop() || 'proyectos';
 
     useEffect(() => {
-        // If there are visible tabs but the current one is not among them, redirect to the first visible one.
         if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.value === currentTab)) {
             router.replace(`/ajustes/${visibleTabs[0].value}`);
         }
     }, [visibleTabs, currentTab, router]);
 
     if (visibleTabs.length === 0) {
-        return null; // Or some placeholder if no settings are accessible
+        return null;
     }
 
     return (
