@@ -9,7 +9,7 @@ import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-export default function PermisosPage() {
+export default function GestionDeAusentismosPage() {
   const { user, loading: authLoading } = useAuth();
   const [initialPermissions, setInitialPermissions] = useState<Permission[]>([]);
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
