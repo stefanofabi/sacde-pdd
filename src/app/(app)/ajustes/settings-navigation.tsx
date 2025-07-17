@@ -22,9 +22,11 @@ export default function SettingsNavigation() {
 
     const userPermissions = user?.role?.permissions || [];
 
-    const visibleTabs = user?.is_superuser
-        ? allTabs
-        : allTabs.filter(tab => userPermissions.includes('settings') || userPermissions.includes(tab.permission));
+    const visibleTabs = allTabs.filter(tab => 
+        user?.is_superuser || 
+        userPermissions.includes('settings') || 
+        userPermissions.includes(tab.permission)
+    );
 
     const currentTab = pathname.split('/').pop() || 'proyectos';
 
