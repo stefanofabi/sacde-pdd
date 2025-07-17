@@ -2,7 +2,6 @@
 'use client';
 
 import * as React from 'react';
-import { getDailyLaborNotifications } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayoutDashboard, ClipboardList, ClipboardCheck, Users, UserCheck, BarChart3, AlertCircle, Loader2 } from "lucide-react";
 import { format, isWithinInterval, startOfToday } from "date-fns";
@@ -12,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Employee, AttendanceData, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, LegacyDailyLaborEntry } from '@/types';
+import type { Employee, AttendanceData, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, LegacyDailyLaborEntry, DailyLaborNotificationData } from '@/types';
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -35,13 +34,13 @@ export default function DashboardPage() {
         const [
           attendanceSnapshot,
           dailyLaborSnapshot,
-          notificationData,
+          notificationSnapshot,
           employeesSnapshot,
           permissionsSnapshot,
         ] = await Promise.all([
           getDocs(collection(db, 'attendance')),
           getDocs(collection(db, 'daily-labor')),
-          getDailyLaborNotifications(),
+          getDocs(collection(db, 'daily-labor-notifications')),
           getDocs(collection(db, 'employees')),
           getDocs(collection(db, 'permissions')),
         ]);
@@ -65,6 +64,16 @@ export default function DashboardPage() {
                 laborData[date] = [];
             }
             laborData[date].push(rest);
+        });
+
+        const notificationData: DailyLaborNotificationData = {};
+        notificationSnapshot.forEach(docSnap => {
+            const entry = docSnap.data() as { date: string; crewId: string; notified: boolean; notifiedAt: string };
+            const { date, crewId, notified, notifiedAt } = entry;
+            if (!notificationData[date]) {
+                notificationData[date] = {};
+            }
+            notificationData[date][crewId] = { notified, notifiedAt };
         });
 
         const employees = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
