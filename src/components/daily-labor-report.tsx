@@ -105,6 +105,7 @@ export default function DailyLaborReport({
 }: DailyLaborReportProps) {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const { user } = useAuth();
 
   const [laborData, setLaborData] = useState<DailyLaborData>(initialLaborData);
   const [notificationData, setNotificationData] = useState<DailyLaborNotificationData>(initialNotificationData);
@@ -124,6 +125,10 @@ export default function DailyLaborReport({
 
   const [unproductiveHoursModalState, setUnproductiveHoursModalState] = useState<{ isOpen: boolean; employee: Employee | null }>({ isOpen: false, employee: null });
   const [modalUnproductiveHours, setModalUnproductiveHours] = useState<Record<string, number | null>>({});
+
+  const canNotify = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.notify'), [user]);
+  const canAddManual = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.addManual'), [user]);
+  const canMoveEmployee = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.moveEmployee'), [user]);
 
 
   useEffect(() => {
@@ -1062,22 +1067,24 @@ export default function DailyLaborReport({
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end items-center">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleOpenMoveDialog(emp)}
-                                        disabled={isPending}
-                                    >
-                                        <ArrowRightLeft className="h-4 w-4 text-blue-600" />
-                                        <span className="sr-only">Mover empleado</span>
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                      <p>Mover a otra cuadrilla</p>
-                                  </TooltipContent>
-                                </Tooltip>
+                                {canMoveEmployee && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => handleOpenMoveDialog(emp)}
+                                          disabled={isPending}
+                                      >
+                                          <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+                                          <span className="sr-only">Mover empleado</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Mover a otra cuadrilla</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
                                 {isManual && (
                                     <Tooltip>
                                         <TooltipTrigger asChild>
@@ -1111,7 +1118,7 @@ export default function DailyLaborReport({
                 </Table>
                 </div>
                 <div className="flex justify-between mt-4 p-4 border-t">
-                    <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending}>
+                    <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual}>
                         <UserPlus className="mr-2 h-4 w-4" />
                         Agregar Empleado
                     </Button>
@@ -1126,7 +1133,7 @@ export default function DailyLaborReport({
                             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                             Guardar Parte
                         </Button>
-                        <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId}>
+                        <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId || !canNotify}>
                             <Send className="mr-2 h-4 w-4" />
                             Notificar Parte
                         </Button>

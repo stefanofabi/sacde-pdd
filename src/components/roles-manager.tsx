@@ -60,6 +60,9 @@ const allPermissions: { id: PermissionKey; label: string }[] = [
     { id: 'statistics', label: 'Acceso a Estadísticas' },
     { id: 'permissions', label: 'Gestión de Ausentismos' },
     { id: 'settings', label: 'Acceso a Ajustes' },
+    { id: 'dailyReports.notify', label: 'Permiso para Notificar Parte' },
+    { id: 'dailyReports.addManual', label: 'Permiso para Cargar Personal Manual' },
+    { id: 'dailyReports.moveEmployee', label: 'Permiso para Mover Personal' },
 ];
 
 export default function RolesManager({ initialRoles }: RolesManagerProps) {
