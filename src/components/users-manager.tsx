@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
@@ -52,7 +51,7 @@ import { Loader2, Search, Pencil, PlusCircle, Trash2 } from "lucide-react";
 import type { Role, User } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, doc, query, where, getDocs } from "firebase/firestore";
+import { updateDoc, doc } from "firebase/firestore";
 import { createUser, deleteUser } from "@/app/actions";
 import { Switch } from "./ui/switch";
 
