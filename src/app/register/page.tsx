@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -11,16 +11,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/context/auth-context';
-import type { Role } from '@/types';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { registerUser } = useAuth();
-  const [guestRoleId, setGuestRoleId] = useState<string | null>(null);
-  const [loadingGuestRole, setLoadingGuestRole] = useState(true);
 
   const [formState, setFormState] = useState({
     nombre: '',
@@ -30,35 +25,6 @@ export default function RegisterPage() {
     confirmPassword: ''
   });
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchGuestRole = async () => {
-        try {
-            const rolesRef = collection(db, 'roles');
-            const q = query(rolesRef, where("name", "==", "Invitado"));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                setGuestRoleId(querySnapshot.docs[0].id);
-            } else {
-                toast({
-                    title: "Error de configuración",
-                    description: "No se encontró el rol de 'Invitado'. Por favor, contacte al administrador.",
-                    variant: "destructive"
-                });
-            }
-        } catch (error) {
-            console.error("Error fetching guest role:", error);
-            toast({
-                title: "Error de red",
-                description: "No se pudo conectar con la base de datos para obtener roles.",
-                variant: "destructive"
-            });
-        } finally {
-            setLoadingGuestRole(false);
-        }
-    };
-    fetchGuestRole();
-  }, [toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -79,27 +45,17 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!guestRoleId) {
-        toast({
-            title: "Error de Registro",
-            description: "No se puede registrar sin un rol de invitado configurado.",
-            variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-    }
-
     try {
       await registerUser({
         nombre: formState.nombre,
         apellido: formState.apellido,
         email: formState.email,
-        roleId: guestRoleId,
+        roleId: '', // Register user without a role
       }, formState.password);
 
       toast({
         title: "¡Registro Exitoso!",
-        description: "Su cuenta ha sido creada. Ahora puede iniciar sesión.",
+        description: "Su cuenta ha sido creada. Ahora puede iniciar sesión. Un administrador debe asignarle un rol.",
       });
       router.push(`/login`);
 
@@ -148,8 +104,8 @@ export default function RegisterPage() {
             </div>
           </CardContent>
           <CardFooter className="flex-col items-stretch gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading || loadingGuestRole}>
-              {(isLoading || loadingGuestRole) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Registrarse
             </Button>
             <Button variant="link" asChild>

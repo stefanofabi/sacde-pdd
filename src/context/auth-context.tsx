@@ -32,7 +32,7 @@ async function getFullUser(email: string): Promise<(User & { role: Role | null }
         const userDoc = querySnapshot.docs[0];
         const userData = { id: userDoc.id, ...userDoc.data() } as User;
 
-        if (userData.roleId) {
+        if (userData.roleId && userData.roleId !== '') {
             const roleDocRef = doc(db, 'roles', userData.roleId);
             const roleDoc = await getDoc(roleDocRef);
             if (roleDoc.exists()) {
@@ -111,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...userData,
         email: lowerCaseEmail,
         authUid: authUser.uid,
+        roleId: '', // Explicitly set roleId to empty string
     });
   }
 
