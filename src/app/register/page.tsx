@@ -10,11 +10,12 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { createUser } from '@/app/actions';
+import { useAuth } from '@/context/auth-context';
 
 export default function RegisterPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { registerUser } = useAuth();
 
   const [formState, setFormState] = useState({
     nombre: '',
@@ -45,13 +46,10 @@ export default function RegisterPage() {
     }
 
     try {
-      await createUser({
+      await registerUser(formState.email, formState.password, {
         nombre: formState.nombre,
         apellido: formState.apellido,
-        email: formState.email,
-        roleId: '', // Register user without a role
-        is_superuser: false,
-      }, formState.password);
+      });
 
       toast({
         title: "¡Registro Exitoso!",

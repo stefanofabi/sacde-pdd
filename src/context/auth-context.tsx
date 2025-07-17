@@ -4,14 +4,15 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User, Role } from '@/types';
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
-import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
+import { collection, getDocs, query, where, doc, getDoc, addDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   user: (User & { role: Role | null }) | null; 
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
+  registerUser: (email: string, password?: string, additionalData?: { nombre: string; apellido: string }) => Promise<void>;
   logout: () => void;
 }
 
@@ -78,6 +79,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await signInWithEmailAndPassword(auth, email, password);
   };
+  
+  const registerUser = async (email: string, password?: string, additionalData?: { nombre: string; apellido: string }): Promise<void> => {
+    if (!password) {
+      throw new Error("Password is required for registration.");
+    }
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    
+    // Now create the user document in Firestore
+    const dataToSave = {
+      nombre: additionalData?.nombre || '',
+      apellido: additionalData?.apellido || '',
+      email: email.toLowerCase(),
+      roleId: '', // Register user without a role initially
+      is_superuser: false,
+      authUid: userCredential.user.uid,
+    };
+
+    try {
+      await addDoc(collection(db, "users"), dataToSave);
+    } catch (firestoreError) {
+      // If Firestore write fails, delete the Auth user to keep things consistent
+      await userCredential.user.delete();
+      console.error("Error creating user in Firestore, rolling back Auth user:", firestoreError);
+      throw new Error('Error al guardar el usuario en la base de datos después de crearlo en autenticación.');
+    }
+  };
+
 
   const logout = async () => {
     await signOut(auth);
@@ -88,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     loading,
     login,
+    registerUser,
     logout,
   };
 
