@@ -23,6 +23,8 @@ export type PermissionKey =
   | 'permissions'
   | 'permissions.view'
   | 'permissions.manage'
+  | 'permissions.approveSupervisor'
+  | 'permissions.approveHR'
   | 'settings'
   | 'settings.projects'
   | 'settings.absenceTypes'

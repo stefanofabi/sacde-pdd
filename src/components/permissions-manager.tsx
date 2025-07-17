@@ -75,7 +75,7 @@ const emptyForm = {
     absenceTypeId: "",
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
-    status: "" as PermissionStatus | "",
+    status: "NO APROBADO" as PermissionStatus,
     observations: "",
 };
 
@@ -92,6 +92,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     const [isPending, startTransition] = useTransition();
 
     const canManage = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('permissions.manage'), [user]);
+    const canApproveSupervisor = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('permissions.approveSupervisor'), [user]);
+    const canApproveHR = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('permissions.approveHR'), [user]);
 
     const employeeMap = useMemo(() => {
         return new Map(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido} (L: ${emp.legajo})`]));
@@ -244,11 +246,18 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
         });
     };
 
-    const permissionStatusOptions = [
-      { value: "APROBADO POR SUPERVISOR", label: "APROBADO POR SUPERVISOR"},
-      { value: "APROBADO POR RRHH", label: "APROBADO POR RRHH" },
-      { value: "NO APROBADO", label: "NO APROBADO" },
-    ];
+    const availableStatusOptions = useMemo(() => {
+        const options: { value: PermissionStatus; label: string }[] = [
+            { value: "NO APROBADO", label: "NO APROBADO" },
+        ];
+        if (canApproveSupervisor) {
+            options.push({ value: "APROBADO POR SUPERVISOR", label: "APROBADO POR SUPERVISOR" });
+        }
+        if (canApproveHR) {
+            options.push({ value: "APROBADO POR RRHH", label: "APROBADO POR RRHH" });
+        }
+        return options;
+    }, [canApproveSupervisor, canApproveHR]);
 
     return (
         <>
@@ -315,7 +324,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                             <TableCell>
                                                 <Badge variant={perm.status.startsWith('APROBADO') ? 'default' : 'destructive'}
                                                     className={perm.status.startsWith('APROBADO') ? 'bg-green-600' : ''}>
-                                                    {permissionStatusOptions.find(p => p.value === perm.status)?.label || perm.status}
+                                                    {availableStatusOptions.find(p => p.value === perm.status)?.label || perm.status}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="max-w-xs truncate" title={perm.observations}>{perm.observations}</TableCell>
@@ -427,7 +436,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                             <Select onValueChange={(value: PermissionStatus) => handleInputChange('status', value)} value={formState.status} disabled={isPending}>
                                 <SelectTrigger><SelectValue placeholder="Seleccione un estado" /></SelectTrigger>
                                 <SelectContent>
-                                    {permissionStatusOptions.map(opt => (
+                                    {availableStatusOptions.map(opt => (
                                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                                     ))}
                                 </SelectContent>

@@ -104,6 +104,8 @@ const permissionGroups: { category: string; permissions: PermissionDefinition[] 
                 subPermissions: [
                     { id: 'permissions.view', label: 'Ver Ausentismos' },
                     { id: 'permissions.manage', label: 'Gestionar Ausentismos (Crear/Editar/Eliminar)' },
+                    { id: 'permissions.approveSupervisor', label: 'Aprobar (Supervisor)' },
+                    { id: 'permissions.approveHR', label: 'Aprobar (RRHH)' },
                 ]
             }
         ]
