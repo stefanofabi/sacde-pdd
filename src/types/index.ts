@@ -2,9 +2,14 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
-  | 'crews' 
+  | 'crews'
+  | 'crews.view'
+  | 'crews.editInfo'
+  | 'crews.assignPhase'
+  | 'crews.managePersonnel'
   | 'employees' 
   | 'users' 
   | 'attendance' 

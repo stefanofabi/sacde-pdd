@@ -59,6 +59,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { useAuth } from "@/context/auth-context";
 
 interface CrewsManagerProps {
   initialCrews: Crew[];
@@ -80,6 +81,7 @@ const emptyForm = {
 
 export default function CrewsManager({ initialCrews, initialProjects, initialEmployees, initialPhases }: CrewsManagerProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [allCrews, setAllCrews] = useState<Crew[]>(initialCrews);
   const [isCrewDialogOpen, setIsCrewDialogOpen] = useState(false);
   const [crewToDelete, setCrewToDelete] = useState<Crew | null>(null);
@@ -93,6 +95,12 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
 
   
   const [isPending, startTransition] = useTransition();
+
+  const canEditInfo = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('crews.editInfo'), [user]);
+  const canAssignPhase = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('crews.assignPhase'), [user]);
+  const canManagePersonnel = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('crews.managePersonnel'), [user]);
+
+  const canSave = canEditInfo || canAssignPhase || canManagePersonnel;
 
   const phaseMap = useMemo(() => new Map(initialPhases.map(p => [p.id, p])), [initialPhases]);
 
@@ -325,7 +333,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                             ))}
                         </SelectContent>
                     </Select>
-                    <Button onClick={handleOpenAddDialog}>
+                    <Button onClick={handleOpenAddDialog} disabled={!canEditInfo}>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Agregar Cuadrilla
                     </Button>
@@ -363,7 +371,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => handleOpenEditDialog(crew)}
-                                            disabled={isPending}
+                                            disabled={isPending || !canSave}
                                         >
                                             <Pencil className="h-4 w-4" />
                                             <span className="sr-only">Editar {crew.name}</span>
@@ -373,7 +381,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                             size="icon"
                                             className="text-destructive hover:bg-destructive/10"
                                             onClick={() => setCrewToDelete(crew)}
-                                            disabled={isPending}
+                                            disabled={isPending || !canEditInfo}
                                         >
                                             <Trash2 className="h-4 w-4" />
                                             <span className="sr-only">Eliminar {crew.name}</span>
@@ -406,72 +414,70 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="crew-name">Nombre</Label>
-                <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Ej. Equipo de Montaje" disabled={isPending}/>
-              </div>
-              <div>
-                <Label htmlFor="crew-project">Proyecto</Label>
-                 <Select onValueChange={(value) => handleInputChange('projectId', value)} value={newCrewState.projectId} disabled={isPending}>
-                  <SelectTrigger><SelectValue placeholder="Seleccione un proyecto" /></SelectTrigger>
-                  <SelectContent>
-                    {initialProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="crew-capataz">Capataz</Label>
-                 <Combobox
-                    options={employeeOptions}
-                    value={newCrewState.capatazId}
-                    onValueChange={(value) => handleInputChange('capatazId', value)}
-                    placeholder="Seleccione un empleado"
-                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                    emptyMessage="No se encontró el empleado."
-                    disabled={isPending}
-                  />
-              </div>
-              <div>
-                <Label htmlFor="crew-apuntador">Apuntador</Label>
-                 <Combobox
-                    options={employeeOptions}
-                    value={newCrewState.apuntadorId}
-                    onValueChange={(value) => handleInputChange('apuntadorId', value)}
-                    placeholder="Seleccione un empleado"
-                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                    emptyMessage="No se encontró el empleado."
-                    disabled={isPending}
-                  />
-              </div>
-              <div>
-                <Label htmlFor="crew-jefe">Jefe de Proyecto</Label>
-                 <Combobox
-                    options={employeeOptions}
-                    value={newCrewState.jefeDeObraId}
-                    onValueChange={(value) => handleInputChange('jefeDeObraId', value)}
-                    placeholder="Seleccione un empleado"
-                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                    emptyMessage="No se encontró el empleado."
-                    disabled={isPending}
-                  />
-              </div>
-               <div>
-                <Label htmlFor="crew-control" className="whitespace-nowrap">Control y Gestión</Label>
-                 <Combobox
-                    options={employeeOptions}
-                    value={newCrewState.controlGestionId}
-                    onValueChange={(value) => handleInputChange('controlGestionId', value)}
-                    placeholder="Seleccione un empleado"
-                    searchPlaceholder="Buscar por nombre, legajo o CUIL..."
-                    emptyMessage="No se encontró el empleado."
-                    disabled={isPending}
-                  />
-              </div>
-            </div>
+            <fieldset disabled={isPending || !canEditInfo}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <Label htmlFor="crew-name">Nombre</Label>
+                    <Input id="crew-name" value={newCrewState.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Ej. Equipo de Montaje"/>
+                </div>
+                <div>
+                    <Label htmlFor="crew-project">Proyecto</Label>
+                    <Select onValueChange={(value) => handleInputChange('projectId', value)} value={newCrewState.projectId}>
+                    <SelectTrigger><SelectValue placeholder="Seleccione un proyecto" /></SelectTrigger>
+                    <SelectContent>
+                        {initialProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
+                    </SelectContent>
+                    </Select>
+                </div>
+                <div>
+                    <Label htmlFor="crew-capataz">Capataz</Label>
+                    <Combobox
+                        options={employeeOptions}
+                        value={newCrewState.capatazId}
+                        onValueChange={(value) => handleInputChange('capatazId', value)}
+                        placeholder="Seleccione un empleado"
+                        searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                        emptyMessage="No se encontró el empleado."
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="crew-apuntador">Apuntador</Label>
+                    <Combobox
+                        options={employeeOptions}
+                        value={newCrewState.apuntadorId}
+                        onValueChange={(value) => handleInputChange('apuntadorId', value)}
+                        placeholder="Seleccione un empleado"
+                        searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                        emptyMessage="No se encontró el empleado."
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="crew-jefe">Jefe de Proyecto</Label>
+                    <Combobox
+                        options={employeeOptions}
+                        value={newCrewState.jefeDeObraId}
+                        onValueChange={(value) => handleInputChange('jefeDeObraId', value)}
+                        placeholder="Seleccione un empleado"
+                        searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                        emptyMessage="No se encontró el empleado."
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="crew-control" className="whitespace-nowrap">Control y Gestión</Label>
+                    <Combobox
+                        options={employeeOptions}
+                        value={newCrewState.controlGestionId}
+                        onValueChange={(value) => handleInputChange('controlGestionId', value)}
+                        placeholder="Seleccione un empleado"
+                        searchPlaceholder="Buscar por nombre, legajo o CUIL..."
+                        emptyMessage="No se encontró el empleado."
+                    />
+                </div>
+                </div>
+            </fieldset>
             <Separator className="my-4" />
-            <div>
-              <h3 className="mb-4 text-lg font-medium leading-none">Asignar Fases</h3>
+            <fieldset disabled={isPending || !canAssignPhase}>
+                <h3 className="mb-4 text-lg font-medium leading-none">Asignar Fases</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4 rounded-md border p-4">
                         <h4 className="font-semibold text-sm">Asignar Fases</h4>
@@ -484,7 +490,6 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                 placeholder="Seleccione una fase"
                                 searchPlaceholder="Buscar fase..."
                                 emptyMessage="Fase no encontrada."
-                                disabled={isPending}
                             />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -517,7 +522,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                 </Popover>
                             </div>
                         </div>
-                        <Button onClick={handleAddPhaseAssignment} className="w-full" disabled={isPending || !phaseAssignment.phaseId || !phaseAssignment.startDate || !phaseAssignment.endDate}>
+                        <Button onClick={handleAddPhaseAssignment} className="w-full" disabled={!phaseAssignment.phaseId || !phaseAssignment.startDate || !phaseAssignment.endDate}>
                             <Plus className="mr-2 h-4 w-4" /> Agregar Fase
                         </Button>
                     </div>
@@ -532,7 +537,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                           {format(new Date(p.startDate), 'P', {locale: es})} - {format(new Date(p.endDate), 'P', {locale: es})}
                                         </p>
                                     </div>
-                                    <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleRemovePhaseAssignment(p.id)} disabled={isPending}>
+                                    <Button size="icon" variant="ghost" className="text-destructive" onClick={() => handleRemovePhaseAssignment(p.id)}>
                                         <X className="h-4 w-4" />
                                         <span className="sr-only">Quitar fase {phaseMap.get(p.phaseId)?.name}</span>
                                     </Button>
@@ -545,9 +550,9 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                         </ScrollArea>
                     </div>
                 </div>
-            </div>
+            </fieldset>
             <Separator className="my-4" />
-             <div>
+            <fieldset disabled={isPending || !canManagePersonnel}>
                 <h3 className="mb-4 text-lg font-medium leading-none">Asignar Personal <Badge variant="outline">Jornal Activo</Badge></h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-72">
                     <div className="flex flex-col gap-2">
@@ -563,7 +568,6 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                 value={personnelSearchTerm}
                                 onChange={(e) => setPersonnelSearchTerm(e.target.value)}
                                 className="pl-10 h-9"
-                                disabled={isPending}
                             />
                         </div>
                         <ScrollArea className="flex-1 rounded-md border p-2">
@@ -573,7 +577,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                         <p className="font-medium">{employeeNameMap[emp.id]}</p>
                                         <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
                                     </div>
-                                    <Button size="icon" variant="outline" onClick={() => handleInputChange('employeeIds', [...newCrewState.employeeIds, emp.id])} disabled={isPending}>
+                                    <Button size="icon" variant="outline" onClick={() => handleInputChange('employeeIds', [...newCrewState.employeeIds, emp.id])}>
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -594,7 +598,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                         <p className="font-medium">{employeeNameMap[emp.id]}</p>
                                         <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
                                     </div>
-                                    <Button size="icon" variant="destructive" onClick={() => handleInputChange('employeeIds', newCrewState.employeeIds.filter(id => id !== emp.id))} disabled={isPending}>
+                                    <Button size="icon" variant="destructive" onClick={() => handleInputChange('employeeIds', newCrewState.employeeIds.filter(id => id !== emp.id))}>
                                         <X className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -606,11 +610,11 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                         </ScrollArea>
                     </div>
                 </div>
-            </div>
+            </fieldset>
           </div>
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
-            <Button type="submit" onClick={handleSaveCrew} disabled={isPending}>
+            <Button type="submit" onClick={handleSaveCrew} disabled={isPending || !canSave}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar
             </Button>

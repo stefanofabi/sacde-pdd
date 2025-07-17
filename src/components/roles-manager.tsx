@@ -62,11 +62,25 @@ const permissionGroups: { category: string; permissions: PermissionDefinition[] 
         category: "Acceso General",
         permissions: [
             { id: 'dashboard', label: 'Acceso al Dashboard' },
-            { id: 'crews', label: 'Gestión de Cuadrillas' },
             { id: 'employees', label: 'Gestión de Empleados' },
             { id: 'users', label: 'Gestión de Usuarios' },
             { id: 'attendance', label: 'Gestión de Asistencias' },
             { id: 'statistics', label: 'Acceso a Estadísticas' },
+        ]
+    },
+    {
+        category: "Gestión de Cuadrillas",
+        permissions: [
+            {
+                id: 'crews',
+                label: 'Acceso General a Cuadrillas',
+                subPermissions: [
+                    { id: 'crews.view', label: 'Visualizar Cuadrillas' },
+                    { id: 'crews.editInfo', label: 'Editar Información Principal' },
+                    { id: 'crews.assignPhase', label: 'Asignar Fases' },
+                    { id: 'crews.managePersonnel', label: 'Agregar/Eliminar Personal' },
+                ]
+            }
         ]
     },
     {
