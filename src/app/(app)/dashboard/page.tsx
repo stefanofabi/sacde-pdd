@@ -11,7 +11,15 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Employee, AttendanceData, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, LegacyDailyLaborEntry, DailyLaborNotificationData } from '@/types';
+import type { Employee, AttendanceData, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, LegacyDailyLaborEntry, DailyLaborNotificationData, PermissionKey } from '@/types';
+
+type MetricCard = {
+  title: string;
+  icon: React.ElementType;
+  value: number;
+  description: string;
+  permissionKey: PermissionKey;
+};
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -136,6 +144,46 @@ export default function DashboardPage() {
     { href: "/empleados", label: "Ver Empleados", icon: Users },
     { href: "/estadisticas", label: "Ver Estadísticas", icon: BarChart3 },
   ];
+  
+  const allMetricCards: MetricCard[] = [
+    {
+      title: "Partes de Asistencia Pendientes",
+      icon: AlertCircle,
+      value: metrics.partesPendientesRealizar,
+      description: "Solicitudes de asistencia sin enviar para hoy.",
+      permissionKey: "attendance",
+    },
+    {
+      title: "Partes Diarios sin Notificar",
+      icon: ClipboardList,
+      value: metrics.partesPendientesNotificar,
+      description: "Partes diarios con horas cargadas pendientes de notificación.",
+      permissionKey: "dailyReports",
+    },
+    {
+      title: "Personal Total Activo",
+      icon: Users,
+      value: metrics.personalTotalActivo,
+      description: 'Total de empleados con estado "activo".',
+      permissionKey: "employees",
+    },
+    {
+      title: "Personal con Permiso Hoy",
+      icon: UserCheck,
+      value: metrics.personalConPermisoHoy,
+      description: "Empleados con ausentismo justificado por permiso aprobado.",
+      permissionKey: "permissions",
+    },
+  ];
+
+  const visibleMetricCards = React.useMemo(() => {
+    if (!user) return [];
+    if (user.is_superuser) return allMetricCards;
+    
+    const userPermissions = user.role?.permissions || [];
+    return allMetricCards.filter(card => userPermissions.includes(card.permissionKey));
+  }, [user, metrics]);
+
 
   return (
     <main className="min-h-screen bg-background text-foreground p-4 sm:p-6 lg:p-8">
@@ -156,48 +204,22 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Partes de Asistencia Pendientes</CardTitle>
-                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.partesPendientesRealizar}</div>
-                  <p className="text-xs text-muted-foreground">Solicitudes de asistencia sin enviar para hoy.</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Partes de Labor sin Notificar</CardTitle>
-                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.partesPendientesNotificar}</div>
-                  <p className="text-xs text-muted-foreground">Partes diarios con horas cargadas pendientes de notificación.</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Personal Total Activo</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.personalTotalActivo}</div>
-                  <p className="text-xs text-muted-foreground">Total de empleados con estado "activo".</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Personal con Permiso Hoy</CardTitle>
-                  <UserCheck className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{metrics.personalConPermisoHoy}</div>
-                  <p className="text-xs text-muted-foreground">Empleados con ausentismo justificado por permiso aprobado.</p>
-                </CardContent>
-              </Card>
-            </div>
+            {visibleMetricCards.length > 0 && (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+                {visibleMetricCards.map((card) => (
+                    <Card key={card.title}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+                        <card.icon className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{card.value}</div>
+                        <p className="text-xs text-muted-foreground">{card.description}</p>
+                    </CardContent>
+                    </Card>
+                ))}
+                </div>
+            )}
 
             <div>
                 <h2 className="text-2xl font-semibold text-primary mb-4">Accesos Rápidos</h2>
