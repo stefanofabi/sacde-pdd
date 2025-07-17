@@ -9,6 +9,7 @@ import React from "react";
 import type { PermissionKey } from "@/types";
 
 const settingsPermissions: PermissionKey[] = [
+  'settings',
   'settings.projects',
   'settings.absenceTypes',
   'settings.phases',
@@ -24,7 +25,7 @@ export default function AjustesLayout({ children }: { children: React.ReactNode 
   React.useEffect(() => {
     if (!loading && user) {
       const userPermissions = user.role?.permissions || [];
-      const canAccessSettings = user.is_superuser || userPermissions.includes('settings') || settingsPermissions.some(p => userPermissions.includes(p));
+      const canAccessSettings = user.is_superuser || settingsPermissions.some(p => userPermissions.includes(p));
       
       if (!canAccessSettings) {
         router.replace('/dashboard');

@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import type { PermissionKey } from '@/types';
+import { useEffect } from 'react';
 
 const allTabs: { value: string; label: string; permission: PermissionKey }[] = [
     { value: 'proyectos', label: 'Proyectos', permission: 'settings.projects' },
@@ -29,6 +30,13 @@ export default function SettingsNavigation() {
     );
 
     const currentTab = pathname.split('/').pop() || 'proyectos';
+
+    useEffect(() => {
+        // If there are visible tabs but the current one is not among them, redirect to the first visible one.
+        if (visibleTabs.length > 0 && !visibleTabs.some(tab => tab.value === currentTab)) {
+            router.replace(`/ajustes/${visibleTabs[0].value}`);
+        }
+    }, [visibleTabs, currentTab, router]);
 
     if (visibleTabs.length === 0) {
         return null; // Or some placeholder if no settings are accessible
