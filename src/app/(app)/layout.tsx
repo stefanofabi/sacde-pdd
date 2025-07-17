@@ -17,6 +17,7 @@ import { SidebarNavigation } from './sidebar-navigation';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { LogOut, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, loading } = useAuth();
@@ -38,6 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   
   if (user) {
     const displayName = user?.email;
+    const roleName = user?.is_superuser ? "Superusuario" : user?.role?.name || "Sin Rol";
     return (
       <SidebarProvider>
         <Sidebar>
@@ -65,8 +67,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <SidebarNavigation />
           </SidebarContent>
           <SidebarFooter className="flex-col gap-2 p-2">
-              <div className="text-center text-xs text-sidebar-foreground/70 mb-2 group-data-[collapsible=icon]:hidden truncate" title={displayName}>
-                {displayName}
+              <div className="text-center text-xs text-sidebar-foreground/70 mb-2 group-data-[collapsible=icon]:hidden">
+                <p className="truncate" title={displayName}>{displayName}</p>
+                <Badge variant="secondary" className="mt-1">{roleName}</Badge>
               </div>
               <Button variant="ghost" onClick={logout} className="w-full justify-start gap-2">
                 <LogOut />
