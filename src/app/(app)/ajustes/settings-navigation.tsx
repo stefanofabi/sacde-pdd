@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import type { PermissionKey } from '@/types';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 const allTabs: { value: string; label: string; permission: PermissionKey }[] = [
     { value: 'proyectos', label: 'Proyectos', permission: 'settings.projects' },
@@ -23,11 +23,13 @@ export default function SettingsNavigation() {
 
     const userPermissions = user?.role?.permissions || [];
 
-    const visibleTabs = allTabs.filter(tab => 
-        user?.is_superuser || 
-        userPermissions.includes('settings') || 
-        userPermissions.includes(tab.permission)
-    );
+    const visibleTabs = useMemo(() => {
+        return allTabs.filter(tab => {
+            const hasGeneralPermission = userPermissions.includes('settings');
+            const hasSpecificPermission = userPermissions.includes(tab.permission);
+            return user?.is_superuser || hasGeneralPermission || hasSpecificPermission;
+        });
+    }, [user, userPermissions]);
 
     const currentTab = pathname.split('/').pop() || 'proyectos';
 
