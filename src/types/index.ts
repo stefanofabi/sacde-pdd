@@ -1,9 +1,4 @@
 
-
-
-
-
-
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -28,7 +23,13 @@ export type PermissionKey =
   | 'permissions'
   | 'permissions.view'
   | 'permissions.manage'
-  | 'settings';
+  | 'settings'
+  | 'settings.projects'
+  | 'settings.absenceTypes'
+  | 'settings.phases'
+  | 'settings.specialHourTypes'
+  | 'settings.unproductiveHourTypes'
+  | 'settings.roles';
 
 export interface Role {
   id: string;
@@ -199,5 +200,3 @@ export interface DailyLaborNotificationData {
 
 // This type is now deprecated, use Role and PermissionKey instead.
 export type EmployeeRole = 'admin' | 'crew_manager' | 'foreman' | 'tallyman' | 'project_manager' | 'management_control' | 'recursos_humanos' | 'invitado';
-
-    

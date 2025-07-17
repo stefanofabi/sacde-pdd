@@ -129,7 +129,18 @@ const permissionGroups: { category: string; permissions: PermissionDefinition[] 
     {
         category: "Configuración",
         permissions: [
-            { id: 'settings', label: 'Acceso a Ajustes' },
+            { 
+                id: 'settings', 
+                label: 'Acceso General a Ajustes',
+                subPermissions: [
+                    { id: 'settings.projects', label: 'Gestionar Proyectos' },
+                    { id: 'settings.absenceTypes', label: 'Gestionar Tipos de Ausentismo' },
+                    { id: 'settings.phases', label: 'Gestionar Fases' },
+                    { id: 'settings.specialHourTypes', label: 'Gestionar Tipos de Horas Especiales' },
+                    { id: 'settings.unproductiveHourTypes', label: 'Gestionar Tipos de Horas Improductivas' },
+                    { id: 'settings.roles', label: 'Gestionar Roles' },
+                ]
+            },
         ]
     }
 ];
@@ -390,5 +401,3 @@ export default function RolesManager({ initialRoles }: RolesManagerProps) {
     </>
   );
 }
-
-    
