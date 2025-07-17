@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -45,25 +45,54 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { db } from "@/lib/firebase";
 import { addDoc, collection, deleteDoc, doc, updateDoc, getDocs, query, where } from "firebase/firestore";
+import { Separator } from "./ui/separator";
 
 interface RolesManagerProps {
   initialRoles: Role[];
 }
 
-const allPermissions: { id: PermissionKey; label: string }[] = [
-    { id: 'dashboard', label: 'Acceso al Dashboard' },
-    { id: 'crews', label: 'Gestión de Cuadrillas' },
-    { id: 'employees', label: 'Gestión de Empleados' },
-    { id: 'users', label: 'Gestión de Usuarios' },
-    { id: 'attendance', label: 'Gestión de Asistencias' },
-    { id: 'dailyReports', label: 'Gestión de Partes Diarios' },
-    { id: 'statistics', label: 'Acceso a Estadísticas' },
-    { id: 'permissions', label: 'Gestión de Ausentismos' },
-    { id: 'settings', label: 'Acceso a Ajustes' },
-    { id: 'dailyReports.notify', label: 'Permiso para Notificar Parte' },
-    { id: 'dailyReports.addManual', label: 'Permiso para Cargar Personal Manual' },
-    { id: 'dailyReports.moveEmployee', label: 'Permiso para Mover Personal' },
+interface PermissionDefinition {
+    id: PermissionKey;
+    label: string;
+    subPermissions?: PermissionDefinition[];
+}
+
+const permissionGroups: { category: string; permissions: PermissionDefinition[] }[] = [
+    {
+        category: "Acceso General",
+        permissions: [
+            { id: 'dashboard', label: 'Acceso al Dashboard' },
+            { id: 'crews', label: 'Gestión de Cuadrillas' },
+            { id: 'employees', label: 'Gestión de Empleados' },
+            { id: 'users', label: 'Gestión de Usuarios' },
+            { id: 'attendance', label: 'Gestión de Asistencias' },
+            { id: 'statistics', label: 'Acceso a Estadísticas' },
+            { id: 'permissions', label: 'Gestión de Ausentismos' },
+        ]
+    },
+    {
+        category: "Partes Diarios",
+        permissions: [
+            { 
+                id: 'dailyReports', 
+                label: 'Gestión de Partes Diarios',
+                subPermissions: [
+                    { id: 'dailyReports.notify', label: 'Notificar Partes' },
+                    { id: 'dailyReports.addManual', label: 'Cargar Personal Manual' },
+                    { id: 'dailyReports.moveEmployee', label: 'Mover Personal' },
+                ]
+            },
+        ]
+    },
+    {
+        category: "Configuración",
+        permissions: [
+            { id: 'settings', label: 'Acceso a Ajustes' },
+        ]
+    }
 ];
+
+const allPermissions = permissionGroups.flatMap(g => g.permissions.flatMap(p => p.subPermissions ? [p, ...p.subPermissions] : [p]));
 
 export default function RolesManager({ initialRoles }: RolesManagerProps) {
   const { toast } = useToast();
@@ -88,9 +117,20 @@ export default function RolesManager({ initialRoles }: RolesManagerProps) {
 
   const handlePermissionChange = (permissionId: PermissionKey, checked: boolean) => {
     setFormState(prev => {
-      const newPermissions = checked
-        ? [...prev.permissions, permissionId]
-        : prev.permissions.filter(p => p !== permissionId);
+      let newPermissions: PermissionKey[];
+      const definition = permissionGroups.flatMap(g => g.permissions).find(p => p.id === permissionId);
+
+      if (checked) {
+        newPermissions = [...prev.permissions, permissionId];
+      } else {
+        newPermissions = prev.permissions.filter(p => p !== permissionId);
+        // If a parent permission is unchecked, uncheck all its children
+        if (definition?.subPermissions) {
+          const subIds = definition.subPermissions.map(sp => sp.id);
+          newPermissions = newPermissions.filter(p => !subIds.includes(p));
+        }
+      }
+
       return { ...prev, permissions: newPermissions };
     });
   };
@@ -228,17 +268,44 @@ export default function RolesManager({ initialRoles }: RolesManagerProps) {
             </div>
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Permisos</h3>
-              <div className="grid grid-cols-2 gap-4 rounded-md border p-4 max-h-64 overflow-y-auto">
-                {allPermissions.map(permission => (
-                  <div key={permission.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`perm-${permission.id}`}
-                      checked={formState.permissions.includes(permission.id)}
-                      onCheckedChange={(checked) => handlePermissionChange(permission.id, !!checked)}
-                      disabled={isPending}
-                    />
-                    <Label htmlFor={`perm-${permission.id}`} className="font-normal cursor-pointer">{permission.label}</Label>
-                  </div>
+              <div className="rounded-md border p-4 max-h-64 overflow-y-auto space-y-4">
+                {permissionGroups.map((group, index) => (
+                    <div key={group.category}>
+                        <h4 className="font-semibold text-foreground mb-2">{group.category}</h4>
+                        <div className="space-y-2">
+                            {group.permissions.map(permission => {
+                                const isParentChecked = formState.permissions.includes(permission.id);
+                                return (
+                                <div key={permission.id}>
+                                    <div className="flex items-center space-x-2">
+                                        <Checkbox
+                                            id={`perm-${permission.id}`}
+                                            checked={isParentChecked}
+                                            onCheckedChange={(checked) => handlePermissionChange(permission.id, !!checked)}
+                                            disabled={isPending}
+                                        />
+                                        <Label htmlFor={`perm-${permission.id}`} className="font-normal cursor-pointer">{permission.label}</Label>
+                                    </div>
+                                    {permission.subPermissions && (
+                                    <div className="pl-6 pt-2 space-y-2">
+                                        {permission.subPermissions.map(subPerm => (
+                                            <div key={subPerm.id} className="flex items-center space-x-2">
+                                                <Checkbox
+                                                    id={`perm-${subPerm.id}`}
+                                                    checked={formState.permissions.includes(subPerm.id)}
+                                                    onCheckedChange={(checked) => handlePermissionChange(subPerm.id, !!checked)}
+                                                    disabled={isPending || !isParentChecked}
+                                                />
+                                                <Label htmlFor={`perm-${subPerm.id}`} className="font-normal cursor-pointer text-muted-foreground">{subPerm.label}</Label>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    )}
+                                </div>
+                            )})}
+                        </div>
+                        {index < permissionGroups.length - 1 && <Separator className="mt-4" />}
+                    </div>
                 ))}
               </div>
             </div>
