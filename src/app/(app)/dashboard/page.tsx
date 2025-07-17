@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { getDailyLabor, getDailyLaborNotifications, getPermissions } from "@/app/actions";
+import { getDailyLabor, getDailyLaborNotifications } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayoutDashboard, ClipboardList, ClipboardCheck, Users, UserCheck, BarChart3, AlertCircle, Loader2 } from "lucide-react";
 import { format, isWithinInterval, startOfToday } from "date-fns";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Employee, AttendanceData, AttendanceEntry } from '@/types';
+import type { Employee, AttendanceData, AttendanceEntry, Permission } from '@/types';
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -37,13 +37,13 @@ export default function DashboardPage() {
           dailyLaborData,
           notificationData,
           employeesSnapshot,
-          permissions,
+          permissionsSnapshot,
         ] = await Promise.all([
           getDocs(collection(db, 'attendance')),
           getDailyLabor(),
           getDailyLaborNotifications(),
           getDocs(collection(db, 'employees')),
-          getPermissions(),
+          getDocs(collection(db, 'permissions')),
         ]);
 
         const attendanceData: AttendanceData = {};
@@ -58,6 +58,8 @@ export default function DashboardPage() {
         });
 
         const employees = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
+        const permissions = permissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Permission[];
+
 
         // Metric 1: Partes pendientes de realizar (Asistencia)
         const attendanceToday = attendanceData[todayKey] || [];

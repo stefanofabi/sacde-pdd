@@ -25,10 +25,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Project } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { deleteProject } from "@/app/actions";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 interface ProjectsManagerProps {
@@ -85,7 +84,7 @@ export default function ProjectsManager({ initialProjects }: ProjectsManagerProp
 
     startTransition(async () => {
       try {
-        await deleteProject(projectToDelete.id);
+        await deleteDoc(doc(db, 'projects', projectToDelete.id));
         setAllProjects((prev) => prev.filter((o) => o.id !== projectToDelete.id));
         toast({
           title: "Proyecto eliminado",
