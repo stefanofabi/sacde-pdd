@@ -9,7 +9,6 @@ import React from "react";
 import type { PermissionKey } from "@/types";
 
 const settingsPermissions: PermissionKey[] = [
-  'settings',
   'settings.projects',
   'settings.absenceTypes',
   'settings.phases',

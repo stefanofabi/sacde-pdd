@@ -26,9 +26,10 @@ export default function SettingsNavigation() {
     const visibleTabs = useMemo(() => {
         if (!user) return [];
         return allTabs.filter(tab => {
-            if (user.is_superuser) return true;
-            if (userPermissions.includes('settings')) return true;
-            return userPermissions.includes(tab.permission);
+            // A tab is visible if:
+            // 1. The user is a superuser.
+            // 2. The user has the specific permission for that tab.
+            return user.is_superuser || userPermissions.includes(tab.permission);
         });
     }, [user, userPermissions]);
 
