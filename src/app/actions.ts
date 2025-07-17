@@ -117,19 +117,6 @@ async function readDoc<T>(collectionName: string, docId: string): Promise<T | nu
     }
 }
 
-export async function getDailyLabor(): Promise<DailyLaborData> {
-  const laborCollection = await readCollection<{ date: string } & (DailyLaborEntry | LegacyDailyLaborEntry)>('daily-labor');
-  const laborData: DailyLaborData = {};
-  laborCollection.forEach(entry => {
-    const { date, ...rest } = entry;
-    if (!laborData[date]) {
-        laborData[date] = [];
-    }
-    laborData[date].push(rest);
-  });
-  return laborData;
-}
-
 export async function getDailyLaborNotifications(): Promise<DailyLaborNotificationData> {
    const notificationsCollection = await readCollection<{ date: string; crewId: string; notified: boolean; notifiedAt: string }>('daily-labor-notifications');
     const notificationsData: DailyLaborNotificationData = {};

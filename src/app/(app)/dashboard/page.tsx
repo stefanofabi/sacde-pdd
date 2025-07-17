@@ -2,7 +2,7 @@
 'use client';
 
 import * as React from 'react';
-import { getDailyLabor, getDailyLaborNotifications } from "@/app/actions";
+import { getDailyLaborNotifications } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LayoutDashboard, ClipboardList, ClipboardCheck, Users, UserCheck, BarChart3, AlertCircle, Loader2 } from "lucide-react";
 import { format, isWithinInterval, startOfToday } from "date-fns";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Employee, AttendanceData, AttendanceEntry, Permission } from '@/types';
+import type { Employee, AttendanceData, AttendanceEntry, Permission, DailyLaborData, DailyLaborEntry, LegacyDailyLaborEntry } from '@/types';
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -34,13 +34,13 @@ export default function DashboardPage() {
       try {
         const [
           attendanceSnapshot,
-          dailyLaborData,
+          dailyLaborSnapshot,
           notificationData,
           employeesSnapshot,
           permissionsSnapshot,
         ] = await Promise.all([
           getDocs(collection(db, 'attendance')),
-          getDailyLabor(),
+          getDocs(collection(db, 'daily-labor')),
           getDailyLaborNotifications(),
           getDocs(collection(db, 'employees')),
           getDocs(collection(db, 'permissions')),
@@ -57,6 +57,16 @@ export default function DashboardPage() {
           attendanceData[date].push(rest);
         });
 
+        const laborData: DailyLaborData = {};
+        dailyLaborSnapshot.docs.forEach(doc => {
+            const entry = { id: doc.id, ...doc.data() } as { date: string } & (DailyLaborEntry | LegacyDailyLaborEntry);
+            const { date, ...rest } = entry;
+            if (!laborData[date]) {
+                laborData[date] = [];
+            }
+            laborData[date].push(rest);
+        });
+
         const employees = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
         const permissions = permissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Permission[];
 
@@ -66,7 +76,7 @@ export default function DashboardPage() {
         const partesPendientesRealizar = attendanceToday.filter(a => !a.sent).length;
 
         // Metric 2: Partes pendientes de notificar (Mano de Obra)
-        const laborToday = dailyLaborData[todayKey] || [];
+        const laborToday = laborData[todayKey] || [];
         const notifiedToday = notificationData[todayKey] || {};
         const crewsWithLaborToday = new Set(laborToday.map(l => l.crewId));
         let partesPendientesNotificar = 0;
@@ -200,5 +210,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    

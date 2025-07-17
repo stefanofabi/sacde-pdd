@@ -3,9 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import StatisticsDashboard from "@/components/statistics-dashboard";
-import { getDailyLabor } from "@/app/actions";
 import { BarChart3, Loader2 } from "lucide-react";
-import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType } from '@/types';
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, LegacyDailyLaborEntry } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -29,7 +28,7 @@ export default function EstadisticasPage() {
         const [
           crewsSnapshot,
           employeesSnapshot,
-          dailyLaborData,
+          dailyLaborSnapshot,
           projectsSnapshot,
           absenceTypesSnapshot,
           specialHourTypesSnapshot,
@@ -37,16 +36,26 @@ export default function EstadisticasPage() {
         ] = await Promise.all([
           getDocs(collection(db, 'crews')),
           getDocs(collection(db, 'employees')),
-          getDailyLabor(),
+          getDocs(collection(db, 'daily-labor')),
           getDocs(collection(db, 'projects')),
           getDocs(collection(db, 'absence-types')),
           getDocs(collection(db, 'special-hour-types')),
           getDocs(collection(db, 'unproductive-hour-types')),
         ]);
         
+        const laborData: DailyLaborData = {};
+        dailyLaborSnapshot.docs.forEach(doc => {
+            const entry = { id: doc.id, ...doc.data() } as { date: string } & (DailyLaborEntry | LegacyDailyLaborEntry);
+            const { date, ...rest } = entry;
+            if (!laborData[date]) {
+                laborData[date] = [];
+            }
+            laborData[date].push(rest);
+        });
+
         setCrews(crewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Crew[]);
         setEmployees(employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[]);
-        setDailyLabor(dailyLaborData);
+        setDailyLabor(laborData);
         setProjects(projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[]);
         setAbsenceTypes(absenceTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AbsenceType[]);
         setSpecialHourTypes(specialHourTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as SpecialHourType[]);
