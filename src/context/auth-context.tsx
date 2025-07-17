@@ -4,8 +4,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { User, Role } from '@/types';
 import { auth, db } from '@/lib/firebase';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
-import { collection, getDocs, query, where, addDoc, doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser } from 'firebase/auth';
+import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
@@ -13,7 +13,6 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
-  registerUser: (userData: Omit<User, 'id' | 'authUid'>, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,44 +83,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
   };
 
-  const registerUser = async (userData: Omit<User, 'id' | 'authUid'>, password: string): Promise<void> => {
-    const lowerCaseEmail = userData.email.toLowerCase();
-
-    const userExistsQuery = query(collection(db, 'users'), where("email", "==", lowerCaseEmail));
-    const existingUserSnapshot = await getDocs(userExistsQuery);
-    if (!existingUserSnapshot.empty) {
-        throw new Error('El correo electrónico ya está registrado en la base de datos.');
-    }
-
-    let authUser: FirebaseUser;
-    try {
-        const userCredential = await createUserWithEmailAndPassword(auth, lowerCaseEmail, password);
-        authUser = userCredential.user;
-    } catch (error: any) {
-        if (error.code === 'auth/email-already-in-use') {
-            throw new Error('El correo electrónico ya está registrado en el sistema de autenticación.');
-        }
-        if (error.code === 'auth/weak-password') {
-            throw new Error('La contraseña debe tener al menos 6 caracteres.');
-        }
-        throw new Error(`Error al crear el usuario en Firebase: ${error.message}`);
-    }
-
-    await addDoc(collection(db, 'users'), {
-        ...userData,
-        email: lowerCaseEmail,
-        authUid: authUser.uid,
-        roleId: '', // Explicitly set roleId to empty string
-    });
-  }
-
   const authContextValue: AuthContextType = {
     firebaseUser,
     user,
     loading,
     login,
     logout,
-    registerUser
   };
 
   return (
