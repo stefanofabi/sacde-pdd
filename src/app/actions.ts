@@ -13,7 +13,7 @@ const adminAuth = getAdminAuth(adminApp);
 
 
 export async function createUser(userData: Omit<User, 'id' | 'authUid'>, password: string): Promise<User> {
-  const { nombre, apellido, email, roleId } = userData;
+  const { nombre, apellido, email, roleId, is_superuser } = userData;
 
   // 1. Check if user exists in Firestore
   const usersRef = collection(db, 'users');
@@ -49,6 +49,7 @@ export async function createUser(userData: Omit<User, 'id' | 'authUid'>, passwor
     apellido,
     email: email.toLowerCase(),
     roleId,
+    is_superuser: is_superuser || false,
     authUid: createdAuthUser.uid, // Store the Auth UID
   };
 

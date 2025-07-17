@@ -15,6 +15,7 @@ export interface User {
   email: string;
   roleId: string;
   authUid?: string; // UID from Firebase Auth
+  is_superuser?: boolean;
 }
 
 export interface Project {

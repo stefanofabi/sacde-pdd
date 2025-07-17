@@ -54,6 +54,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, doc, query, where, getDocs } from "firebase/firestore";
 import { createUser, deleteUser } from "@/app/actions";
+import { Switch } from "./ui/switch";
 
 interface UsersManagerProps {
   initialUsers: User[];
@@ -67,6 +68,7 @@ const emptyAddForm = {
     password: "",
     confirmPassword: "",
     roleId: "",
+    is_superuser: false,
 };
 
 export default function UsersManager({ initialUsers, initialRoles }: UsersManagerProps) {
@@ -104,7 +106,8 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
       email: user.email,
       roleId: user.roleId,
       nombre: user.nombre,
-      apellido: user.apellido
+      apellido: user.apellido,
+      is_superuser: user.is_superuser || false
     });
     setIsEditDialogOpen(true);
   };
@@ -124,6 +127,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
           roleId: editFormState.roleId,
           nombre: editFormState.nombre,
           apellido: editFormState.apellido,
+          is_superuser: editFormState.is_superuser || false,
         };
         
         const userDocRef = doc(db, "users", editingUser.id);
@@ -151,7 +155,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
   };
   
   const handleAddUser = () => {
-    const { nombre, apellido, email, roleId, password, confirmPassword } = addFormState;
+    const { nombre, apellido, email, roleId, password, confirmPassword, is_superuser } = addFormState;
     if (!nombre || !apellido || !email || !roleId || !password || !confirmPassword) {
       toast({
         title: "Error de validación",
@@ -177,6 +181,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
             apellido: addFormState.apellido,
             email: addFormState.email,
             roleId: addFormState.roleId,
+            is_superuser: addFormState.is_superuser,
         }, password);
 
         setUsers((prev) => [...prev, newUser]);
@@ -262,7 +267,12 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
                         const fullName = `${user.apellido}, ${user.nombre}`;
                         return (
                           <TableRow key={user.id}>
-                            <TableCell className="font-medium">{fullName}</TableCell>
+                            <TableCell className="font-medium">
+                                <div className="flex items-center gap-2">
+                                    {fullName}
+                                    {user.is_superuser && <Badge>Superuser</Badge>}
+                                </div>
+                            </TableCell>
                             <TableCell>{user.email}</TableCell>
                             <TableCell>
                                 <Badge variant="secondary">{roleMap.get(user.roleId) || 'Sin Rol'}</Badge>
@@ -358,6 +368,15 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
                     </SelectContent>
                 </Select>
             </div>
+            <div className="flex items-center space-x-2">
+                <Switch
+                    id="is_superuser-edit"
+                    checked={editFormState.is_superuser}
+                    onCheckedChange={(checked) => setEditFormState(prev => ({ ...prev, is_superuser: checked }))}
+                    disabled={isPending}
+                />
+                <Label htmlFor="is_superuser-edit">¿Es Superusuario?</Label>
+            </div>
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -377,7 +396,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
             <DialogTitle>Agregar Nuevo Usuario</DialogTitle>
             <DialogDescription>Complete los datos para registrar un nuevo usuario en el sistema.</DialogDescription>
           </DialogHeader>
-           <div className="space-y-4 py-4">
+           <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                 <div className="space-y-2">
                   <Label htmlFor="apellido-add">Apellido *</Label>
                   <Input 
@@ -439,6 +458,15 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
                             {roles.map((opt) => <SelectItem key={opt.id} value={opt.id}>{opt.name}</SelectItem>)}
                         </SelectContent>
                     </Select>
+                </div>
+                <div className="flex items-center space-x-2 pt-2">
+                    <Switch
+                        id="is_superuser-add"
+                        checked={addFormState.is_superuser}
+                        onCheckedChange={(checked) => setAddFormState(p => ({...p, is_superuser: checked}))}
+                        disabled={isPending}
+                    />
+                    <Label htmlFor="is_superuser-add">¿Es Superusuario?</Label>
                 </div>
             </div>
           <DialogFooter>
