@@ -3,11 +3,9 @@
 
 import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LayoutDashboard, ClipboardList, ClipboardCheck, Users, UserCheck, BarChart3, AlertCircle, Loader2 } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Users, UserCheck, AlertCircle, Loader2 } from "lucide-react";
 import { format, isWithinInterval, startOfToday } from "date-fns";
 import { es } from "date-fns/locale";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -138,13 +136,6 @@ export default function DashboardPage() {
     }
   }, [user, authLoading, todayKey]);
 
-  const quickLinks = [
-    { href: "/asistencias", label: "Gestionar Asistencias", icon: ClipboardCheck },
-    { href: "/partes-diarios", label: "Cargar Partes Diarios", icon: ClipboardList },
-    { href: "/empleados", label: "Ver Empleados", icon: Users },
-    { href: "/estadisticas", label: "Ver Estadísticas", icon: BarChart3 },
-  ];
-  
   const allMetricCards: MetricCard[] = [
     {
       title: "Partes de Asistencia Pendientes",
@@ -220,20 +211,6 @@ export default function DashboardPage() {
                 ))}
                 </div>
             )}
-
-            <div>
-                <h2 className="text-2xl font-semibold text-primary mb-4">Accesos Rápidos</h2>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {quickLinks.map(link => (
-                        <Link key={link.href} href={link.href} passHref>
-                            <Button variant="outline" className="w-full h-20 text-lg justify-start p-4">
-                                <link.icon className="mr-4 h-6 w-6" />
-                                {link.label}
-                            </Button>
-                        </Link>
-                    ))}
-                </div>
-            </div>
           </>
         )}
 
