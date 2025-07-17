@@ -193,23 +193,23 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                     const updatedPermission = { id: editingPermission.id, ...permissionData } as Permission;
                     setPermissions(prev => prev.map(p => p.id === updatedPermission.id ? updatedPermission : p));
                     toast({
-                        title: "Permiso actualizado",
-                        description: "El permiso ha sido actualizado con éxito.",
+                        title: "Ausentismo actualizado",
+                        description: "El ausentismo ha sido actualizado con éxito.",
                     });
                 } else {
                     const docRef = await addDoc(collection(db, 'permissions'), permissionData);
                     const newPermission = { id: docRef.id, ...permissionData } as Permission;
                     setPermissions(prev => [...prev, newPermission]);
                     toast({
-                        title: "Permiso cargado",
-                        description: "El permiso para el empleado ha sido registrado con éxito.",
+                        title: "Ausentismo cargado",
+                        description: "El ausentismo para el empleado ha sido registrado con éxito.",
                     });
                 }
                 setIsFormOpen(false);
                 setEditingPermission(null);
             } catch (error) {
                 toast({
-                    title: editingPermission ? "Error al actualizar permiso" : "Error al cargar permiso",
+                    title: editingPermission ? "Error al actualizar ausentismo" : "Error al cargar ausentismo",
                     description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
                     variant: "destructive",
                 });
@@ -225,8 +225,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                 await deleteDoc(doc(db, 'permissions', permissionToDelete.id));
                 setPermissions(prev => prev.filter(p => p.id !== permissionToDelete.id));
                 toast({
-                    title: "Permiso eliminado",
-                    description: "El permiso ha sido eliminado con éxito.",
+                    title: "Ausentismo eliminado",
+                    description: "El ausentismo ha sido eliminado con éxito.",
                 });
             } catch (error) {
                 toast({
@@ -252,9 +252,9 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                 <CardHeader>
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div>
-                            <CardTitle>Listado de Permisos</CardTitle>
+                            <CardTitle>Listado de Ausentismos</CardTitle>
                             <CardDescription>
-                                Filtre, vea y agregue nuevos permisos para los empleados.
+                                Filtre, vea y agregue nuevos ausentismos para los empleados.
                             </CardDescription>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -279,7 +279,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                             </Select>
                             <Button onClick={handleOpenAddDialog}>
                                 <PlusCircle className="mr-2 h-4 w-4" />
-                                Cargar Permiso
+                                Cargar Ausentismo
                             </Button>
                         </div>
                     </div>
@@ -321,7 +321,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                                     disabled={isPending}
                                                 >
                                                     <Pencil className="h-4 w-4" />
-                                                    <span className="sr-only">Editar permiso para {employeeMap.get(perm.employeeId) || ""}</span>
+                                                    <span className="sr-only">Editar ausentismo para {employeeMap.get(perm.employeeId) || ""}</span>
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
@@ -331,7 +331,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                                     disabled={isPending}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
-                                                    <span className="sr-only">Eliminar permiso para {employeeMap.get(perm.employeeId) || ""}</span>
+                                                    <span className="sr-only">Eliminar ausentismo para {employeeMap.get(perm.employeeId) || ""}</span>
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
@@ -340,8 +340,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                                     <TableRow>
                                         <TableCell colSpan={7} className="h-24 text-center">
                                             {permissions.length === 0 
-                                                ? "No hay permisos cargados."
-                                                : "No se encontraron permisos con los filtros aplicados."
+                                                ? "No hay ausentismos cargados."
+                                                : "No se encontraron ausentismos con los filtros aplicados."
                                             }
                                         </TableCell>
                                     </TableRow>
@@ -355,9 +355,9 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
             <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setEditingPermission(null); }}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>{editingPermission ? "Editar Permiso" : "Cargar Nuevo Permiso"}</DialogTitle>
+                        <DialogTitle>{editingPermission ? "Editar Ausentismo" : "Cargar Nuevo Ausentismo"}</DialogTitle>
                         <DialogDescription>
-                            {editingPermission ? "Modifique los detalles del permiso." : "Complete la información para registrar un nuevo permiso."}
+                            {editingPermission ? "Modifique los detalles del ausentismo." : "Complete la información para registrar un nuevo ausentismo."}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -440,7 +440,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                         <DialogClose asChild><Button type="button" variant="secondary" disabled={isPending}>Cancelar</Button></DialogClose>
                         <Button type="submit" onClick={handleSavePermission} disabled={isPending}>
                             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {editingPermission ? "Guardar Cambios" : "Guardar Permiso"}
+                            {editingPermission ? "Guardar Cambios" : "Guardar Ausentismo"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -451,7 +451,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminará permanentemente el permiso para "{permissionToDelete ? employeeMap.get(permissionToDelete.employeeId) : ''}" por el motivo "{permissionToDelete ? absenceTypeMap.get(permissionToDelete.absenceTypeId) : ''}".
+                            Esta acción no se puede deshacer. Se eliminará permanentemente el ausentismo para "{permissionToDelete ? employeeMap.get(permissionToDelete.employeeId) : ''}" por el motivo "{permissionToDelete ? absenceTypeMap.get(permissionToDelete.absenceTypeId) : ''}".
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -463,7 +463,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                             disabled={isPending}
                             className={buttonVariants({ variant: "destructive" })}
                         >
-                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar permiso"}
+                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar ausentismo"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -24,7 +24,7 @@ export function SidebarNavigation() {
       users: "Usuarios",
       attendance: "Asistencias",
       dailyReports: "Partes Diarios",
-      permissions: "Permisos",
+      permissions: "Gestión de Ausentismos",
       settings: "Ajustes",
       statistics: "Estadísticas",
       logout: "Cerrar Sesión"

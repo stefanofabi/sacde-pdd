@@ -47,10 +47,10 @@ export default function PermisosPage() {
         <div className="max-w-7xl mx-auto">
           <header className="mb-8">
             <h1 className="text-4xl font-bold text-primary font-headline">
-              Gestión de Permisos
+              Gestión de Ausentismos
             </h1>
             <p className="text-muted-foreground mt-2">
-              Cargue, vea y gestione los permisos de los empleados de Sacde.
+              Cargue, vea y gestione los ausentismos de los empleados de Sacde.
             </p>
           </header>
           {loading || authLoading ? (
