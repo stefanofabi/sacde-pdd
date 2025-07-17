@@ -3,7 +3,7 @@
 
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, writeBatch } from 'firebase/firestore';
-import type { Crew, Project, Employee, Permission, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
+import type { Crew, Project, Employee, DailyLaborData, DailyLaborEntry, DailyLaborNotificationData, Phase, SpecialHourType, UnproductiveHourType, User, LegacyDailyLaborEntry, EmployeeRole } from '@/types';
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import { adminApp } from '@/lib/firebase-admin'; // Assumes admin app is initialized
 
@@ -117,34 +117,6 @@ async function readDoc<T>(collectionName: string, docId: string): Promise<T | nu
     }
 }
 
-async function addDocument<T extends object>(collectionName: string, data: T): Promise<T & { id: string }> {
-    try {
-        const docRef = await addDoc(collection(db, collectionName), data);
-        return { id: docRef.id, ...data };
-    } catch (error) {
-        console.error(`Error adding document to ${collectionName}:`, error);
-        throw new Error('Could not write data to Firestore.');
-    }
-}
-
-async function updateDocument<T extends object>(collectionName: string, docId: string, data: Partial<T>): Promise<void> {
-    try {
-        const docRef = doc(db, collectionName, docId);
-        await updateDoc(docRef, data);
-    } catch (error) {
-        console.error(`Error updating document ${collectionName}/${docId}:`, error);
-        throw new Error('Could not write data to Firestore.');
-    }
-}
-
-export async function getProjects(): Promise<Project[]> {
-    return readCollection<Project>('projects');
-}
-
-export async function getPermissions(): Promise<Permission[]> {
-  return readCollection<Permission>('permissions');
-}
-
 export async function getDailyLabor(): Promise<DailyLaborData> {
   const laborCollection = await readCollection<{ date: string } & (DailyLaborEntry | LegacyDailyLaborEntry)>('daily-labor');
   const laborData: DailyLaborData = {};
@@ -169,35 +141,4 @@ export async function getDailyLaborNotifications(): Promise<DailyLaborNotificati
         notificationsData[date][crewId] = { notified, notifiedAt };
     });
     return notificationsData;
-}
-
-export async function getAbsenceTypes(): Promise<AbsenceType[]> {
-  return readCollection<AbsenceType>('absence-types');
-}
-
-export async function getSpecialHourTypes(): Promise<SpecialHourType[]> {
-  return readCollection<SpecialHourType>('special-hour-types');
-}
-
-export async function getUnproductiveHourTypes(): Promise<UnproductiveHourType[]> {
-    return readCollection<UnproductiveHourType>('unproductive-hour-types');
-}
-
-export async function addPermission(newPermission: Omit<Permission, 'id'>): Promise<Permission> {
-    return addDocument('permissions', newPermission);
-}
-
-export async function updatePermission(permissionId: string, updatedData: Partial<Omit<Permission, 'id'>>): Promise<Permission> {
-    await updateDoc(doc(db, 'permissions', permissionId, updatedData));
-    const updatedDoc = await readDoc<Permission>('permissions', permissionId);
-    if (!updatedDoc) throw new Error("Failed to update permission.");
-    return updatedDoc;
-}
-
-export async function deletePermission(permissionId: string): Promise<void> {
-    await deleteDoc(doc(db, 'permissions', permissionId));
-}
-
-export async function deleteProject(projectId: string): Promise<void> {
-    await deleteDoc(doc(db, 'projects', projectId));
 }

@@ -47,7 +47,6 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, PlusCircle, CalendarIcon, Search, Trash2, Pencil } from "lucide-react";
 import type { Permission, Employee, PermissionStatus, AbsenceType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-import { addPermission, deletePermission, updatePermission } from "@/app/actions";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Input } from "@/components/ui/input";
@@ -61,6 +60,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 
 interface PermissionsManagerProps {
   initialPermissions: Permission[];
@@ -187,14 +188,17 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
         startTransition(async () => {
             try {
                 if (editingPermission) {
-                    const updatedPermission = await updatePermission(editingPermission.id, permissionData);
+                    const docRef = doc(db, 'permissions', editingPermission.id);
+                    await updateDoc(docRef, permissionData);
+                    const updatedPermission = { id: editingPermission.id, ...permissionData } as Permission;
                     setPermissions(prev => prev.map(p => p.id === updatedPermission.id ? updatedPermission : p));
                     toast({
                         title: "Permiso actualizado",
                         description: "El permiso ha sido actualizado con éxito.",
                     });
                 } else {
-                    const newPermission = await addPermission(permissionData);
+                    const docRef = await addDoc(collection(db, 'permissions'), permissionData);
+                    const newPermission = { id: docRef.id, ...permissionData } as Permission;
                     setPermissions(prev => [...prev, newPermission]);
                     toast({
                         title: "Permiso cargado",
@@ -218,7 +222,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
 
         startTransition(async () => {
             try {
-                await deletePermission(permissionToDelete.id);
+                await deleteDoc(doc(db, 'permissions', permissionToDelete.id));
                 setPermissions(prev => prev.filter(p => p.id !== permissionToDelete.id));
                 toast({
                     title: "Permiso eliminado",

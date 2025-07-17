@@ -3,10 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import PermissionsManager from "@/components/permissions-manager";
-import { getPermissions, getEmployees, getAbsenceTypes } from "@/app/actions";
 import type { Permission, Employee, AbsenceType } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function PermisosPage() {
   const { user, loading: authLoading } = useAuth();
@@ -20,14 +21,14 @@ export default function PermisosPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const [permissionsData, employeesData, absenceTypesData] = await Promise.all([
-          getPermissions(),
-          getEmployees(),
-          getAbsenceTypes(),
+        const [permissionsSnapshot, employeesSnapshot, absenceTypesSnapshot] = await Promise.all([
+          getDocs(collection(db, 'permissions')),
+          getDocs(collection(db, 'employees')),
+          getDocs(collection(db, 'absence-types')),
         ]);
-        setInitialPermissions(permissionsData);
-        setInitialEmployees(employeesData);
-        setInitialAbsenceTypes(absenceTypesData);
+        setInitialPermissions(permissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Permission[]);
+        setInitialEmployees(employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[]);
+        setInitialAbsenceTypes(absenceTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AbsenceType[]);
       } catch (error) {
         console.error("Failed to fetch permissions data:", error);
       } finally {
