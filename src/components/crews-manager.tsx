@@ -47,19 +47,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, PlusCircle, Trash2, Pencil, Plus, X, Search, CalendarIcon, ArrowRightLeft } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Pencil, Plus, X, Search, CalendarIcon, ArrowRightLeft, AlertTriangle } from "lucide-react";
 import type { Crew, Project, Employee, Phase, CrewPhaseAssignment } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "./ui/scroll-area";
 import { Separator } from "./ui/separator";
 import { Badge } from "./ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "./ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "./ui/calendar";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from "firebase/firestore";
 import { useAuth } from "@/context/auth-context";
+import { moveEmployeeBetweenCrews } from "@/app/actions";
 
 interface CrewsManagerProps {
   initialCrews: Crew[];
@@ -106,13 +108,27 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
 
   const phaseMap = useMemo(() => new Map(initialPhases.map(p => [p.id, p])), [initialPhases]);
   const projectMap = useMemo(() => new Map(initialProjects.map(p => [p.id, p.name])), [initialProjects]);
+  const crewMap = useMemo(() => new Map(allCrews.map(c => [c.id, c.name])), [allCrews]);
+
+  const employeeAssignments = useMemo(() => {
+    const assignments = new Map<string, string[]>();
+    for (const crew of allCrews) {
+        for (const empId of crew.employeeIds) {
+            if (!assignments.has(empId)) {
+                assignments.set(empId, []);
+            }
+            assignments.get(empId)!.push(crew.name);
+        }
+    }
+    return assignments;
+  }, [allCrews]);
 
   const availableCrewsForMove = useMemo(() => {
     if (!editingCrew) return [];
-    return initialCrews
+    return allCrews
         .filter(c => c.id !== editingCrew.id)
         .map(c => ({ value: c.id, label: `${c.name} (${projectMap.get(c.projectId)})` }));
-  }, [initialCrews, editingCrew, projectMap]);
+  }, [allCrews, editingCrew, projectMap]);
 
   useEffect(() => {
     if (isCrewDialogOpen) {
@@ -318,45 +334,38 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
     if (!employeeToMove || !destinationCrewId || !editingCrew) return;
 
     startTransition(async () => {
-      try {
-        const batch = writeBatch(db);
+        try {
+            await moveEmployeeBetweenCrews(employeeToMove!.id, editingCrew!.id, destinationCrewId);
 
-        const sourceCrewRef = doc(db, "crews", editingCrew.id);
-        const sourceCrewData = allCrews.find(c => c.id === editingCrew.id);
-        const newSourceEmployeeIds = (sourceCrewData?.employeeIds || []).filter(id => id !== employeeToMove.id);
-        batch.update(sourceCrewRef, { employeeIds: newSourceEmployeeIds });
+            setAllCrews(prev => {
+                return prev.map(crew => {
+                    if (crew.id === editingCrew!.id) {
+                        return { ...crew, employeeIds: crew.employeeIds.filter(id => id !== employeeToMove!.id) };
+                    }
+                    if (crew.id === destinationCrewId) {
+                        return { ...crew, employeeIds: [...crew.employeeIds, employeeToMove!.id] };
+                    }
+                    return crew;
+                });
+            });
 
-        const destinationCrewRef = doc(db, "crews", destinationCrewId);
-        const destinationCrewData = allCrews.find(c => c.id === destinationCrewId);
-        const newDestinationEmployeeIds = [...(destinationCrewData?.employeeIds || []), employeeToMove.id];
-        batch.update(destinationCrewRef, { employeeIds: newDestinationEmployeeIds });
-        
-        await batch.commit();
+            setNewCrewState(prev => ({...prev, employeeIds: prev.employeeIds.filter(id => id !== employeeToMove!.id)}));
 
-        setAllCrews(prev => {
-          return prev.map(crew => {
-            if (crew.id === editingCrew.id) return { ...crew, employeeIds: newSourceEmployeeIds };
-            if (crew.id === destinationCrewId) return { ...crew, employeeIds: newDestinationEmployeeIds };
-            return crew;
-          });
-        });
-        
-        setNewCrewState(prev => ({...prev, employeeIds: newSourceEmployeeIds}));
+            toast({
+                title: "Empleado Movido",
+                description: `${employeeToMove!.apellido}, ${employeeToMove!.nombre} ha sido movido con éxito.`,
+            });
 
-        toast({
-            title: "Empleado Movido",
-            description: `${employeeToMove.apellido}, ${employeeToMove.nombre} ha sido movido con éxito.`,
-        });
-        
-        setEmployeeToMove(null);
-        setDestinationCrewId("");
-      } catch (error) {
-        toast({
-            title: "Error al mover",
-            description: error instanceof Error ? error.message : "No se pudo mover el empleado.",
-            variant: "destructive",
-        });
-      }
+            setEmployeeToMove(null);
+            setDestinationCrewId("");
+
+        } catch (error) {
+            toast({
+                title: "Error al mover",
+                description: error instanceof Error ? error.message : "No se pudo mover el empleado.",
+                variant: "destructive",
+            });
+        }
     });
   };
 
@@ -466,6 +475,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
         </CardContent>
       </Card>
       
+    <TooltipProvider>
       <Dialog open={isCrewDialogOpen} onOpenChange={(open) => { setIsCrewDialogOpen(open); if (!open) setEditingCrew(null); }}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
@@ -653,11 +663,27 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                         <h4 className="font-semibold text-sm">Personal Asignado ({assignedPersonnel.length})</h4>
                         <div className="h-9" /> {/* Spacer to align */}
                         <ScrollArea className="flex-1 rounded-md border p-2">
-                             {assignedPersonnel.length > 0 ? assignedPersonnel.map(emp => (
+                             {assignedPersonnel.length > 0 ? assignedPersonnel.map(emp => {
+                                const assignments = employeeAssignments.get(emp.id) || [];
+                                const isDuplicate = assignments.length > 1;
+
+                                return (
                                    <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
-                                    <div>
-                                        <p className="font-medium">{employeeNameMap[emp.id]}</p>
-                                        <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
+                                    <div className="flex items-center gap-2">
+                                        <div>
+                                            <p className="font-medium">{employeeNameMap[emp.id]}</p>
+                                            <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
+                                        </div>
+                                        {isDuplicate && (
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>También asignado en: {assignments.filter(cName => cName !== newCrewState.name).join(', ')}</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        )}
                                     </div>
                                     <div className="flex items-center">
                                       <Button size="icon" variant="ghost" onClick={() => handleOpenMoveDialog(emp)}>
@@ -668,7 +694,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                       </Button>
                                     </div>
                                 </div>
-                            )) : (
+                            )}) : (
                                 <div className="text-center text-sm text-muted-foreground py-4">
                                     No hay personal asignado.
                                 </div>
@@ -687,6 +713,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </TooltipProvider>
       
       <Dialog open={!!employeeToMove} onOpenChange={(open) => !open && setEmployeeToMove(null)}>
         <DialogContent>
