@@ -91,3 +91,31 @@ export async function deleteUser(userId: string): Promise<void> {
     console.warn(`User with ID ${userId} was deleted from Firestore, but had no authUid to delete from Firebase Auth.`);
   }
 }
+
+export async function moveEmployeeBetweenCrews(employeeId: string, sourceCrewId: string, destinationCrewId: string): Promise<void> {
+  const batch = writeBatch(db);
+
+  // Remove from source crew
+  const sourceCrewRef = doc(db, "crews", sourceCrewId);
+  const sourceCrewDoc = await getDoc(sourceCrewRef);
+  if (sourceCrewDoc.exists()) {
+    const sourceCrewData = sourceCrewDoc.data() as Crew;
+    const updatedSourceIds = (sourceCrewData.employeeIds || []).filter(id => id !== employeeId);
+    batch.update(sourceCrewRef, { employeeIds: updatedSourceIds });
+  } else {
+    throw new Error("Source crew not found.");
+  }
+  
+  // Add to destination crew
+  const destinationCrewRef = doc(db, "crews", destinationCrewId);
+  const destinationCrewDoc = await getDoc(destinationCrewRef);
+  if (destinationCrewDoc.exists()) {
+    const destinationCrewData = destinationCrewDoc.data() as Crew;
+    const updatedDestinationIds = [...(destinationCrewData.employeeIds || []), employeeId];
+    batch.update(destinationCrewRef, { employeeIds: updatedDestinationIds });
+  } else {
+    throw new Error("Destination crew not found.");
+  }
+
+  await batch.commit();
+}

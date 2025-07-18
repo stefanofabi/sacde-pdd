@@ -47,7 +47,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, PlusCircle, Trash2, Pencil, Plus, X, Search, CalendarIcon } from "lucide-react";
+import { Loader2, PlusCircle, Trash2, Pencil, Plus, X, Search, CalendarIcon, ArrowRightLeft } from "lucide-react";
 import type { Crew, Project, Employee, Phase, CrewPhaseAssignment } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "./ui/scroll-area";
@@ -58,7 +58,7 @@ import { Calendar } from "./ui/calendar";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from "firebase/firestore";
 import { useAuth } from "@/context/auth-context";
 
 interface CrewsManagerProps {
@@ -92,6 +92,8 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
   const [newCrewState, setNewCrewState] = useState(emptyForm);
   const [personnelSearchTerm, setPersonnelSearchTerm] = useState("");
   const [phaseAssignment, setPhaseAssignment] = useState<{phaseId: string; startDate?: Date; endDate?: Date}>({ phaseId: "" });
+  const [employeeToMove, setEmployeeToMove] = useState<Employee | null>(null);
+  const [destinationCrewId, setDestinationCrewId] = useState("");
 
   
   const [isPending, startTransition] = useTransition();
@@ -103,6 +105,14 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
   const canSave = canEditInfo || canAssignPhase || canManagePersonnel;
 
   const phaseMap = useMemo(() => new Map(initialPhases.map(p => [p.id, p])), [initialPhases]);
+  const projectMap = useMemo(() => new Map(initialProjects.map(p => [p.id, p.name])), [initialProjects]);
+
+  const availableCrewsForMove = useMemo(() => {
+    if (!editingCrew) return [];
+    return initialCrews
+        .filter(c => c.id !== editingCrew.id)
+        .map(c => ({ value: c.id, label: `${c.name} (${projectMap.get(c.projectId)})` }));
+  }, [initialCrews, editingCrew, projectMap]);
 
   useEffect(() => {
     if (isCrewDialogOpen) {
@@ -298,6 +308,57 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
     setEditingCrew(crew);
     setIsCrewDialogOpen(true);
   }
+  
+  const handleOpenMoveDialog = (employee: Employee) => {
+    setEmployeeToMove(employee);
+    setDestinationCrewId("");
+  };
+
+  const handleMoveEmployee = () => {
+    if (!employeeToMove || !destinationCrewId || !editingCrew) return;
+
+    startTransition(async () => {
+      try {
+        const batch = writeBatch(db);
+
+        const sourceCrewRef = doc(db, "crews", editingCrew.id);
+        const sourceCrewData = allCrews.find(c => c.id === editingCrew.id);
+        const newSourceEmployeeIds = (sourceCrewData?.employeeIds || []).filter(id => id !== employeeToMove.id);
+        batch.update(sourceCrewRef, { employeeIds: newSourceEmployeeIds });
+
+        const destinationCrewRef = doc(db, "crews", destinationCrewId);
+        const destinationCrewData = allCrews.find(c => c.id === destinationCrewId);
+        const newDestinationEmployeeIds = [...(destinationCrewData?.employeeIds || []), employeeToMove.id];
+        batch.update(destinationCrewRef, { employeeIds: newDestinationEmployeeIds });
+        
+        await batch.commit();
+
+        setAllCrews(prev => {
+          return prev.map(crew => {
+            if (crew.id === editingCrew.id) return { ...crew, employeeIds: newSourceEmployeeIds };
+            if (crew.id === destinationCrewId) return { ...crew, employeeIds: newDestinationEmployeeIds };
+            return crew;
+          });
+        });
+        
+        setNewCrewState(prev => ({...prev, employeeIds: newSourceEmployeeIds}));
+
+        toast({
+            title: "Empleado Movido",
+            description: `${employeeToMove.apellido}, ${employeeToMove.nombre} ha sido movido con éxito.`,
+        });
+        
+        setEmployeeToMove(null);
+        setDestinationCrewId("");
+      } catch (error) {
+        toast({
+            title: "Error al mover",
+            description: error instanceof Error ? error.message : "No se pudo mover el empleado.",
+            variant: "destructive",
+        });
+      }
+    });
+  };
 
   return (
     <>
@@ -598,9 +659,14 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                         <p className="font-medium">{employeeNameMap[emp.id]}</p>
                                         <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
                                     </div>
-                                    <Button size="icon" variant="destructive" onClick={() => handleInputChange('employeeIds', newCrewState.employeeIds.filter(id => id !== emp.id))}>
-                                        <X className="h-4 w-4" />
-                                    </Button>
+                                    <div className="flex items-center">
+                                      <Button size="icon" variant="ghost" onClick={() => handleOpenMoveDialog(emp)}>
+                                        <ArrowRightLeft className="h-4 w-4" />
+                                      </Button>
+                                      <Button size="icon" variant="destructive" onClick={() => handleInputChange('employeeIds', newCrewState.employeeIds.filter(id => id !== emp.id))}>
+                                          <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                 </div>
                             )) : (
                                 <div className="text-center text-sm text-muted-foreground py-4">
@@ -617,6 +683,37 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
             <Button type="submit" onClick={handleSaveCrew} disabled={isPending || !canSave}>
               {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={!!employeeToMove} onOpenChange={(open) => !open && setEmployeeToMove(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mover Empleado</DialogTitle>
+            <DialogDescription>
+              Mover a <strong>{employeeToMove?.apellido}, {employeeToMove?.nombre}</strong> a otra cuadrilla.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-2">
+            <Label htmlFor="destination-crew">Cuadrilla de Destino</Label>
+            <Select value={destinationCrewId} onValueChange={setDestinationCrewId}>
+              <SelectTrigger id="destination-crew">
+                <SelectValue placeholder="Seleccione una cuadrilla" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCrewsForMove.map(crew => (
+                  <SelectItem key={crew.value} value={crew.value}>{crew.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+            <Button onClick={handleMoveEmployee} disabled={isPending || !destinationCrewId}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Mover
             </Button>
           </DialogFooter>
         </DialogContent>
