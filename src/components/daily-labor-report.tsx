@@ -130,6 +130,8 @@ export default function DailyLaborReport({
   const canNotify = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.notify'), [user]);
   const canAddManual = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.addManual'), [user]);
   const canMoveEmployee = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.moveEmployee'), [user]);
+  const canApproveControl = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.approveControl'), [user]);
+  const canApprovePM = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('dailyReports.approvePM'), [user]);
 
 
   useEffect(() => {
@@ -144,7 +146,7 @@ export default function DailyLaborReport({
     : "Seleccione una fecha";
 
   const employeeMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, emp])), [initialEmployees]);
-  const projectMap = useMemo(() => new Map(initialProjects.map(p => [p.id, p.name])), [initialProjects]);
+  const projectMap = useMemo(() => new Map(initialProjects.map(p => [p.id, p])), [initialProjects]);
   const phaseMap = useMemo(() => new Map(initialPhases.map(p => [p.id, p])), [initialPhases]);
   const crewMap = useMemo(() => new Map(initialCrews.map(c => [c.id, c])), [initialCrews]);
 
@@ -175,7 +177,7 @@ export default function DailyLaborReport({
             c.id !== selectedCrewId && 
             !notificationData[formattedDate]?.[c.id]?.notified
         )
-        .map(c => ({ value: c.id, label: `${c.name} (${projectMap.get(c.projectId) || "Sin Proyecto"})` }));
+        .map(c => ({ value: c.id, label: `${c.name} (${projectMap.get(c.projectId)?.name || "Sin Proyecto"})` }));
   }, [initialCrews, selectedCrewId, notificationData, formattedDate, projectMap]);
 
   const selectedCrew = useMemo(() => {
@@ -272,6 +274,15 @@ export default function DailyLaborReport({
       notifiedAt: status?.notifiedAt ? format(new Date(status.notifiedAt), 'Pp', { locale: es }) : null,
     }
   }, [notificationData, formattedDate, selectedCrewId]);
+
+  const approvalSettings = useMemo(() => {
+    if (!selectedCrew) return { requiresControl: false, requiresPM: false };
+    const project = projectMap.get(selectedCrew.projectId);
+    return {
+      requiresControl: project?.requiresControlGestionApproval ?? false,
+      requiresPM: project?.requiresJefeDeObraApproval ?? false
+    }
+  }, [selectedCrew, projectMap]);
   
   useEffect(() => {
     if (formattedDate && selectedCrewId && selectedCrewId !== 'all' && personnelForTable.length > 0) {
@@ -1118,17 +1129,25 @@ export default function DailyLaborReport({
                     </TableBody>
                 </Table>
                 </div>
-                <div className="flex justify-between mt-4 p-4 border-t">
-                    <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual}>
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Agregar Empleado
-                    </Button>
+                <div className="flex justify-between items-center mt-4 p-4 border-t">
+                    <div>
+                        <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual}>
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Agregar Empleado
+                        </Button>
+                    </div>
                     <div className="flex gap-2">
                         {selectedCrewId && selectedCrewId !== 'all' && crewOptions.some(o => o.value === 'all') && (
                             <Button variant="outline" onClick={() => setSelectedCrewId('all')} disabled={isPending}>
                                 <ArrowLeft className="mr-2 h-4 w-4" />
                                 Volver al Listado
                             </Button>
+                        )}
+                         {canApproveControl && approvalSettings.requiresControl && (
+                            <Button disabled={isPending}>Aprobar (C&G)</Button>
+                        )}
+                        {canApprovePM && approvalSettings.requiresPM && (
+                            <Button disabled={isPending}>Aprobar (PM)</Button>
                         )}
                         <Button onClick={handleSave} disabled={isPending || !selectedCrewId || !canSave}>
                             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}

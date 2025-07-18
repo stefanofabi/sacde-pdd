@@ -53,6 +53,8 @@ export interface Project {
   id: string;
   identifier: string;
   name: string;
+  requiresControlGestionApproval?: boolean;
+  requiresJefeDeObraApproval?: boolean;
 }
 
 export interface Phase {
