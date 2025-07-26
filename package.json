@@ -68,5 +68,8 @@
     "tailwindcss": "^3.4.1",
     "ts-interface-checker": "^1.0.2",
     "typescript": "^5"
+  },
+  "overrides": {
+    "react-is": "18.3.1"
   }
 }
