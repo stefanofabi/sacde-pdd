@@ -35,7 +35,7 @@ const emptyForm = {
     apellido: "",
     nombre: "",
     fechaIngreso: undefined as Date | undefined,
-    sex: "" as EmployeeSex | "",
+    sex: "" as EmployeeSex,
     projectId: "",
     denominacionPosicion: "",
     condicion: "" as EmployeeCondition | "",
@@ -267,9 +267,9 @@ export default function EmployeeFormPage() {
     };
 
     const handleSaveEmployee = () => {
-        const { legajo, apellido, nombre, projectId, denominacionPosicion, condicion, estado, fechaIngreso } = formState;
+        const { legajo, apellido, nombre, projectId, denominacionPosicion, condicion, estado, fechaIngreso, sex } = formState;
 
-        if (!legajo || !apellido || !nombre || !projectId || !denominacionPosicion || !condicion || !estado || !fechaIngreso) {
+        if (!legajo || !apellido || !nombre || !projectId || !denominacionPosicion || !condicion || !estado || !fechaIngreso || !sex) {
           toast({
             title: "Error de validación",
             description: "Debe completar todos los campos obligatorios (*).",
@@ -447,7 +447,7 @@ export default function EmployeeFormPage() {
                                                 <Input id="nombre" value={formState.nombre} onChange={(e) => handleInputChange('nombre', e.target.value)} placeholder="Juan" disabled={isPending}/>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="sex">Sexo</Label>
+                                                <Label htmlFor="sex">Sexo *</Label>
                                                 <Select onValueChange={(value: EmployeeSex) => handleInputChange('sex', value)} value={formState.sex} disabled={isPending}>
                                                     <SelectTrigger><SelectValue placeholder="Seleccione sexo" /></SelectTrigger>
                                                     <SelectContent>

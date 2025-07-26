@@ -3,6 +3,7 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -124,7 +125,7 @@ export interface Employee {
   apellido: string;
   nombre: string;
   fechaIngreso: string; // ISO date string e.g. "2023-10-27"
-  sex?: EmployeeSex;
+  sex: EmployeeSex;
   projectId: string;
   denominacionPosicion: string;
   condicion: EmployeeCondition;

@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { MultiSelectCombobox, type ComboboxOption } from "@/components/ui/multi-select-combobox";
 import { Calendar as CalendarIcon, Users, Clock, AlertCircle, UserX, Percent } from "lucide-react";
-import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, LegacyDailyLaborEntry } from "@/types";
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, LegacyDailyLaborEntry, EmployeeSex } from "@/types";
 
 interface StatisticsDashboardProps {
   initialCrews: Crew[];
@@ -46,6 +46,11 @@ interface StatisticsDashboardProps {
 }
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
+const GENDER_COLORS: Record<EmployeeSex, string> = {
+    'M': '#3b82f6', // blue-500
+    'F': '#ec4899', // pink-500
+    'X': '#a855f7', // purple-500
+};
 
 export default function StatisticsDashboard({
   initialCrews,
@@ -86,10 +91,23 @@ export default function StatisticsDashboard({
     
     const absenceCounts: Record<string, number> = {};
     const absenceByCrew: Record<string, number> = {};
+    const sexDistribution: Record<string, number> = { 'Masculino': 0, 'Femenino': 0, 'No binario': 0 };
 
     const filteredCrewIds = selectedCrews.length > 0
         ? new Set(selectedCrews)
         : new Set(crewOptions.map(c => c.value));
+    
+    const relevantEmployeeIds = new Set(
+        initialCrews.filter(c => filteredCrewIds.has(c.id)).flatMap(c => c.employeeIds)
+    );
+
+    initialEmployees.forEach(emp => {
+      if(relevantEmployeeIds.has(emp.id)) {
+        if(emp.sex === 'M') sexDistribution['Masculino']++;
+        else if(emp.sex === 'F') sexDistribution['Femenino']++;
+        else if(emp.sex === 'X') sexDistribution['No binario']++;
+      }
+    });
 
     Object.entries(initialDailyLabor).forEach(([dateKey, entries]) => {
       const currentDate = new Date(dateKey + "T00:00:00");
@@ -132,11 +150,7 @@ export default function StatisticsDashboard({
     });
     
     const relevantCrewIds = selectedCrews.length > 0 ? selectedCrews : crewOptions.map(c => c.value);
-    const totalPersonnelInCrews = new Set(
-        initialCrews
-            .filter(c => relevantCrewIds.includes(c.id))
-            .flatMap(c => c.employeeIds)
-    ).size;
+    const totalPersonnelInCrews = relevantEmployeeIds.size;
 
     const presentPersonnelCount = totalPersonnelInCrews - totalAbsences;
 
@@ -149,6 +163,10 @@ export default function StatisticsDashboard({
         { name: "Improductivas", value: totalUnproductiveHours },
     ];
 
+    const sexChartData = Object.entries(sexDistribution)
+      .map(([name, value]) => ({ name, value }))
+      .filter(item => item.value > 0);
+
     return {
       totalHours,
       totalUnproductiveHours,
@@ -158,8 +176,9 @@ export default function StatisticsDashboard({
       absenceChartData,
       absenceByCrewChartData,
       hoursChartData,
+      sexChartData,
     };
-  }, [date, selectedProjects, selectedCrews, initialDailyLabor, crewOptions, absenceTypeMap, crewMap]);
+  }, [date, selectedProjects, selectedCrews, initialDailyLabor, crewOptions, absenceTypeMap, crewMap, initialEmployees]);
 
   return (
     <div className="space-y-6">
@@ -264,7 +283,7 @@ export default function StatisticsDashboard({
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
             <CardHeader>
                 <CardTitle>Distribución de Tipos de Ausentismo</CardTitle>
@@ -316,6 +335,37 @@ export default function StatisticsDashboard({
                             ))}
                         </Pie>
                         <Tooltip formatter={(value: number) => value.toFixed(2)} />
+                        <Legend />
+                    </PieChart>
+                </ResponsiveContainer>
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader>
+                <CardTitle>Distribución de Empleados por Sexo</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                        <Pie
+                            data={filteredData.sexChartData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            nameKey="name"
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                            {filteredData.sexChartData.map((entry) => {
+                              let color = GENDER_COLORS.X;
+                              if (entry.name === 'Masculino') color = GENDER_COLORS.M;
+                              if (entry.name === 'Femenino') color = GENDER_COLORS.F;
+                              return <Cell key={`cell-${entry.name}`} fill={color} />
+                            })}
+                        </Pie>
+                        <Tooltip />
                         <Legend />
                     </PieChart>
                 </ResponsiveContainer>
