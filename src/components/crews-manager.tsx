@@ -69,7 +69,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
   const canDelete = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('crews.editInfo'), [user]);
   
   const projectMap = useMemo(() => new Map(initialProjects.map(p => [p.id, p.name])), [initialProjects]);
-  const employeeNameMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido}`])), [initialEmployees]);
+  const employeeNameMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, `${emp.firstName} ${emp.lastName}`])), [initialEmployees]);
 
   const filteredCrews = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -329,3 +329,5 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
     </TooltipProvider>
   );
 }
+
+    

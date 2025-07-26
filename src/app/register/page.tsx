@@ -18,8 +18,8 @@ export default function RegisterPage() {
   const { registerUser } = useAuth();
 
   const [formState, setFormState] = useState({
-    nombre: '',
-    apellido: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -47,8 +47,8 @@ export default function RegisterPage() {
 
     try {
       await registerUser(formState.email, formState.password, {
-        nombre: formState.nombre,
-        apellido: formState.apellido,
+        firstName: formState.firstName,
+        lastName: formState.lastName,
       });
 
       toast({
@@ -80,12 +80,12 @@ export default function RegisterPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre</Label>
-                <Input id="nombre" name="nombre" type="text" required value={formState.nombre} onChange={handleInputChange} disabled={isLoading} />
+                <Label htmlFor="firstName">Nombre</Label>
+                <Input id="firstName" name="firstName" type="text" required value={formState.firstName} onChange={handleInputChange} disabled={isLoading} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="apellido">Apellido</Label>
-                <Input id="apellido" name="apellido" type="text" required value={formState.apellido} onChange={handleInputChange} disabled={isLoading} />
+                <Label htmlFor="lastName">Apellido</Label>
+                <Input id="lastName" name="lastName" type="text" required value={formState.lastName} onChange={handleInputChange} disabled={isLoading} />
               </div>
             </div>
             <div className="space-y-2">
@@ -115,3 +115,5 @@ export default function RegisterPage() {
     </main>
   );
 }
+
+    

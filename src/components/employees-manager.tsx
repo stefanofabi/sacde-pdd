@@ -75,16 +75,16 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
     }
 
     return employees.filter((emp) => {
-        const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
-        const legajo = emp.legajo.toLowerCase();
-        const cuil = emp.cuil ? emp.cuil.toLowerCase() : '';
+        const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+        const internalNumber = emp.internalNumber.toLowerCase();
+        const identificationNumber = emp.identificationNumber ? emp.identificationNumber.toLowerCase() : '';
 
         return (
             fullName.includes(lowerCaseSearchTerm) ||
-            legajo.includes(lowerCaseSearchTerm) ||
-            (cuil && cuil.includes(lowerCaseSearchTerm)) ||
-            emp.apellido.toLowerCase().includes(lowerCaseSearchTerm) ||
-            emp.nombre.toLowerCase().includes(lowerCaseSearchTerm)
+            internalNumber.includes(lowerCaseSearchTerm) ||
+            (identificationNumber && identificationNumber.includes(lowerCaseSearchTerm)) ||
+            emp.lastName.toLowerCase().includes(lowerCaseSearchTerm) ||
+            emp.firstName.toLowerCase().includes(lowerCaseSearchTerm)
         );
     });
   }, [employees, searchTerm]);
@@ -124,18 +124,18 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
     startTransition(() => {
         try {
             const dataToExport = employees.map(emp => ({
-                "Legajo": emp.legajo,
-                "Apellido": emp.apellido,
-                "Nombre": emp.nombre,
-                "CUIL": emp.cuil || '',
+                "Legajo": emp.internalNumber,
+                "Apellido": emp.lastName,
+                "Nombre": emp.firstName,
+                "CUIL": emp.identificationNumber || '',
                 "Sexo": emp.sex || '',
-                "Fecha de Ingreso": emp.fechaIngreso ? format(new Date(emp.fechaIngreso + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }) : '',
+                "Fecha de Ingreso": emp.hireDate ? format(new Date(emp.hireDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }) : '',
                 "Proyecto": projectNameMap[emp.projectId] || 'N/A',
-                "Posición": emp.denominacionPosicion,
-                "Condición": emp.condicion,
-                "Estado": emp.estado,
-                "Celular": emp.celular || '',
-                "Correo": emp.correo || ''
+                "Posición": emp.position,
+                "Condición": emp.condition,
+                "Estado": emp.status,
+                "Celular": emp.phoneNumber || '',
+                "Correo": emp.email || ''
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -166,7 +166,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
     });
   };
 
-  const StatusBadge = ({ estado }: { estado: Employee['estado'] }) => (
+  const StatusBadge = ({ estado }: { estado: Employee['status'] }) => (
     <Badge variant={estado === 'activo' ? 'default' : estado === 'baja' ? 'destructive' : 'secondary'}
         className={estado === 'activo' ? 'bg-green-600' : ''}>
         {estado === "activo" ? "Activo" : estado === "baja" ? "Baja" : "Suspendido"}
@@ -176,18 +176,18 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
   const MobileEmployeeCard = ({ emp }: { emp: Employee }) => (
     <Card>
         <CardHeader>
-            <CardTitle>{`${emp.apellido}, ${emp.nombre}`}</CardTitle>
-            <CardDescription>Legajo: {emp.legajo}</CardDescription>
+            <CardTitle>{`${emp.lastName}, ${emp.firstName}`}</CardTitle>
+            <CardDescription>Legajo: {emp.internalNumber}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
             <p><strong>Proyecto:</strong> {projectNameMap[emp.projectId] || 'N/A'}</p>
             <div className="flex items-center gap-2">
                 <strong>Estado:</strong>
-                <StatusBadge estado={emp.estado} />
+                <StatusBadge estado={emp.status} />
             </div>
              <div className="flex items-center gap-2">
                 <strong>Condición:</strong>
-                <Badge variant={emp.condicion === 'mensual' ? 'secondary' : 'outline'}>{emp.condicion === "jornal" ? "Jornal" : "Mensual"}</Badge>
+                <Badge variant={emp.condition === 'mensual' ? 'secondary' : 'outline'}>{emp.condition === "jornal" ? "Jornal" : "Mensual"}</Badge>
             </div>
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
@@ -276,14 +276,14 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                             {filteredEmployees.length > 0 ? (
                                 filteredEmployees.map((emp) => (
                                     <TableRow key={emp.id}>
-                                        <TableCell className="font-mono">{emp.legajo}</TableCell>
-                                        <TableCell className="font-medium">{`${emp.apellido}, ${emp.nombre}`}</TableCell>
+                                        <TableCell className="font-mono">{emp.internalNumber}</TableCell>
+                                        <TableCell className="font-medium">{`${emp.lastName}, ${emp.firstName}`}</TableCell>
                                         <TableCell>{projectNameMap[emp.projectId] || 'N/A'}</TableCell>
                                         <TableCell>
-                                            <Badge variant={emp.condicion === 'mensual' ? 'secondary' : 'outline'}>{emp.condicion === "jornal" ? "Jornal" : "Mensual"}</Badge>
+                                            <Badge variant={emp.condition === 'mensual' ? 'secondary' : 'outline'}>{emp.condition === "jornal" ? "Jornal" : "Mensual"}</Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <StatusBadge estado={emp.estado} />
+                                            <StatusBadge estado={emp.status} />
                                         </TableCell>
                                         <TableCell className="text-right space-x-1">
                                             <Button
@@ -293,7 +293,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                                                 disabled={isPending || !canManage}
                                             >
                                                 <Pencil className="h-4 w-4" />
-                                                <span className="sr-only">Editar {emp.nombre}</span>
+                                                <span className="sr-only">Editar {emp.firstName}</span>
                                             </Button>
                                             <Button
                                                 variant="ghost"
@@ -303,7 +303,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                                                 disabled={isPending || !canManage}
                                             >
                                                 <Trash2 className="h-4 w-4" />
-                                                <span className="sr-only">Eliminar {emp.nombre}</span>
+                                                <span className="sr-only">Eliminar {emp.firstName}</span>
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -330,7 +330,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Se eliminará permanentemente al empleado "{`${employeeToDelete?.nombre} ${employeeToDelete?.apellido}`}".
+                    Esta acción no se puede deshacer. Se eliminará permanentemente al empleado "{`${employeeToDelete?.firstName} ${employeeToDelete?.lastName}`}".
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -350,3 +350,5 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
     </>
   );
 }
+
+    

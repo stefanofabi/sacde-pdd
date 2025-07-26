@@ -109,13 +109,13 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
   }, [initialProjects]);
 
   const employeeNameMap = useMemo(() => {
-    return Object.fromEntries(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido}`]));
+    return Object.fromEntries(initialEmployees.map(emp => [emp.id, `${emp.firstName} ${emp.lastName}`]));
   }, [initialEmployees]);
 
   const employeeOptions = useMemo(() => {
     return initialEmployees.map(emp => ({
         value: emp.id,
-        label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo}${emp.cuil ? `, C: ${emp.cuil}` : ''})`
+        label: `${emp.firstName} ${emp.lastName} (L: ${emp.internalNumber}${emp.identificationNumber ? `, C: ${emp.identificationNumber}` : ''})`
     }));
   }, [initialEmployees]);
   
@@ -619,3 +619,5 @@ export default function AttendanceTracker({ initialCrews, initialAttendance, ini
     </>
   );
 }
+
+    

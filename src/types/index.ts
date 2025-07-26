@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -48,8 +42,8 @@ export interface Role {
 
 export interface User {
   id: string;
-  nombre: string;
-  apellido: string;
+  firstName: string;
+  lastName: string;
   email: string;
   roleId: string;
   authUid?: string; // UID from Firebase Auth
@@ -121,18 +115,18 @@ export type EmployeeSex = "M" | "F" | "X";
 
 export interface Employee {
   id: string;
-  legajo: string;
-  cuil?: string;
-  apellido: string;
-  nombre: string;
-  fechaIngreso: string; // ISO date string e.g. "2023-10-27"
+  internalNumber: string;
+  identificationNumber?: string;
+  lastName: string;
+  firstName: string;
+  hireDate: string; // ISO date string e.g. "2023-10-27"
   sex: EmployeeSex;
   projectId: string;
-  denominacionPosicion: string;
-  condicion: EmployeeCondition;
-  estado: EmployeeStatus;
-  celular?: string;
-  correo?: string;
+  position: string;
+  condition: EmployeeCondition;
+  status: EmployeeStatus;
+  phoneNumber?: string;
+  email?: string;
 }
 
 export type PermissionStatus = "APROBADO POR RRHH" | "APROBADO POR SUPERVISOR" | "NO APROBADO";
@@ -145,15 +139,13 @@ export interface Permission {
   endDate: string; // ISO date string e.g. "2023-10-27"
   status?: PermissionStatus;
   
-  // Who performed the approval
-  approvedByJefeDeObraId?: string;
-  approvedByJefeDeObraAt?: string;
-  approvedByRecursosHumanosId?: string;
-  approvedByRecursosHumanosAt?: string;
+  approvedByProjectManagerId?: string;
+  approvedByProjectManagerAt?: string;
+  approvedByHumanResourceId?: string;
+  approvedByHumanResourceAt?: string;
 
-  // Who is designated to approve
-  designatedApproverJefeDeObraId?: string;
-  designatedApproverRecursosHumanosId?: string;
+  designatedApproverProjectManagerId?: string;
+  designatedApproverHumanResourceId?: string;
   
   observations?: string;
 }
@@ -236,3 +228,5 @@ export interface DailyLaborNotificationData {
 
 // This type is now deprecated, use Role and PermissionKey instead.
 export type EmployeeRole = 'admin' | 'crew_manager' | 'foreman' | 'tallyman' | 'project_manager' | 'management_control' | 'recursos_humanos' | 'invitado';
+
+    

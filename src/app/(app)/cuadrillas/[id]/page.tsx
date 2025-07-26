@@ -243,7 +243,7 @@ export default function CrewFormPage() {
     const employeeOptions = useMemo(() => {
       return allEmployees.map(emp => ({
           value: emp.id,
-          label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo}${emp.cuil ? `, C: ${emp.cuil}` : ''})`
+          label: `${emp.firstName} ${emp.lastName} (L: ${emp.internalNumber}${emp.identificationNumber ? `, C: ${emp.identificationNumber}` : ''})`
       }));
     }, [allEmployees]);
   
@@ -255,7 +255,7 @@ export default function CrewFormPage() {
     }, [allPhases]);
   
     const jornalEmployees = useMemo(() => {
-      return allEmployees.filter(emp => emp.condicion === 'jornal' && emp.estado === 'activo');
+      return allEmployees.filter(emp => emp.condition === 'jornal' && emp.status === 'activo');
     }, [allEmployees]);
   
     const availablePersonnel = useMemo(() => {
@@ -268,12 +268,12 @@ export default function CrewFormPage() {
               const isNotAssigned = !formState.employeeIds.includes(emp.id);
               if (!isNotAssigned) return false;
   
-              const fullName = `${emp.nombre} ${emp.apellido}`.toLowerCase();
-              const legajo = emp.legajo;
+              const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
+              const legajo = emp.internalNumber;
               
               return fullName.includes(lowerCaseSearch) || 
                      legajo.includes(lowerCaseSearch) ||
-                     (emp.cuil && emp.cuil.includes(lowerCaseSearch));
+                     (emp.identificationNumber && emp.identificationNumber.includes(lowerCaseSearch));
           });
     }, [jornalEmployees, formState.employeeIds, personnelSearchTerm]);
   
@@ -424,8 +424,8 @@ export default function CrewFormPage() {
                                                     {availablePersonnel.length > 0 ? availablePersonnel.map(emp => (
                                                         <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                                             <div>
-                                                                <p className="font-medium">{allEmployees.find(e => e.id === emp.id)?.apellido}, {allEmployees.find(e => e.id === emp.id)?.nombre}</p>
-                                                                <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
+                                                                <p className="font-medium">{allEmployees.find(e => e.id === emp.id)?.lastName}, {allEmployees.find(e => e.id === emp.id)?.firstName}</p>
+                                                                <p className="text-xs text-muted-foreground">L: {emp.internalNumber}</p>
                                                             </div>
                                                             <Button size="icon" variant="outline" onClick={() => handleInputChange('employeeIds', [...formState.employeeIds, emp.id])}><Plus className="h-4 w-4" /></Button>
                                                         </div>
@@ -443,8 +443,8 @@ export default function CrewFormPage() {
                                                             <div key={emp.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                                                                 <div className="flex items-center gap-2">
                                                                     <div>
-                                                                        <p className="font-medium">{allEmployees.find(e => e.id === emp.id)?.apellido}, {allEmployees.find(e => e.id === emp.id)?.nombre}</p>
-                                                                        <p className="text-xs text-muted-foreground">L: {emp.legajo}</p>
+                                                                        <p className="font-medium">{allEmployees.find(e => e.id === emp.id)?.lastName}, {allEmployees.find(e => e.id === emp.id)?.firstName}</p>
+                                                                        <p className="text-xs text-muted-foreground">L: {emp.internalNumber}</p>
                                                                     </div>
                                                                     {isDuplicate && (
                                                                         <Tooltip>
@@ -668,3 +668,5 @@ export default function CrewFormPage() {
         </main>
     );
 }
+
+    

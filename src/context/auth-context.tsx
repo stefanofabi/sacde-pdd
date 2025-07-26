@@ -12,7 +12,7 @@ interface AuthContextType {
   user: (User & { role: Role | null }) | null; 
   loading: boolean;
   login: (email: string, password?: string) => Promise<void>;
-  registerUser: (email: string, password?: string, additionalData?: { nombre: string; apellido: string }) => Promise<void>;
+  registerUser: (email: string, password?: string, additionalData?: { firstName: string; lastName: string }) => Promise<void>;
   logout: () => void;
 }
 
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithEmailAndPassword(auth, email, password);
   };
   
-  const registerUser = async (email: string, password?: string, additionalData?: { nombre: string; apellido: string }): Promise<void> => {
+  const registerUser = async (email: string, password?: string, additionalData?: { firstName: string; lastName: string }): Promise<void> => {
     if (!password) {
       throw new Error("Password is required for registration.");
     }
@@ -88,8 +88,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Now create the user document in Firestore
     const dataToSave = {
-      nombre: additionalData?.nombre || '',
-      apellido: additionalData?.apellido || '',
+      firstName: additionalData?.firstName || '',
+      lastName: additionalData?.lastName || '',
       email: email.toLowerCase(),
       roleId: '', // Register user without a role initially
       is_superuser: false,
@@ -134,3 +134,5 @@ export function useAuth() {
   }
   return context;
 }
+
+    

@@ -64,8 +64,8 @@ interface UsersManagerProps {
 }
 
 const emptyAddForm = {
-    nombre: "",
-    apellido: "",
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -93,13 +93,13 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
   const filteredUsers = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
     if (!lowerCaseSearchTerm) {
-      return users.sort((a, b) => a.apellido.localeCompare(b.apellido));
+      return users.sort((a, b) => a.lastName.localeCompare(b.lastName));
     }
     return users.filter((user) => {
-      const fullName = `${user.nombre} ${user.apellido}`.toLowerCase();
+      const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
       const email = user.email.toLowerCase();
       return fullName.includes(lowerCaseSearchTerm) || email.includes(lowerCaseSearchTerm);
-    }).sort((a, b) => a.apellido.localeCompare(b.apellido));
+    }).sort((a, b) => a.lastName.localeCompare(b.lastName));
   }, [users, searchTerm]);
 
 
@@ -108,8 +108,8 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
     setEditFormState({
       email: user.email,
       roleId: user.roleId,
-      nombre: user.nombre,
-      apellido: user.apellido,
+      firstName: user.firstName,
+      lastName: user.lastName,
       is_superuser: user.is_superuser || false
     });
     setIsEditDialogOpen(true);
@@ -121,15 +121,15 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
   }
 
   const handleSaveUser = () => {
-    if (!editingUser || !editFormState.email || !editFormState.roleId || !editFormState.nombre || !editFormState.apellido) return;
+    if (!editingUser || !editFormState.email || !editFormState.roleId || !editFormState.firstName || !editFormState.lastName) return;
 
     startTransition(async () => {
       try {
         const userDataToUpdate = { 
           email: editFormState.email, 
           roleId: editFormState.roleId,
-          nombre: editFormState.nombre,
-          apellido: editFormState.apellido,
+          firstName: editFormState.firstName,
+          lastName: editFormState.lastName,
           is_superuser: editFormState.is_superuser || false,
         };
         
@@ -141,7 +141,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
         
         toast({
           title: "Usuario Actualizado",
-          description: `El usuario "${updatedUser.nombre} ${updatedUser.apellido}" ha sido actualizado.`,
+          description: `El usuario "${updatedUser.firstName} ${updatedUser.lastName}" ha sido actualizado.`,
         });
         
         setIsEditDialogOpen(false);
@@ -158,8 +158,8 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
   };
   
   const handleAddUser = () => {
-    const { nombre, apellido, email, roleId, password, confirmPassword, is_superuser } = addFormState;
-    if (!nombre || !apellido || !email || !roleId || !password || !confirmPassword) {
+    const { firstName, lastName, email, roleId, password, confirmPassword, is_superuser } = addFormState;
+    if (!firstName || !lastName || !email || !roleId || !password || !confirmPassword) {
       toast({
         title: "Error de validación",
         description: "Debe completar todos los campos obligatorios (*).",
@@ -180,8 +180,8 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
     startTransition(async () => {
       try {
         const newUser = await createUser({
-            nombre: addFormState.nombre,
-            apellido: addFormState.apellido,
+            firstName: addFormState.firstName,
+            lastName: addFormState.lastName,
             email: addFormState.email,
             roleId: addFormState.roleId,
             is_superuser: addFormState.is_superuser,
@@ -190,7 +190,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
         setUsers((prev) => [...prev, newUser]);
         toast({
           title: "Usuario Creado",
-          description: `El usuario "${newUser.nombre} ${newUser.apellido}" ha sido creado.`,
+          description: `El usuario "${newUser.firstName} ${newUser.lastName}" ha sido creado.`,
         });
         setIsAddDialogOpen(false);
       } catch (error) {
@@ -212,7 +212,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
             setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
             toast({
                 title: "Usuario eliminado",
-                description: `El usuario "${userToDelete.nombre} ${userToDelete.apellido}" ha sido eliminado con éxito.`,
+                description: `El usuario "${userToDelete.firstName} ${userToDelete.lastName}" ha sido eliminado con éxito.`,
             });
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : "Ocurrió un error inesperado.";
@@ -230,7 +230,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
   const MobileUserCard = ({ user }: { user: User }) => (
     <Card>
         <CardHeader>
-            <CardTitle>{`${user.apellido}, ${user.nombre}`}</CardTitle>
+            <CardTitle>{`${user.lastName}, ${user.firstName}`}</CardTitle>
             <CardDescription>{user.email}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
@@ -314,7 +314,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
                 <TableBody>
                   {filteredUsers.length > 0 ? (
                     filteredUsers.map((user) => {
-                          const fullName = `${user.apellido}, ${user.nombre}`;
+                          const fullName = `${user.lastName}, ${user.firstName}`;
                           return (
                             <TableRow key={user.id}>
                               <TableCell className="font-medium">
@@ -373,20 +373,20 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
           </DialogHeader>
           <div className="space-y-4 py-4">
              <div className="space-y-2">
-                <Label htmlFor="apellido-edit">Apellido</Label>
+                <Label htmlFor="lastName-edit">Apellido</Label>
                 <Input 
-                    id="apellido-edit"
-                    value={editFormState.apellido || ''} 
-                    onChange={(e) => setEditFormState(prev => ({ ...prev, apellido: e.target.value }))} 
+                    id="lastName-edit"
+                    value={editFormState.lastName || ''} 
+                    onChange={(e) => setEditFormState(prev => ({ ...prev, lastName: e.target.value }))} 
                     disabled={isPending}
                 />
             </div>
              <div className="space-y-2">
-                <Label htmlFor="nombre-edit">Nombre</Label>
+                <Label htmlFor="firstName-edit">Nombre</Label>
                 <Input 
-                    id="nombre-edit"
-                    value={editFormState.nombre || ''} 
-                    onChange={(e) => setEditFormState(prev => ({ ...prev, nombre: e.target.value }))} 
+                    id="firstName-edit"
+                    value={editFormState.firstName || ''} 
+                    onChange={(e) => setEditFormState(prev => ({ ...prev, firstName: e.target.value }))} 
                     disabled={isPending}
                 />
             </div>
@@ -449,21 +449,21 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
           </DialogHeader>
            <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                 <div className="space-y-2">
-                  <Label htmlFor="apellido-add">Apellido *</Label>
+                  <Label htmlFor="lastName-add">Apellido *</Label>
                   <Input 
-                    id="apellido-add"
-                    value={addFormState.apellido} 
-                    onChange={(e) => setAddFormState(p => ({...p, apellido: e.target.value}))} 
+                    id="lastName-add"
+                    value={addFormState.lastName} 
+                    onChange={(e) => setAddFormState(p => ({...p, lastName: e.target.value}))} 
                     placeholder="Apellido del usuario"
                     disabled={isPending}
                   />
                </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nombre-add">Nombre *</Label>
+                  <Label htmlFor="firstName-add">Nombre *</Label>
                   <Input 
-                    id="nombre-add"
-                    value={addFormState.nombre} 
-                    onChange={(e) => setAddFormState(p => ({...p, nombre: e.target.value}))} 
+                    id="firstName-add"
+                    value={addFormState.firstName} 
+                    onChange={(e) => setAddFormState(p => ({...p, firstName: e.target.value}))} 
                     placeholder="Nombre del usuario"
                     disabled={isPending}
                   />
@@ -535,7 +535,7 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Se eliminará permanentemente al usuario "{`${userToDelete?.nombre} ${userToDelete?.apellido}`}" de la base de datos y del sistema de autenticación.
+                    Esta acción no se puede deshacer. Se eliminará permanentemente al usuario "{`${userToDelete?.firstName} ${userToDelete?.lastName}`}" de la base de datos y del sistema de autenticación.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -555,3 +555,5 @@ export default function UsersManager({ initialUsers, initialRoles }: UsersManage
     </>
   );
 }
+
+    

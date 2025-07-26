@@ -30,18 +30,18 @@ import * as XLSX from 'xlsx';
 
 
 const emptyForm = {
-    legajo: "",
-    cuil: "",
-    apellido: "",
-    nombre: "",
-    fechaIngreso: undefined as Date | undefined,
+    internalNumber: "",
+    identificationNumber: "",
+    lastName: "",
+    firstName: "",
+    hireDate: undefined as Date | undefined,
     sex: "" as EmployeeSex,
     projectId: "",
-    denominacionPosicion: "",
-    condicion: "" as EmployeeCondition | "",
-    estado: "" as EmployeeStatus | "",
-    celular: "",
-    correo: "",
+    position: "",
+    condition: "" as EmployeeCondition | "",
+    status: "" as EmployeeStatus | "",
+    phoneNumber: "",
+    email: "",
 };
 
 interface HistoryEntry {
@@ -145,7 +145,7 @@ export default function EmployeeFormPage() {
                      setFormState({
                         ...emptyForm,
                         ...employeeData,
-                        fechaIngreso: employeeData.fechaIngreso ? new Date(employeeData.fechaIngreso + 'T00:00:00') : undefined,
+                        hireDate: employeeData.hireDate ? new Date(employeeData.hireDate + 'T00:00:00') : undefined,
                     });
                 } else {
                     toast({ title: "Error", description: "Empleado no encontrado.", variant: "destructive" });
@@ -267,9 +267,9 @@ export default function EmployeeFormPage() {
     };
 
     const handleSaveEmployee = () => {
-        const { legajo, apellido, nombre, projectId, denominacionPosicion, condicion, estado, fechaIngreso, sex } = formState;
+        const { internalNumber, lastName, firstName, projectId, position, condition, status, hireDate, sex } = formState;
 
-        if (!legajo || !apellido || !nombre || !projectId || !denominacionPosicion || !condicion || !estado || !fechaIngreso || !sex) {
+        if (!internalNumber || !lastName || !firstName || !projectId || !position || !condition || !status || !hireDate || !sex) {
           toast({
             title: "Error de validación",
             description: "Debe completar todos los campos obligatorios (*).",
@@ -278,7 +278,7 @@ export default function EmployeeFormPage() {
           return;
         }
 
-        if (!/^\d+$/.test(legajo)) {
+        if (!/^\d+$/.test(internalNumber)) {
             toast({
                 title: "Error de validación",
                 description: "El legajo solo debe contener números.",
@@ -289,9 +289,9 @@ export default function EmployeeFormPage() {
 
         const employeeData = {
             ...formState,
-            fechaIngreso: format(fechaIngreso, "yyyy-MM-dd"),
-            condicion: formState.condicion as EmployeeCondition,
-            estado: formState.estado as EmployeeStatus,
+            hireDate: format(hireDate, "yyyy-MM-dd"),
+            condition: formState.condition as EmployeeCondition,
+            status: formState.status as EmployeeStatus,
             sex: formState.sex as EmployeeSex,
         };
 
@@ -302,12 +302,12 @@ export default function EmployeeFormPage() {
                await updateDoc(docRef, employeeData);
                toast({
                 title: "Empleado actualizado",
-                description: `El empleado "${employeeData.nombre} ${employeeData.apellido}" ha sido actualizado.`,
+                description: `El empleado "${employeeData.firstName} ${employeeData.lastName}" ha sido actualizado.`,
                });
                // No redirect, stay on page
             } else {
                 const employeesRef = collection(db, 'employees');
-                const q = query(employeesRef, where("legajo", "==", employeeData.legajo));
+                const q = query(employeesRef, where("internalNumber", "==", employeeData.internalNumber));
                 const existing = await getDocs(q);
                 if (!existing.empty) {
                     throw new Error('Ya existe un empleado con el mismo legajo.');
@@ -315,7 +315,7 @@ export default function EmployeeFormPage() {
                 const docRef = await addDoc(employeesRef, employeeData);
                 toast({
                   title: "Empleado agregado",
-                  description: `El empleado "${employeeData.nombre} ${employeeData.apellido}" ha sido creado.`,
+                  description: `El empleado "${employeeData.firstName} ${employeeData.lastName}" ha sido creado.`,
                 });
                 router.push(`/empleados/${docRef.id}`);
             }
@@ -360,7 +360,7 @@ export default function EmployeeFormPage() {
                 }));
                 worksheet['!cols'] = colWidths;
                 
-                XLSX.writeFile(workbook, `Historial_${formState.legajo}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+                XLSX.writeFile(workbook, `Historial_${formState.internalNumber}_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
     
                 toast({
                     title: "Exportación exitosa",
@@ -396,7 +396,7 @@ export default function EmployeeFormPage() {
                             <div>
                                 <CardTitle className="flex items-center gap-2">
                                     <User className="h-6 w-6"/>
-                                    {isNewEmployee ? "Agregar Nuevo Empleado" : `Perfil de: ${formState.apellido}, ${formState.nombre}`}
+                                    {isNewEmployee ? "Agregar Nuevo Empleado" : `Perfil de: ${formState.lastName}, ${formState.firstName}`}
                                 </CardTitle>
                                 <CardDescription>
                                     {isNewEmployee ? "Complete los datos para registrar un nuevo empleado." : "Modifique la información y vea el historial del empleado."}
@@ -418,14 +418,14 @@ export default function EmployeeFormPage() {
                                         <h3 className="mb-4 text-lg font-medium leading-none">Información Personal</h3>
                                         <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
                                             <div className="space-y-2">
-                                                <Label htmlFor="legajo">Legajo *</Label>
+                                                <Label htmlFor="internalNumber">Legajo *</Label>
                                                 <Input 
-                                                    id="legajo" 
-                                                    value={formState.legajo} 
+                                                    id="internalNumber" 
+                                                    value={formState.internalNumber} 
                                                     onChange={(e) => {
                                                         const value = e.target.value;
                                                         if (/^\d*$/.test(value)) {
-                                                            handleInputChange('legajo', value);
+                                                            handleInputChange('internalNumber', value);
                                                         }
                                                     }} 
                                                     placeholder="Ej. 12345" 
@@ -435,16 +435,16 @@ export default function EmployeeFormPage() {
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="cuil">CUIL</Label>
-                                                <Input id="cuil" value={formState.cuil} onChange={(e) => handleInputChange('cuil', e.target.value)} placeholder="Ej. 20-12345678-9" disabled={isPending}/>
+                                                <Label htmlFor="identificationNumber">CUIL</Label>
+                                                <Input id="identificationNumber" value={formState.identificationNumber} onChange={(e) => handleInputChange('identificationNumber', e.target.value)} placeholder="Ej. 20-12345678-9" disabled={isPending}/>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="apellido">Apellido *</Label>
-                                                <Input id="apellido" value={formState.apellido} onChange={(e) => handleInputChange('apellido', e.target.value)} placeholder="Pérez" disabled={isPending}/>
+                                                <Label htmlFor="lastName">Apellido *</Label>
+                                                <Input id="lastName" value={formState.lastName} onChange={(e) => handleInputChange('lastName', e.target.value)} placeholder="Pérez" disabled={isPending}/>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="nombre">Nombre *</Label>
-                                                <Input id="nombre" value={formState.nombre} onChange={(e) => handleInputChange('nombre', e.target.value)} placeholder="Juan" disabled={isPending}/>
+                                                <Label htmlFor="firstName">Nombre *</Label>
+                                                <Input id="firstName" value={formState.firstName} onChange={(e) => handleInputChange('firstName', e.target.value)} placeholder="Juan" disabled={isPending}/>
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="sex">Sexo *</Label>
@@ -466,16 +466,16 @@ export default function EmployeeFormPage() {
                                         <h3 className="mb-4 text-lg font-medium leading-none">Información Laboral</h3>
                                         <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
                                             <div className="space-y-2">
-                                                <Label htmlFor="fechaIngreso">F. Ingreso *</Label>
+                                                <Label htmlFor="hireDate">F. Ingreso *</Label>
                                                 <Popover>
                                                     <PopoverTrigger asChild>
                                                         <Button variant="outline" className="w-full justify-start text-left font-normal">
                                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                                            {formState.fechaIngreso ? format(formState.fechaIngreso, 'PPP', { locale: es }) : <span>Seleccione fecha</span>}
+                                                            {formState.hireDate ? format(formState.hireDate, 'PPP', { locale: es }) : <span>Seleccione fecha</span>}
                                                         </Button>
                                                     </PopoverTrigger>
                                                     <PopoverContent className="w-auto p-0">
-                                                        <Calendar mode="single" selected={formState.fechaIngreso} onSelect={(date) => handleInputChange('fechaIngreso', date)} initialFocus locale={es} />
+                                                        <Calendar mode="single" selected={formState.hireDate} onSelect={(date) => handleInputChange('hireDate', date)} initialFocus locale={es} />
                                                     </PopoverContent>
                                                 </Popover>
                                             </div>
@@ -487,12 +487,12 @@ export default function EmployeeFormPage() {
                                                 </Select>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="denominacionPosicion">Posición *</Label>
-                                                <Input id="denominacionPosicion" value={formState.denominacionPosicion} onChange={(e) => handleInputChange('denominacionPosicion', e.target.value)} placeholder="Ej. Oficial" disabled={isPending}/>
+                                                <Label htmlFor="position">Posición *</Label>
+                                                <Input id="position" value={formState.position} onChange={(e) => handleInputChange('position', e.target.value)} placeholder="Ej. Oficial" disabled={isPending}/>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="condicion">Condición *</Label>
-                                                <Select onValueChange={(value: EmployeeCondition) => handleInputChange('condicion', value)} value={formState.condicion} disabled={isPending}>
+                                                <Label htmlFor="condition">Condición *</Label>
+                                                <Select onValueChange={(value: EmployeeCondition) => handleInputChange('condition', value)} value={formState.condition} disabled={isPending}>
                                                     <SelectTrigger><SelectValue placeholder="Seleccione condición" /></SelectTrigger>
                                                     <SelectContent>
                                                     <SelectItem value="jornal">Jornal</SelectItem>
@@ -501,8 +501,8 @@ export default function EmployeeFormPage() {
                                                 </Select>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="estado">Estado *</Label>
-                                                <Select onValueChange={(value: EmployeeStatus) => handleInputChange('estado', value)} value={formState.estado} disabled={isPending}>
+                                                <Label htmlFor="status">Estado *</Label>
+                                                <Select onValueChange={(value: EmployeeStatus) => handleInputChange('status', value)} value={formState.status} disabled={isPending}>
                                                     <SelectTrigger><SelectValue placeholder="Seleccione estado" /></SelectTrigger>
                                                     <SelectContent>
                                                     <SelectItem value="activo">Activo</SelectItem>
@@ -520,12 +520,12 @@ export default function EmployeeFormPage() {
                                             <h3 className="mb-4 text-lg font-medium leading-none">Información de Contacto</h3>
                                             <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="celular">Celular</Label>
-                                                    <Input id="celular" value={formState.celular} onChange={(e) => handleInputChange('celular', e.target.value)} placeholder="Ej. 1122334455" disabled={isPending}/>
+                                                    <Label htmlFor="phoneNumber">Celular</Label>
+                                                    <Input id="phoneNumber" value={formState.phoneNumber} onChange={(e) => handleInputChange('phoneNumber', e.target.value)} placeholder="Ej. 1122334455" disabled={isPending}/>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="correo">Correo</Label>
-                                                    <Input id="correo" type="email" value={formState.correo} onChange={(e) => handleInputChange('correo', e.target.value)} placeholder="empleado@sacde.com" disabled={isPending}/>
+                                                    <Label htmlFor="email">Correo</Label>
+                                                    <Input id="email" type="email" value={formState.email} onChange={(e) => handleInputChange('email', e.target.value)} placeholder="empleado@sacde.com" disabled={isPending}/>
                                                 </div>
                                             </div>
                                         </div>
@@ -674,6 +674,8 @@ export default function EmployeeFormPage() {
     );
 
 }
+    
+
     
 
     

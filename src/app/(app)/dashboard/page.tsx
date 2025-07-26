@@ -108,11 +108,11 @@ export default function DashboardPage() {
         });
 
         // Metric 3: Personal total activo
-        const personalTotalActivo = employees.filter(e => e.estado === 'activo').length;
+        const personalTotalActivo = employees.filter(e => e.status === 'activo').length;
 
         // Metric 4: Personal con permiso hoy
         const personalConPermisoHoy = permissions.filter(p => {
-            const isApproved = !!p.approvedByJefeDeObraId || !!p.approvedByRecursosHumanosId;
+            const isApproved = !!p.approvedByProjectManagerId || !!p.approvedByHumanResourceId;
             if (!isApproved) return false;
   
             const startDate = new Date(`${p.startDate}T00:00:00`);
@@ -226,3 +226,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    

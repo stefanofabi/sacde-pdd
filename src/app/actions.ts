@@ -13,7 +13,7 @@ const adminAuth = getAdminAuth(adminApp);
 
 
 export async function createUser(userData: Omit<User, 'id' | 'authUid'>, password: string): Promise<User> {
-  const { nombre, apellido, email, roleId, is_superuser } = userData;
+  const { firstName, lastName, email, roleId, is_superuser } = userData;
 
   // 1. Check if user exists in Firestore
   const usersRef = collection(db, 'users');
@@ -29,7 +29,7 @@ export async function createUser(userData: Omit<User, 'id' | 'authUid'>, passwor
     createdAuthUser = await adminAuth.createUser({
       email: email.toLowerCase(),
       password: password,
-      displayName: `${nombre} ${apellido}`,
+      displayName: `${firstName} ${lastName}`,
       disabled: false,
     });
   } catch (error: any) {
@@ -45,8 +45,8 @@ export async function createUser(userData: Omit<User, 'id' | 'authUid'>, passwor
 
   // 3. Create user in Firestore
   const dataToSave = {
-    nombre,
-    apellido,
+    firstName,
+    lastName,
     email: email.toLowerCase(),
     roleId,
     is_superuser: is_superuser || false,
@@ -119,3 +119,5 @@ export async function moveEmployeeBetweenCrews(employeeId: string, sourceCrewId:
 
   await batch.commit();
 }
+
+    
