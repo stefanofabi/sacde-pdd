@@ -4,6 +4,7 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -84,17 +85,17 @@ export interface Crew {
   name: string;
   projectId: string;
   
-  capatazId: string;
-  capatazSuplenteIds: string[];
+  foremanId: string;
+  substituteForemanIds: string[];
 
-  apuntadorId: string; // Optional
-  apuntadorSuplenteIds: string[];
+  tallymanId: string;
+  substituteTallymanIds: string[];
   
-  jefeDeObraId: string;
-  jefeDeObraSuplenteIds: string[];
+  projectManagerId: string;
+  substituteProjectManagerIds: string[];
 
-  controlGestionId: string;
-  controlGestionSuplenteIds: string[];
+  controlAndManagementId: string;
+  substituteControlAndManagementIds: string[];
 
   employeeIds: string[];
   assignedPhases?: CrewPhaseAssignment[];

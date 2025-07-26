@@ -891,7 +891,7 @@ export default function DailyLaborReport({
     ? Object.values(entryForUnproductiveModal.productiveHours).reduce((a, b) => a + (b || 0), 0)
     : 0;
     
-  const getCrewDetail = (crew: Crew, field: 'capatazId' | 'apuntadorId' | 'jefeDeObraId' | 'controlGestionId') => {
+  const getCrewDetail = (crew: Crew, field: 'foremanId' | 'tallymanId' | 'projectManagerId' | 'controlAndManagementId') => {
     const titularId = crew[field];
     if (!titularId) return 'N/A';
     
@@ -1008,7 +1008,7 @@ export default function DailyLaborReport({
                       return (
                         <TableRow key={crew.id}>
                           <TableCell className="font-medium">{crew.name}</TableCell>
-                          <TableCell>{getCrewDetail(crew, 'capatazId')}</TableCell>
+                          <TableCell>{getCrewDetail(crew, 'foremanId')}</TableCell>
                           <TableCell className={cn("font-semibold", statusColor)}>{statusText}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="outline" size="sm" onClick={() => setSelectedCrewId(crew.id)}>
@@ -1044,19 +1044,19 @@ export default function DailyLaborReport({
               <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border p-4 bg-muted/50">
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Capataz</p>
-                  <p className="truncate">{getCrewDetail(selectedCrew, 'capatazId')}</p>
+                  <p className="truncate">{getCrewDetail(selectedCrew, 'foremanId')}</p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Apuntador</p>
-                  <p className="truncate">{getCrewDetail(selectedCrew, 'apuntadorId')}</p>
+                  <p className="truncate">{getCrewDetail(selectedCrew, 'tallymanId')}</p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Jefe de Proyecto</p>
-                  <p className="truncate">{getCrewDetail(selectedCrew, 'jefeDeObraId')}</p>
+                  <p className="truncate">{getCrewDetail(selectedCrew, 'projectManagerId')}</p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Control y Gestión</p>
-                  <p className="truncate">{getCrewDetail(selectedCrew, 'controlGestionId')}</p>
+                  <p className="truncate">{getCrewDetail(selectedCrew, 'controlAndManagementId')}</p>
                 </div>
               </div>
             )}
@@ -1633,5 +1633,3 @@ export default function DailyLaborReport({
     </TooltipProvider>
   );
 }
-
-

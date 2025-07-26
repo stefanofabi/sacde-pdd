@@ -33,14 +33,14 @@ import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip as
 const emptyForm: Omit<Crew, 'id'> = {
     name: "",
     projectId: "",
-    capatazId: "",
-    capatazSuplenteIds: [],
-    apuntadorId: "",
-    apuntadorSuplenteIds: [],
-    jefeDeObraId: "",
-    jefeDeObraSuplenteIds: [],
-    controlGestionId: "",
-    controlGestionSuplenteIds: [],
+    foremanId: "",
+    substituteForemanIds: [],
+    tallymanId: "",
+    substituteTallymanIds: [],
+    projectManagerId: "",
+    substituteProjectManagerIds: [],
+    controlAndManagementId: "",
+    substituteControlAndManagementIds: [],
     employeeIds: [],
     assignedPhases: [],
 };
@@ -147,7 +147,7 @@ export default function CrewFormPage() {
                         setFormState({
                             ...emptyForm,
                             ...crewDoc,
-                            apuntadorId: crewDoc.apuntadorId || "",
+                            tallymanId: crewDoc.tallymanId || "",
                             assignedPhases: (crewDoc.assignedPhases || []).map(p => ({
                                 ...p,
                                 startDate: p.startDate,
@@ -314,8 +314,8 @@ export default function CrewFormPage() {
     };
   
     const handleSaveCrew = () => {
-        const { name, projectId, capatazId, jefeDeObraId, controlGestionId } = formState;
-        if (!name.trim() || !projectId || !capatazId || !jefeDeObraId || !controlGestionId) {
+        const { name, projectId, foremanId, projectManagerId, controlAndManagementId } = formState;
+        if (!name.trim() || !projectId || !foremanId || !projectManagerId || !controlAndManagementId) {
             toast({
                 title: "Error de validación",
                 description: "Debe completar todos los campos obligatorios (Nombre, Proyecto, Capataz, Jefe de Proyecto, Control y Gestión).",
@@ -471,44 +471,44 @@ export default function CrewFormPage() {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <Label htmlFor="crew-capataz">Capataz (Titular) *</Label>
-                                                <Combobox options={employeeOptions} value={formState.capatazId} onValueChange={(v) => handleInputChange('capatazId', v)} placeholder="Seleccione un titular" />
+                                                <Combobox options={employeeOptions} value={formState.foremanId} onValueChange={(v) => handleInputChange('foremanId', v)} placeholder="Seleccione un titular" />
                                             </div>
                                             <div>
                                                 <Label htmlFor="crew-capataz-suplentes">Capataz (Suplentes)</Label>
-                                                <MultiSelectCombobox options={employeeOptions} selected={formState.capatazSuplenteIds} onChange={(v) => handleInputChange('capatazSuplenteIds', v)} placeholder="Seleccione suplentes" />
+                                                <MultiSelectCombobox options={employeeOptions} selected={formState.substituteForemanIds} onChange={(v) => handleInputChange('substituteForemanIds', v)} placeholder="Seleccione suplentes" />
                                             </div>
                                         </div>
                                         {/* Apuntador */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <Label htmlFor="crew-apuntador">Apuntador (Titular)</Label>
-                                                <Combobox options={employeeOptions} value={formState.apuntadorId} onValueChange={(v) => handleInputChange('apuntadorId', v)} placeholder="Seleccione un titular" />
+                                                <Combobox options={employeeOptions} value={formState.tallymanId} onValueChange={(v) => handleInputChange('tallymanId', v)} placeholder="Seleccione un titular" />
                                             </div>
                                             <div>
                                                 <Label htmlFor="crew-apuntador-suplentes">Apuntador (Suplentes)</Label>
-                                                <MultiSelectCombobox options={employeeOptions} selected={formState.apuntadorSuplenteIds} onChange={(v) => handleInputChange('apuntadorSuplenteIds', v)} placeholder="Seleccione suplentes" />
+                                                <MultiSelectCombobox options={employeeOptions} selected={formState.substituteTallymanIds} onChange={(v) => handleInputChange('substituteTallymanIds', v)} placeholder="Seleccione suplentes" />
                                             </div>
                                         </div>
                                         {/* Jefe de Obra */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <Label htmlFor="crew-jefe">Jefe de Proyecto (Titular) *</Label>
-                                                <Combobox options={employeeOptions} value={formState.jefeDeObraId} onValueChange={(v) => handleInputChange('jefeDeObraId', v)} placeholder="Seleccione un titular" />
+                                                <Combobox options={employeeOptions} value={formState.projectManagerId} onValueChange={(v) => handleInputChange('projectManagerId', v)} placeholder="Seleccione un titular" />
                                             </div>
                                             <div>
                                                 <Label htmlFor="crew-jefe-suplentes">Jefe de Proyecto (Suplentes)</Label>
-                                                <MultiSelectCombobox options={employeeOptions} selected={formState.jefeDeObraSuplenteIds} onChange={(v) => handleInputChange('jefeDeObraSuplenteIds', v)} placeholder="Seleccione suplentes" />
+                                                <MultiSelectCombobox options={employeeOptions} selected={formState.substituteProjectManagerIds} onChange={(v) => handleInputChange('substituteProjectManagerIds', v)} placeholder="Seleccione suplentes" />
                                             </div>
                                         </div>
                                         {/* Control y Gestion */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <Label htmlFor="crew-control">Control y Gestión (Titular) *</Label>
-                                                <Combobox options={employeeOptions} value={formState.controlGestionId} onValueChange={(v) => handleInputChange('controlGestionId', v)} placeholder="Seleccione un titular" />
+                                                <Combobox options={employeeOptions} value={formState.controlAndManagementId} onValueChange={(v) => handleInputChange('controlAndManagementId', v)} placeholder="Seleccione un titular" />
                                             </div>
                                             <div>
                                                 <Label htmlFor="crew-control-suplentes">Control y Gestión (Suplentes)</Label>
-                                                <MultiSelectCombobox options={employeeOptions} selected={formState.controlGestionSuplenteIds} onChange={(v) => handleInputChange('controlGestionSuplenteIds', v)} placeholder="Seleccione suplentes" />
+                                                <MultiSelectCombobox options={employeeOptions} selected={formState.substituteControlAndManagementIds} onChange={(v) => handleInputChange('substituteControlAndManagementIds', v)} placeholder="Seleccione suplentes" />
                                             </div>
                                         </div>
                                     </fieldset>
@@ -668,11 +668,3 @@ export default function CrewFormPage() {
         </main>
     );
 }
-
-    
-
-    
-
-
-
-    

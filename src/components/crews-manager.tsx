@@ -85,10 +85,10 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
 
     return crews.filter((crew) =>
         crew.name.toLowerCase().includes(lowerCaseSearchTerm) ||
-        (employeeNameMap.get(crew.capatazId) || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-        (employeeNameMap.get(crew.apuntadorId) || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-        (employeeNameMap.get(crew.jefeDeObraId) || '').toLowerCase().includes(lowerCaseSearchTerm) ||
-        (employeeNameMap.get(crew.controlGestionId) || '').toLowerCase().includes(lowerCaseSearchTerm)
+        (employeeNameMap.get(crew.foremanId) || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap.get(crew.tallymanId) || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap.get(crew.projectManagerId) || '').toLowerCase().includes(lowerCaseSearchTerm) ||
+        (employeeNameMap.get(crew.controlAndManagementId) || '').toLowerCase().includes(lowerCaseSearchTerm)
     );
   }, [allCrews, selectedProjectId, searchTerm, employeeNameMap]);
   
@@ -153,8 +153,8 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
             <CardDescription>{projectMap.get(crew.projectId) || 'Sin proyecto'}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-            <p><strong>Capataz:</strong> {employeeNameMap.get(crew.capatazId) || 'N/A'}</p>
-            <p><strong>Jefe de Proyecto:</strong> {employeeNameMap.get(crew.jefeDeObraId) || 'N/A'}</p>
+            <p><strong>Capataz:</strong> {employeeNameMap.get(crew.foremanId) || 'N/A'}</p>
+            <p><strong>Jefe de Proyecto:</strong> {employeeNameMap.get(crew.projectManagerId) || 'N/A'}</p>
             <div className="flex items-center gap-2 pt-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span>{crew.employeeIds?.length || 0} Miembros</span>
@@ -257,10 +257,10 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                                 filteredCrews.map((crew) => (
                                     <TableRow key={crew.id}>
                                         <TableCell className="font-medium">{crew.name}</TableCell>
-                                        <TableCell>{renderResponsibleName(crew.capatazId, crew.capatazSuplenteIds)}</TableCell>
-                                        <TableCell>{renderResponsibleName(crew.apuntadorId, crew.apuntadorSuplenteIds)}</TableCell>
-                                        <TableCell>{renderResponsibleName(crew.jefeDeObraId, crew.jefeDeObraSuplenteIds)}</TableCell>
-                                        <TableCell>{renderResponsibleName(crew.controlGestionId, crew.controlGestionSuplenteIds)}</TableCell>
+                                        <TableCell>{renderResponsibleName(crew.foremanId, crew.substituteForemanIds)}</TableCell>
+                                        <TableCell>{renderResponsibleName(crew.tallymanId, crew.substituteTallymanIds)}</TableCell>
+                                        <TableCell>{renderResponsibleName(crew.projectManagerId, crew.substituteProjectManagerIds)}</TableCell>
+                                        <TableCell>{renderResponsibleName(crew.controlAndManagementId, crew.substituteControlAndManagementIds)}</TableCell>
                                         <TableCell className="text-center">
                                           <Badge variant="secondary">{crew.employeeIds?.length || 0}</Badge>
                                         </TableCell>
