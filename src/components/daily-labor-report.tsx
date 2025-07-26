@@ -224,44 +224,43 @@ export default function DailyLaborReport({
   }, [selectedCrew, projectMap]);
   
   const personnelForTable = useMemo(() => {
-    if (!selectedCrew) return [];
-
-    const personnel = new Map<string, Employee>();
-    (selectedCrew.employeeIds || []).forEach(empId => {
-        const emp = employeeMap.get(empId);
-        if (emp) personnel.set(emp.id, emp);
-    });
+    if (!selectedCrewId || selectedCrewId === 'all') return [];
 
     const dailyEntries = laborData[formattedDate] || [];
-    dailyEntries.forEach(entry => {
-        if (entry.crewId === selectedCrew.id && 'manual' in entry && entry.manual) {
-            const emp = employeeMap.get(entry.employeeId);
-            if (emp) personnel.set(emp.id, emp);
-        }
-    });
+    const crewEntries = dailyEntries.filter(entry => entry.crewId === selectedCrewId);
+    const personnel = new Map<string, Employee>();
+
+    // If there are entries for this day, use employees from those entries
+    if (crewEntries.length > 0) {
+      crewEntries.forEach(entry => {
+        const emp = employeeMap.get(entry.employeeId);
+        if (emp) personnel.set(emp.id, emp);
+      });
+    } else {
+      // Otherwise, use the current crew members as the initial list
+      const crew = crewMap.get(selectedCrewId);
+      (crew?.employeeIds || []).forEach(empId => {
+        const emp = employeeMap.get(empId);
+        if (emp) personnel.set(emp.id, emp);
+      });
+    }
 
     return Array.from(personnel.values()).sort((a,b) => a.lastName.localeCompare(b.lastName));
-  }, [selectedCrew, employeeMap, laborData, formattedDate]);
+  }, [selectedCrewId, crewMap, employeeMap, laborData, formattedDate]);
   
   const availableEmployeesForManualAdd = useMemo(() => {
-    if (!selectedCrew) return [];
+    if (!selectedCrewId || selectedCrewId === 'all') return [];
 
-    const crewMemberIds = new Set(selectedCrew.employeeIds || []);
-    const manuallyAddedIds = new Set(
-        (laborData[formattedDate] || [])
-            .filter(e => e.crewId === selectedCrewId && 'manual' in e && e.manual)
-            .map(e => e.employeeId)
-    );
+    const alreadyInPart = new Set(personnelForTable.map(p => p.id));
 
     return initialEmployees
       .filter(emp => 
         emp.condition === 'jornal' && 
         emp.status === 'activo' &&
-        !crewMemberIds.has(emp.id) && 
-        !manuallyAddedIds.has(emp.id)
+        !alreadyInPart.has(emp.id)
       )
       .map(emp => ({ value: emp.id, label: `${emp.lastName}, ${emp.firstName} (L: ${emp.internalNumber})` }));
-  }, [initialEmployees, selectedCrew, laborData, formattedDate, selectedCrewId]);
+  }, [initialEmployees, personnelForTable, selectedCrewId]);
 
   const activePhases = useMemo(() => {
     if (!selectedDate || !selectedCrew) return [];
@@ -458,12 +457,12 @@ export default function DailyLaborReport({
                 const stateEntry = laborEntries[emp.id];
                 if (!stateEntry) return;
 
-                const isManual = !selectedCrew?.employeeIds.includes(emp.id);
+                const isManual = selectedCrew ? !selectedCrew.employeeIds.includes(emp.id) : true;
 
                 const totalProductive = Object.values(stateEntry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
                 const totalUnproductive = Object.values(stateEntry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
                 const totalHours = totalProductive + totalUnproductive;
-                const hasNovelty = stateEntry.absenceReason || totalHours > 0 || isManual;
+                const hasNovelty = stateEntry.absenceReason || totalHours > 0;
                 
                 if (hasNovelty) {
                     const dataToSave = { 
@@ -1127,9 +1126,7 @@ export default function DailyLaborReport({
                                 const hasHours = totalHours > 0;
                                 const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
 
-                                const dailyEntries = laborData[formattedDate] || [];
-                                const empEntry = dailyEntries.find(e => e.crewId === selectedCrewId && e.employeeId === emp.id)
-                                const isManual = empEntry && 'manual' in empEntry && empEntry.manual;
+                                const isManual = selectedCrew ? !selectedCrew.employeeIds.includes(emp.id) : true;
                                 
                                 const hasOvertimeWarning = totalHours > 12;
 
@@ -1300,7 +1297,7 @@ export default function DailyLaborReport({
                             ) : (
                                 <TableRow>
                                 <TableCell colSpan={8 + activePhases.length} className="h-24 text-center">
-                                    Esta cuadrilla no tiene personal asignado.
+                                    Esta cuadrilla no tiene personal asignado o no se han cargado partes para este día.
                                 </TableCell>
                                 </TableRow>
                             )}
