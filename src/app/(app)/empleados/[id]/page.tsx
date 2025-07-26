@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Loader2, ArrowLeft, Save, CalendarIcon, User, Clock, UserX, Sparkles, Link as LinkIcon, FileSpreadsheet } from "lucide-react";
-import type { Employee, Project, EmployeeCondition, EmployeeStatus, DailyLaborData, LegacyDailyLaborEntry, DailyLaborEntry, Permission, AbsenceType, Crew, Phase, UnproductiveHourType, SpecialHourType } from "@/types";
+import type { Employee, Project, EmployeeCondition, EmployeeStatus, DailyLaborData, LegacyDailyLaborEntry, DailyLaborEntry, Permission, AbsenceType, Crew, Phase, UnproductiveHourType, SpecialHourType, EmployeeSex } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -35,6 +35,7 @@ const emptyForm = {
     apellido: "",
     nombre: "",
     fechaIngreso: undefined as Date | undefined,
+    sex: "" as EmployeeSex | "",
     projectId: "",
     denominacionPosicion: "",
     condicion: "" as EmployeeCondition | "",
@@ -291,6 +292,7 @@ export default function EmployeeFormPage() {
             fechaIngreso: format(fechaIngreso, "yyyy-MM-dd"),
             condicion: formState.condicion as EmployeeCondition,
             estado: formState.estado as EmployeeStatus,
+            sex: formState.sex as EmployeeSex,
         };
 
         startTransition(async () => {
@@ -443,6 +445,17 @@ export default function EmployeeFormPage() {
                                             <div className="space-y-2">
                                                 <Label htmlFor="nombre">Nombre *</Label>
                                                 <Input id="nombre" value={formState.nombre} onChange={(e) => handleInputChange('nombre', e.target.value)} placeholder="Juan" disabled={isPending}/>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="sex">Sexo</Label>
+                                                <Select onValueChange={(value: EmployeeSex) => handleInputChange('sex', value)} value={formState.sex} disabled={isPending}>
+                                                    <SelectTrigger><SelectValue placeholder="Seleccione sexo" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="M">Masculino</SelectItem>
+                                                        <SelectItem value="F">Femenino</SelectItem>
+                                                        <SelectItem value="X">No binario</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
                                         </div>
                                         </div>

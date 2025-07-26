@@ -128,6 +128,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                 "Apellido": emp.apellido,
                 "Nombre": emp.nombre,
                 "CUIL": emp.cuil || '',
+                "Sexo": emp.sex || '',
                 "Fecha de Ingreso": emp.fechaIngreso ? format(new Date(emp.fechaIngreso + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }) : '',
                 "Proyecto": projectNameMap[emp.projectId] || 'N/A',
                 "Posición": emp.denominacionPosicion,

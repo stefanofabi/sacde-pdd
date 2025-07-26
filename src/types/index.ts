@@ -2,6 +2,7 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -114,6 +115,7 @@ export type AttendanceData = Record<string, DailyAttendance>;
 
 export type EmployeeCondition = "jornal" | "mensual";
 export type EmployeeStatus = "activo" | "suspendido" | "baja";
+export type EmployeeSex = "M" | "F" | "X";
 
 export interface Employee {
   id: string;
@@ -122,6 +124,7 @@ export interface Employee {
   apellido: string;
   nombre: string;
   fechaIngreso: string; // ISO date string e.g. "2023-10-27"
+  sex?: EmployeeSex;
   projectId: string;
   denominacionPosicion: string;
   condicion: EmployeeCondition;
