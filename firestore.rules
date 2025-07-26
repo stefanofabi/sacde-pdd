@@ -1,0 +1,24 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Regla específica para la colección 'users'
+    match /users/{userId} {
+      // Permite que CUALQUIERA cree un nuevo documento de usuario.
+      // Esto es necesario para que el registro funcione.
+      allow create: if true;
+      
+      // Permite que solo los usuarios autenticados lean o actualicen
+      // documentos de usuario.
+      allow read, update: if request.auth != null;
+    }
+    
+    // Regla general para TODAS las demás colecciones
+    match /{document=**} {
+      // Requiere que el usuario esté autenticado para leer o escribir
+      // en cualquier otra colección.
+      allow read, write: if request.auth != null;
+    }
+  }
+}
