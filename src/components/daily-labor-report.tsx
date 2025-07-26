@@ -240,7 +240,7 @@ export default function DailyLaborReport({
         }
     });
 
-    return Array.from(personnel.values()).sort((a,b) => a.apellido.localeCompare(b.apellido));
+    return Array.from(personnel.values()).sort((a,b) => a.lastName.localeCompare(b.lastName));
   }, [selectedCrew, employeeMap, laborData, formattedDate]);
   
   const availableEmployeesForManualAdd = useMemo(() => {
@@ -255,12 +255,12 @@ export default function DailyLaborReport({
 
     return initialEmployees
       .filter(emp => 
-        emp.condicion === 'jornal' && 
-        emp.estado === 'activo' &&
+        emp.condition === 'jornal' && 
+        emp.status === 'activo' &&
         !crewMemberIds.has(emp.id) && 
         !manuallyAddedIds.has(emp.id)
       )
-      .map(emp => ({ value: emp.id, label: `${emp.apellido}, ${emp.nombre} (L: ${emp.legajo})` }));
+      .map(emp => ({ value: emp.id, label: `${emp.lastName}, ${emp.firstName} (L: ${emp.internalNumber})` }));
   }, [initialEmployees, selectedCrew, laborData, formattedDate, selectedCrewId]);
 
   const activePhases = useMemo(() => {
@@ -293,7 +293,7 @@ export default function DailyLaborReport({
     initialPermissions.forEach(perm => {
         const startDate = new Date(perm.startDate + 'T00:00:00');
         const endDate = new Date(perm.endDate + 'T00:00:00');
-        const isApproved = !!perm.approvedByJefeDeObraId || !!perm.approvedByRecursosHumanosId;
+        const isApproved = !!perm.approvedByProjectManagerId || !!perm.approvedByHumanResourceId;
 
         if (isApproved && date >= startDate && date <= endDate) {
             permissionsMap.set(perm.employeeId, perm.absenceTypeId);
@@ -582,7 +582,7 @@ export default function DailyLaborReport({
 
     if (personnelWithoutNovelty.length > 0) {
         const employeeNames = personnelWithoutNovelty
-            .map(emp => `${emp.apellido}, ${emp.nombre}`)
+            .map(emp => `${emp.lastName}, ${emp.firstName}`)
             .join('; ');
         toast({
             title: "Faltan Novedades para Notificar",
@@ -595,7 +595,7 @@ export default function DailyLaborReport({
     
     if (personnelWithHoursAndNoPhase.length > 0) {
         const employeeNames = personnelWithHoursAndNoPhase
-            .map(emp => `${emp.apellido}, ${emp.nombre}`)
+            .map(emp => `${emp.lastName}, ${emp.firstName}`)
             .join('; ');
         toast({
             title: "Faltan Novedades para Notificar",
@@ -650,7 +650,7 @@ export default function DailyLaborReport({
             
             toast({
                 title: "Empleado Movido",
-                description: `${employeeToMove.apellido}, ${employeeToMove.nombre} ha sido movido con éxito.`,
+                description: `${employeeToMove.lastName}, ${employeeToMove.firstName} ha sido movido con éxito.`,
             });
             
             setEmployeeToMove(null);
@@ -896,7 +896,7 @@ export default function DailyLaborReport({
     if (!titularId) return 'N/A';
     
     const titular = employeeMap.get(titularId);
-    return titular ? `${titular.apellido}, ${titular.nombre}` : 'N/A';
+    return titular ? `${titular.lastName}, ${titular.firstName}` : 'N/A';
   };
 
   const handleOpenMobileHoursModal = (employee: Employee) => {
@@ -1075,8 +1075,8 @@ export default function DailyLaborReport({
                             return (
                                 <Card key={emp.id} className={cn(entry.absenceReason ? "bg-red-50" : (totalHours > 0 ? "bg-green-50" : ""))}>
                                     <CardHeader className="pb-4">
-                                        <CardTitle className="text-base">{`${emp.apellido}, ${emp.nombre}`}</CardTitle>
-                                        <CardDescription>Legajo: {emp.legajo}</CardDescription>
+                                        <CardTitle className="text-base">{`${emp.lastName}, ${emp.firstName}`}</CardTitle>
+                                        <CardDescription>Legajo: {emp.internalNumber}</CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-2 text-sm">
                                         {absenceName ? (
@@ -1141,10 +1141,10 @@ export default function DailyLaborReport({
                                     isManual ? "bg-accent/50" : "",
                                     hasOvertimeWarning ? "bg-destructive/10" : ""
                                 )}>
-                                    <TableCell className="font-mono sticky left-0 bg-background z-10">{emp.legajo}</TableCell>
+                                    <TableCell className="font-mono sticky left-0 bg-background z-10">{emp.internalNumber}</TableCell>
                                     <TableCell className="font-medium sticky left-[70px] bg-background z-10">
                                       <div className="flex items-center gap-2">
-                                          {`${emp.apellido}, ${emp.nombre}`}
+                                          {`${emp.lastName}, ${emp.firstName}`}
                                           {isManual && (
                                           <Tooltip>
                                               <TooltipTrigger>
@@ -1227,7 +1227,7 @@ export default function DailyLaborReport({
                                                 </Button>
                                               </TooltipTrigger>
                                               <TooltipContent>
-                                                <p>Editar horas improductivas para {`${emp.apellido}, ${emp.nombre}`}</p>
+                                                <p>Editar horas improductivas para {`${emp.lastName}, ${emp.firstName}`}</p>
                                               </TooltipContent>
                                             </Tooltip>
                                         </div>
@@ -1250,7 +1250,7 @@ export default function DailyLaborReport({
                                                 </Button>
                                               </TooltipTrigger>
                                               <TooltipContent>
-                                                <p>Editar horas especiales para {`${emp.apellido}, ${emp.nombre}`}</p>
+                                                <p>Editar horas especiales para {`${emp.lastName}, ${emp.firstName}`}</p>
                                               </TooltipContent>
                                             </Tooltip>
                                         </div>
@@ -1387,7 +1387,7 @@ export default function DailyLaborReport({
             <DialogHeader>
                 <DialogTitle>Mover Empleado</DialogTitle>
                 <DialogDescription>
-                    Mover a <strong>{employeeToMove?.apellido}, {employeeToMove?.nombre}</strong> a otra cuadrilla para la fecha <strong>{displayDate}</strong>. Esta acción quitará al empleado del parte actual y creará una entrada en blanco en el parte de destino.
+                    Mover a <strong>{employeeToMove?.lastName}, {employeeToMove?.firstName}</strong> a otra cuadrilla para la fecha <strong>{displayDate}</strong>. Esta acción quitará al empleado del parte actual y creará una entrada en blanco en el parte de destino.
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-2">
@@ -1466,7 +1466,7 @@ export default function DailyLaborReport({
         <DialogHeader>
           <DialogTitle>Registrar Horas Especiales</DialogTitle>
           <DialogDescription>
-            Registre las horas especiales para {`${specialHoursModalState.employee?.apellido}, ${specialHoursModalState.employee?.nombre}`} en la fecha {displayDate}. El total no puede exceder las horas totales trabajadas.
+            Registre las horas especiales para {`${specialHoursModalState.employee?.lastName}, ${specialHoursModalState.employee?.firstName}`} en la fecha {displayDate}. El total no puede exceder las horas totales trabajadas.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 grid gap-4">
@@ -1512,7 +1512,7 @@ export default function DailyLaborReport({
         <DialogHeader>
           <DialogTitle>Registrar Horas Improductivas</DialogTitle>
           <DialogDescription>
-            Registre las horas improductivas para {`${unproductiveHoursModalState.employee?.apellido}, ${unproductiveHoursModalState.employee?.nombre}`} en la fecha {displayDate}.
+            Registre las horas improductivas para {`${unproductiveHoursModalState.employee?.lastName}, ${unproductiveHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 grid gap-4">
@@ -1557,7 +1557,7 @@ export default function DailyLaborReport({
             <DialogHeader>
                 <DialogTitle>Cargar Novedades</DialogTitle>
                 <DialogDescription>
-                    Para {`${mobileHoursModalState.employee?.apellido}, ${mobileHoursModalState.employee?.nombre}`} en la fecha {displayDate}.
+                    Para {`${mobileHoursModalState.employee?.lastName}, ${mobileHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
                 </DialogDescription>
             </DialogHeader>
             <ScrollArea className="max-h-[60vh]">

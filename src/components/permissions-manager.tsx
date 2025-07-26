@@ -80,8 +80,8 @@ const emptyForm = {
     startDate: undefined as Date | undefined,
     endDate: undefined as Date | undefined,
     observations: "",
-    designatedApproverJefeDeObraId: "",
-    designatedApproverRecursosHumanosId: "",
+    designatedApproverProjectManagerId: "",
+    designatedApproverHumanResourceId: "",
 };
 
 export default function PermissionsManager({ initialPermissions, initialEmployees, initialAbsenceTypes }: PermissionsManagerProps) {
@@ -102,7 +102,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     const canApproveHR = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('permissions.approveHR'), [user]);
 
     const employeeMap = useMemo(() => {
-        return new Map(initialEmployees.map(emp => [emp.id, `${emp.nombre} ${emp.apellido} (L: ${emp.legajo})`]));
+        return new Map(initialEmployees.map(emp => [emp.id, `${emp.firstName} ${emp.lastName} (L: ${emp.internalNumber})`]));
     }, [initialEmployees]);
     
     const absenceTypeMap = useMemo(() => {
@@ -112,7 +112,7 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     const employeeOptions = useMemo(() => {
         return initialEmployees.map(emp => ({
             value: emp.id,
-            label: `${emp.nombre} ${emp.apellido} (L: ${emp.legajo})`
+            label: `${emp.firstName} ${emp.lastName} (L: ${emp.internalNumber})`
         }));
     }, [initialEmployees]);
     
@@ -164,8 +164,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
             startDate: new Date(permission.startDate + 'T00:00:00'),
             endDate: new Date(permission.endDate + 'T00:00:00'),
             observations: permission.observations || '',
-            designatedApproverJefeDeObraId: permission.designatedApproverJefeDeObraId || '',
-            designatedApproverRecursosHumanosId: permission.designatedApproverRecursosHumanosId || '',
+            designatedApproverProjectManagerId: permission.designatedApproverProjectManagerId || '',
+            designatedApproverHumanResourceId: permission.designatedApproverHumanResourceId || '',
         });
         setIsFormOpen(true);
     };
@@ -180,11 +180,11 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                 const approvalTime = new Date().toISOString();
                 
                 if (approverType === 'supervisor') {
-                    updateData.approvedByJefeDeObraId = user.id;
-                    updateData.approvedByJefeDeObraAt = approvalTime;
+                    updateData.approvedByProjectManagerId = user.id;
+                    updateData.approvedByProjectManagerAt = approvalTime;
                 } else {
-                    updateData.approvedByRecursosHumanosId = user.id;
-                    updateData.approvedByRecursosHumanosAt = approvalTime;
+                    updateData.approvedByHumanResourceId = user.id;
+                    updateData.approvedByHumanResourceAt = approvalTime;
                 }
 
                 await updateDoc(docRef, updateData);
@@ -206,8 +206,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
     };
 
     const handleSavePermission = () => {
-        const { employeeId, startDate, endDate, absenceTypeId, designatedApproverJefeDeObraId, designatedApproverRecursosHumanosId } = formState;
-        if (!employeeId || !startDate || !endDate || !absenceTypeId || !designatedApproverJefeDeObraId || !designatedApproverRecursosHumanosId) {
+        const { employeeId, startDate, endDate, absenceTypeId, designatedApproverProjectManagerId, designatedApproverHumanResourceId } = formState;
+        if (!employeeId || !startDate || !endDate || !absenceTypeId || !designatedApproverProjectManagerId || !designatedApproverHumanResourceId) {
             toast({
                 title: "Error de validación",
                 description: "Debe completar todos los campos obligatorios (*).",
@@ -258,8 +258,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                     startDate: format(startDate, "yyyy-MM-dd"),
                     endDate: format(endDate, "yyyy-MM-dd"),
                     observations: formState.observations || '',
-                    designatedApproverJefeDeObraId: formState.designatedApproverJefeDeObraId || '',
-                    designatedApproverRecursosHumanosId: formState.designatedApproverRecursosHumanosId || '',
+                    designatedApproverProjectManagerId: formState.designatedApproverProjectManagerId || '',
+                    designatedApproverHumanResourceId: formState.designatedApproverHumanResourceId || '',
                 };
 
                 if (editingPermission) {
@@ -274,10 +274,10 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                 } else {
                      const dataToSave: Omit<Permission, 'id'> = {
                         ...permissionData,
-                        approvedByJefeDeObraId: '',
-                        approvedByJefeDeObraAt: '',
-                        approvedByRecursosHumanosId: '',
-                        approvedByRecursosHumanosAt: '',
+                        approvedByProjectManagerId: '',
+                        approvedByProjectManagerAt: '',
+                        approvedByHumanResourceId: '',
+                        approvedByHumanResourceAt: '',
                     };
                     const docRef = await addDoc(collection(db, 'permissions'), dataToSave);
                     const newPermission = { id: docRef.id, ...dataToSave } as Permission;
@@ -327,8 +327,8 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                     "Motivo": absenceTypeMap.get(perm.absenceTypeId) || 'N/A',
                     "Desde": format(new Date(perm.startDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }),
                     "Hasta": format(new Date(perm.endDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }),
-                    "Aprobado por Jefe de Obra": perm.approvedByJefeDeObraId ? (employeeMap.get(perm.approvedByJefeDeObraId) || 'Aprobado') : 'No',
-                    "Aprobado por RRHH": perm.approvedByRecursosHumanosId ? (employeeMap.get(perm.approvedByRecursosHumanosId) || 'Aprobado') : 'No',
+                    "Aprobado por Jefe de Obra": perm.approvedByProjectManagerId ? (employeeMap.get(perm.approvedByProjectManagerId) || 'Aprobado') : 'No',
+                    "Aprobado por RRHH": perm.approvedByHumanResourceId ? (employeeMap.get(perm.approvedByHumanResourceId) || 'Aprobado') : 'No',
                     "Observaciones": perm.observations || ''
                 }));
     
@@ -362,9 +362,9 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
       
     const renderApprovalStatus = (permission: Permission, approverType: 'supervisor' | 'hr') => {
         const canApprove = approverType === 'supervisor' ? canApproveSupervisor : canApproveHR;
-        const approvedById = approverType === 'supervisor' ? permission.approvedByJefeDeObraId : permission.approvedByRecursosHumanosId;
-        const approvedAt = approverType === 'supervisor' ? permission.approvedByJefeDeObraAt : permission.approvedByRecursosHumanosAt;
-        const designatedId = approverType === 'supervisor' ? permission.designatedApproverJefeDeObraId : permission.designatedApproverRecursosHumanosId;
+        const approvedById = approverType === 'supervisor' ? permission.approvedByProjectManagerId : permission.approvedByHumanResourceId;
+        const approvedAt = approverType === 'supervisor' ? permission.approvedByProjectManagerAt : permission.approvedByHumanResourceAt;
+        const designatedId = approverType === 'supervisor' ? permission.designatedApproverProjectManagerId : permission.designatedApproverHumanResourceId;
         const showApproveButton = canApprove && !approvedById && (!designatedId || designatedId === user?.id);
 
         if (approvedById) {
@@ -624,11 +624,11 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="designatedApproverJefeDeObraId">Responsable Aprobación (Jefe de Obra) *</Label>
+                            <Label htmlFor="designatedApproverProjectManagerId">Responsable Aprobación (Jefe de Obra) *</Label>
                             <Combobox
                                 options={employeeOptions}
-                                value={formState.designatedApproverJefeDeObraId}
-                                onValueChange={(value) => handleInputChange('designatedApproverJefeDeObraId', value)}
+                                value={formState.designatedApproverProjectManagerId}
+                                onValueChange={(value) => handleInputChange('designatedApproverProjectManagerId', value)}
                                 placeholder="Seleccionar un aprobador"
                                 searchPlaceholder="Buscar aprobador..."
                                 emptyMessage="Empleado no encontrado"
@@ -636,11 +636,11 @@ export default function PermissionsManager({ initialPermissions, initialEmployee
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="designatedApproverRecursosHumanosId">Responsable Aprobación (RRHH) *</Label>
+                            <Label htmlFor="designatedApproverHumanResourceId">Responsable Aprobación (RRHH) *</Label>
                             <Combobox
                                 options={employeeOptions}
-                                value={formState.designatedApproverRecursosHumanosId}
-                                onValueChange={(value) => handleInputChange('designatedApproverRecursosHumanosId', value)}
+                                value={formState.designatedApproverHumanResourceId}
+                                onValueChange={(value) => handleInputChange('designatedApproverHumanResourceId', value)}
                                 placeholder="Seleccionar un aprobador"
                                 searchPlaceholder="Buscar aprobador..."
                                 emptyMessage="Empleado no encontrado"
