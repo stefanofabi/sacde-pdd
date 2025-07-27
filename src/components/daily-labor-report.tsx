@@ -64,7 +64,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft, Edit } from "lucide-react";
 import { format, startOfToday, parse } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, Employee, DailyLaborData, Project, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry, Permission } from "@/types";
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry, Permission, DailyLaborNotification } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
@@ -220,8 +220,12 @@ export default function DailyLaborReport({
 
   const projectForCrew = useMemo(() => {
     if (!selectedCrew) return null;
+    const dailyLaborForCrew = (laborData[formattedDate] || []).find(e => e.crewId === selectedCrew.id);
+    if(dailyLaborForCrew) {
+        return projectMap.get(dailyLaborForCrew.projectId);
+    }
     return projectMap.get(selectedCrew.projectId);
-  }, [selectedCrew, projectMap]);
+  }, [selectedCrew, projectMap, laborData, formattedDate]);
   
   const personnelForTable = useMemo(() => {
     if (!selectedCrewId || selectedCrewId === 'all') return [];
@@ -303,12 +307,13 @@ export default function DailyLaborReport({
 }, [formattedDate, initialPermissions]);
 
 
-  const { isNotified, notifiedAt } = useMemo(() => {
-    if (!selectedCrewId || selectedCrewId === 'all') return { isNotified: false, notifiedAt: null };
-    const status = notificationData[formattedDate]?.[selectedCrewId];
+  const { isNotified, notifiedAt, responsiblesAtNotification } = useMemo(() => {
+    if (!selectedCrewId || selectedCrewId === 'all') return { isNotified: false, notifiedAt: null, responsiblesAtNotification: null };
+    const notification: DailyLaborNotification | undefined = notificationData[formattedDate]?.[selectedCrewId];
     return {
-      isNotified: status?.notified || false,
-      notifiedAt: status?.notifiedAt ? format(new Date(status.notifiedAt), 'Pp', { locale: es }) : null,
+      isNotified: notification?.notified || false,
+      notifiedAt: notification?.notifiedAt ? format(new Date(notification.notifiedAt), 'Pp', { locale: es }) : null,
+      responsiblesAtNotification: notification?.notified ? notification : null,
     }
   }, [notificationData, formattedDate, selectedCrewId]);
 
@@ -434,10 +439,10 @@ export default function DailyLaborReport({
   }
 
   const handleSave = () => {
-    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all') {
+    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !projectForCrew) {
       toast({
         title: "Selección requerida",
-        description: "Por favor, seleccione una fecha y una cuadrilla para guardar.",
+        description: "Por favor, seleccione una fecha, proyecto y cuadrilla para guardar.",
         variant: "destructive",
       });
       return;
@@ -468,6 +473,7 @@ export default function DailyLaborReport({
                     const dataToSave = { 
                         date: formattedDate,
                         crewId: selectedCrewId,
+                        projectId: projectForCrew.id,
                         employeeId: emp.id, 
                         absenceReason: stateEntry.absenceReason,
                         productiveHours: stateEntry.productiveHours,
@@ -506,7 +512,7 @@ export default function DailyLaborReport({
   };
 
   const handleNotify = () => {
-    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all') return;
+    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !selectedCrew) return;
 
     startTransition(async () => {
         try {
@@ -514,27 +520,32 @@ export default function DailyLaborReport({
             const q = query(notificationsRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
             const snapshot = await getDocs(q);
             
-            const notificationDataPayload = {
-                date: formattedDate,
-                crewId: selectedCrewId,
+            const notificationDataPayload: DailyLaborNotification = {
                 notified: true,
                 notifiedAt: new Date().toISOString(),
+                foremanId: selectedCrew.foremanId,
+                tallymanId: selectedCrew.tallymanId,
+                projectManagerId: selectedCrew.projectManagerId,
+                controlAndManagementId: selectedCrew.controlAndManagementId,
+            };
+
+            const dataToSave = {
+                date: formattedDate,
+                crewId: selectedCrewId,
+                ...notificationDataPayload
             };
 
             if (snapshot.empty) {
-                await addDoc(notificationsRef, notificationDataPayload);
+                await addDoc(notificationsRef, dataToSave);
             } else {
-                await updateDoc(snapshot.docs[0].ref, notificationDataPayload);
+                await updateDoc(snapshot.docs[0].ref, dataToSave);
             }
 
             setNotificationData(prev => ({
                 ...prev,
                 [formattedDate]: {
                     ...(prev[formattedDate] || {}),
-                    [selectedCrewId]: {
-                        notified: true,
-                        notifiedAt: new Date().toISOString()
-                    }
+                    [selectedCrewId]: notificationDataPayload
                 }
             }));
             setIsNotifyDialogOpen(false);
@@ -614,7 +625,7 @@ export default function DailyLaborReport({
   };
 
   const handleMoveEmployee = () => {
-    if (!employeeToMove || !destinationCrewId || !selectedCrewId || !formattedDate || selectedCrewId === 'all') return;
+    if (!employeeToMove || !destinationCrewId || !selectedCrewId || !formattedDate || selectedCrewId === 'all' || !projectForCrew) return;
     
     startTransition(async () => {
         try {
@@ -631,6 +642,7 @@ export default function DailyLaborReport({
                 date: formattedDate,
                 employeeId: employeeToMove.id,
                 crewId: destinationCrewId,
+                projectId: projectForCrew.id,
                 productiveHours: {},
                 unproductiveHours: {},
                 absenceReason: null,
@@ -665,7 +677,7 @@ export default function DailyLaborReport({
   };
 
   const handleAddManualEmployee = () => {
-    if (!employeeToAdd || !selectedCrewId || selectedCrewId === 'all' || !formattedDate) return;
+    if (!employeeToAdd || !selectedCrewId || selectedCrewId === 'all' || !formattedDate || !projectForCrew) return;
 
     startTransition(async () => {
         try {
@@ -674,6 +686,7 @@ export default function DailyLaborReport({
             const newEntryData = {
                 date: formattedDate,
                 crewId: selectedCrewId,
+                projectId: projectForCrew.id,
                 employeeId: employeeToAdd,
                 productiveHours: {},
                 unproductiveHours: {},
@@ -890,8 +903,14 @@ export default function DailyLaborReport({
     ? Object.values(entryForUnproductiveModal.productiveHours).reduce((a, b) => a + (b || 0), 0)
     : 0;
     
-  const getCrewDetail = (crew: Crew, field: 'foremanId' | 'tallymanId' | 'projectManagerId' | 'controlAndManagementId') => {
-    const titularId = crew[field];
+  const getCrewDetail = (field: 'foremanId' | 'tallymanId' | 'projectManagerId' | 'controlAndManagementId') => {
+    let titularId;
+    if (responsiblesAtNotification) {
+      titularId = responsiblesAtNotification[field];
+    } else if (selectedCrew) {
+      titularId = selectedCrew[field];
+    }
+
     if (!titularId) return 'N/A';
     
     const titular = employeeMap.get(titularId);
@@ -992,11 +1011,11 @@ export default function DailyLaborReport({
                 <TableBody>
                   {crewsForListView.length > 0 ? (
                     crewsForListView.map(crew => {
-                      const isNotified = notificationData[formattedDate]?.[crew.id]?.notified;
+                      const isCrewNotified = notificationData[formattedDate]?.[crew.id]?.notified;
                       const hasEntries = (laborData[formattedDate] || []).some(e => e.crewId === crew.id);
                       let statusText = "No Iniciado";
                       let statusColor = 'text-muted-foreground';
-                      if (isNotified) {
+                      if (isCrewNotified) {
                         statusText = "Notificado";
                         statusColor = 'text-green-600';
                       } else if (hasEntries) {
@@ -1007,7 +1026,7 @@ export default function DailyLaborReport({
                       return (
                         <TableRow key={crew.id}>
                           <TableCell className="font-medium">{crew.name}</TableCell>
-                          <TableCell>{getCrewDetail(crew, 'foremanId')}</TableCell>
+                          <TableCell>{employeeMap.get(crew.foremanId)?.lastName}, {employeeMap.get(crew.foremanId)?.firstName}</TableCell>
                           <TableCell className={cn("font-semibold", statusColor)}>{statusText}</TableCell>
                           <TableCell className="text-right">
                             <Button variant="outline" size="sm" onClick={() => setSelectedCrewId(crew.id)}>
@@ -1043,19 +1062,19 @@ export default function DailyLaborReport({
               <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border p-4 bg-muted/50">
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Capataz</p>
-                  <p className="truncate">{getCrewDetail(selectedCrew, 'foremanId')}</p>
+                  <p className="truncate">{getCrewDetail('foremanId')}</p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Apuntador</p>
-                  <p className="truncate">{getCrewDetail(selectedCrew, 'tallymanId')}</p>
+                  <p className="truncate">{getCrewDetail('tallymanId')}</p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Jefe de Proyecto</p>
-                  <p className="truncate">{getCrewDetail(selectedCrew, 'projectManagerId')}</p>
+                  <p className="truncate">{getCrewDetail('projectManagerId')}</p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Control y Gestión</p>
-                  <p className="truncate">{getCrewDetail(selectedCrew, 'controlAndManagementId')}</p>
+                  <p className="truncate">{getCrewDetail('controlAndManagementId')}</p>
                 </div>
               </div>
             )}
@@ -1630,3 +1649,4 @@ export default function DailyLaborReport({
     </TooltipProvider>
   );
 }
+

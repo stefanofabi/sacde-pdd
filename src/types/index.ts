@@ -173,6 +173,7 @@ export interface DailyLaborEntry {
   id: string;
   employeeId: string;
   crewId: string;
+  projectId: string;
   absenceReason: string | null; // If present, all hour fields should be empty/null
   productiveHours: Record<string, number | null>; // Key: phaseId, Value: hours
   unproductiveHours: Record<string, number | null>; // Key: unproductiveTypeId, Value: hours
@@ -185,6 +186,7 @@ export interface LegacyDailyLaborEntry {
   id: string;
   employeeId: string;
   crewId: string;
+  projectId: string;
   hours: number | null;
   phaseId: string | null;
   absenceReason: string | null;
@@ -216,13 +218,17 @@ export interface DailyLaborApproval {
 // dateKey -> crewId -> Approval
 export type DailyLaborApprovalData = Record<string, Record<string, DailyLaborApproval>>;
 
-// This is obsolete and will be replaced by the Approval system
+export interface DailyLaborNotification {
+    notified: boolean;
+    notifiedAt: string;
+    foremanId?: string;
+    tallymanId?: string;
+    projectManagerId?: string;
+    controlAndManagementId?: string;
+}
 export interface DailyLaborNotificationData {
   [dateKey: string]: {
-      [crewId: string]: {
-          notified: boolean;
-          notifiedAt: string;
-      };
+      [crewId: string]: DailyLaborNotification;
   };
 }
 
