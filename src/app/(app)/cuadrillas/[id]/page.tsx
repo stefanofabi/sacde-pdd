@@ -398,7 +398,7 @@ export default function CrewFormPage() {
                                             </div>
                                             <div>
                                                 <Label htmlFor="crew-project">Proyecto *</Label>
-                                                <Select onValueChange={(value) => handleInputChange('projectId', value)} value={formState.projectId}>
+                                                <Select onValueChange={(value) => handleInputChange('projectId', value)} value={formState.projectId} disabled={!isNewCrew}>
                                                 <SelectTrigger><SelectValue placeholder="Seleccione un proyecto" /></SelectTrigger>
                                                 <SelectContent>
                                                     {allProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
