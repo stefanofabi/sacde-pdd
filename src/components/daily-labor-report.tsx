@@ -95,6 +95,7 @@ interface LaborEntryState {
     unproductiveHours: Record<string, number | null>;
     absenceReason: string | null;
     specialHours: Record<string, number | null>;
+    manual?: boolean;
 }
 
 interface MobileHoursModalState {
@@ -235,20 +236,25 @@ export default function DailyLaborReport({
   const isNotified = activeDailyReport?.status === 'NOTIFIED';
   
   const personnelForTable = useMemo(() => {
-    if (!activeDailyReport) {
-      return selectedCrew?.employeeIds.map(id => employeeMap.get(id)).filter(Boolean) as Employee[] || [];
+    if (!selectedCrewId || selectedCrewId === 'all') return [];
+    
+    // If a report exists, the personnel is defined by its labor entries.
+    if (activeDailyReport) {
+      const reportLaborEntries = laborData[activeDailyReport.id] || [];
+      const personnelIds = new Set(reportLaborEntries.map(e => e.employeeId));
+      return Array.from(personnelIds)
+        .map(id => employeeMap.get(id))
+        .filter(Boolean) as Employee[];
+    }
+    
+    // If no report exists, the personnel is the current crew composition.
+    const crew = crewMap.get(selectedCrewId);
+    if (crew) {
+        return crew.employeeIds.map(id => employeeMap.get(id)).filter(Boolean) as Employee[];
     }
 
-    const reportLaborEntries = laborData[activeDailyReport.id] || [];
-    const personnel = new Set<Employee>();
-
-    reportLaborEntries.forEach(entry => {
-      const emp = employeeMap.get(entry.employeeId);
-      if (emp) personnel.add(emp);
-    });
-
-    return Array.from(personnel.values()).sort((a,b) => a.lastName.localeCompare(b.lastName));
-  }, [activeDailyReport, selectedCrew, laborData, employeeMap]);
+    return [];
+  }, [activeDailyReport, selectedCrewId, crewMap, laborData, employeeMap]);
   
   const hasExistingReport = !!activeDailyReport;
   
@@ -335,20 +341,21 @@ export default function DailyLaborReport({
         const reportLaborEntries = activeDailyReport ? (laborData[activeDailyReport.id] || []) : [];
 
         personnelForTable.forEach(emp => {
-            const entriesForEmp = reportLaborEntries.filter(e => e.employeeId === emp.id);
+            const entryForEmp = reportLaborEntries.find(e => e.employeeId === emp.id);
             const initialEntryState: LaborEntryState = {
                 productiveHours: {},
                 unproductiveHours: {},
                 absenceReason: null,
                 specialHours: {},
+                manual: false,
             };
 
-            if (entriesForEmp.length > 0) {
-                const firstEntry = entriesForEmp[0];
-                initialEntryState.productiveHours = firstEntry.productiveHours;
-                initialEntryState.unproductiveHours = firstEntry.unproductiveHours;
-                initialEntryState.specialHours = firstEntry.specialHours;
-                initialEntryState.absenceReason = firstEntry.absenceReason;
+            if (entryForEmp) {
+                initialEntryState.productiveHours = entryForEmp.productiveHours;
+                initialEntryState.unproductiveHours = entryForEmp.unproductiveHours;
+                initialEntryState.specialHours = entryForEmp.specialHours;
+                initialEntryState.absenceReason = entryForEmp.absenceReason;
+                initialEntryState.manual = entryForEmp.manual;
             } else {
                 const permissionAbsenceId = permissionsForDate.get(emp.id);
                 if (permissionAbsenceId) {
@@ -460,26 +467,20 @@ export default function DailyLaborReport({
                 const stateEntry = laborEntries[emp.id];
                 if (!stateEntry) return;
 
-                const isManual = selectedCrew ? !selectedCrew.employeeIds.includes(emp.id) : true;
-                const totalProductive = Object.values(stateEntry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
-                const totalUnproductive = Object.values(stateEntry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
-                const totalHours = totalProductive + totalUnproductive;
-                const hasNovelty = stateEntry.absenceReason || totalHours > 0;
+                const isManual = stateEntry.manual === true;
                 
-                if (hasNovelty) {
-                    const dataToSave: Omit<DailyLaborEntry, 'id'> = { 
-                        dailyReportId: reportId!,
-                        employeeId: emp.id, 
-                        absenceReason: stateEntry.absenceReason,
-                        productiveHours: stateEntry.productiveHours,
-                        unproductiveHours: stateEntry.unproductiveHours,
-                        specialHours: stateEntry.specialHours,
-                        manual: isManual, 
-                    };
-                    const newDocRef = doc(collection(db, 'daily-labor'));
-                    batch.set(newDocRef, dataToSave);
-                    newLaborEntries.push({ id: newDocRef.id, ...dataToSave });
-                }
+                const dataToSave: Omit<DailyLaborEntry, 'id'> = { 
+                    dailyReportId: reportId!,
+                    employeeId: emp.id, 
+                    absenceReason: stateEntry.absenceReason,
+                    productiveHours: stateEntry.productiveHours,
+                    unproductiveHours: stateEntry.unproductiveHours,
+                    specialHours: stateEntry.specialHours,
+                    manual: isManual, 
+                };
+                const newDocRef = doc(collection(db, 'daily-labor'));
+                batch.set(newDocRef, dataToSave);
+                newLaborEntries.push({ id: newDocRef.id, ...dataToSave });
             });
 
             await batch.commit();
