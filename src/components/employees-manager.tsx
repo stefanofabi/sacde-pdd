@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, PlusCircle, Trash2, Search, Pencil, FileSpreadsheet } from "lucide-react";
-import type { Employee, Project, EmployeePosition } from "@/types";
+import type { Employee, Project, EmployeePosition, EmployeeCondition } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -145,7 +145,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
                 "Fecha de Ingreso": emp.hireDate ? format(new Date(emp.hireDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }) : '',
                 "Proyecto": projectNameMap[emp.projectId] || 'N/A',
                 "Posición": positionNameMap[emp.positionId] || 'N/A',
-                "Condición": emp.condition,
+                "Condición": emp.condition === 'DAY' ? 'Jornal' : 'Mensual',
                 "Estado": emp.status,
                 "Celular": emp.phoneNumber || '',
                 "Correo": emp.email || ''
@@ -201,7 +201,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
             </div>
              <div className="flex items-center gap-2">
                 <strong>Condición:</strong>
-                <Badge variant={emp.condition === 'mensual' ? 'secondary' : 'outline'}>{emp.condition === "jornal" ? "Jornal" : "Mensual"}</Badge>
+                <Badge variant={emp.condition === 'MTH' ? 'secondary' : 'outline'}>{emp.condition === "DAY" ? "Jornal" : "Mensual"}</Badge>
             </div>
         </CardContent>
         <CardFooter className="flex justify-end gap-2">
@@ -296,7 +296,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
                                         <TableCell>{projectNameMap[emp.projectId] || 'N/A'}</TableCell>
                                         <TableCell>{positionNameMap[emp.positionId] || 'N/A'}</TableCell>
                                         <TableCell>
-                                            <Badge variant={emp.condition === 'mensual' ? 'secondary' : 'outline'}>{emp.condition === "jornal" ? "Jornal" : "Mensual"}</Badge>
+                                            <Badge variant={emp.condition === 'MTH' ? 'secondary' : 'outline'}>{emp.condition === "DAY" ? "Jornal" : "Mensual"}</Badge>
                                         </TableCell>
                                         <TableCell>
                                             <StatusBadge estado={emp.status} />

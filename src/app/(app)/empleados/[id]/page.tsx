@@ -494,8 +494,8 @@ export default function EmployeeFormPage() {
                                                 <Select onValueChange={(value: EmployeeCondition) => handleInputChange('condition', value)} value={formState.condition} disabled={isPending}>
                                                     <SelectTrigger><SelectValue placeholder="Seleccione condición" /></SelectTrigger>
                                                     <SelectContent>
-                                                    <SelectItem value="jornal">Jornal</SelectItem>
-                                                    <SelectItem value="mensual">Mensual</SelectItem>
+                                                    <SelectItem value="DAY">Jornal</SelectItem>
+                                                    <SelectItem value="MTH">Mensual</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>

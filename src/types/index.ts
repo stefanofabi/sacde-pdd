@@ -1,6 +1,7 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -112,7 +113,7 @@ export type DailyAttendance = AttendanceEntry[];
 export type AttendanceData = Record<string, DailyAttendance>;
 
 
-export type EmployeeCondition = "jornal" | "mensual";
+export type EmployeeCondition = "DAY" | "MTH";
 export type EmployeeStatus = "activo" | "suspendido" | "baja";
 export type EmployeeSex = "M" | "F" | "X";
 
