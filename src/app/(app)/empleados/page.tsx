@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import EmployeesManager from "@/components/employees-manager";
 import { getDocs, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Employee, Project } from '@/types';
+import type { Employee, Project, EmployeePosition } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -13,6 +13,7 @@ export default function EmpleadosPage() {
   const { user, loading: authLoading } = useAuth();
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
   const [initialProjects, setInitialProjects] = useState<Project[]>([]);
+  const [initialPositions, setInitialPositions] = useState<EmployeePosition[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,16 +21,19 @@ export default function EmpleadosPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const [employeesSnapshot, projectsSnapshot] = await Promise.all([
+        const [employeesSnapshot, projectsSnapshot, positionsSnapshot] = await Promise.all([
           getDocs(collection(db, 'employees')),
-          getDocs(collection(db, 'projects'))
+          getDocs(collection(db, 'projects')),
+          getDocs(collection(db, 'employee-positions')),
         ]);
         
         const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
         const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];
+        const positionsData = positionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as EmployeePosition[];
 
         setInitialEmployees(employeesData);
         setInitialProjects(projectsData);
+        setInitialPositions(positionsData);
       } catch (error) {
         console.error("Failed to fetch employees or projects data:", error);
       } finally {
@@ -61,12 +65,14 @@ export default function EmpleadosPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : (
-            <EmployeesManager initialEmployees={initialEmployees} initialProjects={initialProjects} />
+            <EmployeesManager 
+              initialEmployees={initialEmployees} 
+              initialProjects={initialProjects}
+              initialPositions={initialPositions}
+            />
           )}
         </div>
       </main>
     </>
   );
 }
-
-    

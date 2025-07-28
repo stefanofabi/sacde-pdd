@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, PlusCircle, Trash2, Search, Pencil, FileSpreadsheet } from "lucide-react";
-import type { Employee, Project } from "@/types";
+import type { Employee, Project, EmployeePosition } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -46,9 +46,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 interface EmployeesManagerProps {
   initialEmployees: Employee[];
   initialProjects: Project[];
+  initialPositions: EmployeePosition[];
 }
 
-export default function EmployeesManager({ initialEmployees, initialProjects }: EmployeesManagerProps) {
+export default function EmployeesManager({ initialEmployees, initialProjects, initialPositions }: EmployeesManagerProps) {
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useAuth();
@@ -67,6 +68,10 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
   const projectNameMap = useMemo(() => {
     return Object.fromEntries(initialProjects.map(project => [project.id, project.name]));
   }, [initialProjects]);
+  
+  const positionNameMap = useMemo(() => {
+    return Object.fromEntries(initialPositions.map(pos => [pos.id, pos.name]));
+  }, [initialPositions]);
 
   const filteredEmployees = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -131,7 +136,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                 "Sexo": emp.sex || '',
                 "Fecha de Ingreso": emp.hireDate ? format(new Date(emp.hireDate + 'T00:00:00'), 'dd/MM/yyyy', { locale: es }) : '',
                 "Proyecto": projectNameMap[emp.projectId] || 'N/A',
-                "Posición": emp.position,
+                "Posición": positionNameMap[emp.positionId] || 'N/A',
                 "Condición": emp.condition,
                 "Estado": emp.status,
                 "Celular": emp.phoneNumber || '',
@@ -181,6 +186,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
             <p><strong>Proyecto:</strong> {projectNameMap[emp.projectId] || 'N/A'}</p>
+             <p><strong>Posición:</strong> {positionNameMap[emp.positionId] || 'N/A'}</p>
             <div className="flex items-center gap-2">
                 <strong>Estado:</strong>
                 <StatusBadge estado={emp.status} />
@@ -267,6 +273,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                                 <TableHead>Legajo</TableHead>
                                 <TableHead>Apellido y Nombre</TableHead>
                                 <TableHead>Proyecto</TableHead>
+                                <TableHead>Posición</TableHead>
                                 <TableHead>Condición</TableHead>
                                 <TableHead>Estado</TableHead>
                                 <TableHead className="text-right w-[120px]">Acciones</TableHead>
@@ -279,6 +286,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                                         <TableCell className="font-mono">{emp.internalNumber}</TableCell>
                                         <TableCell className="font-medium">{`${emp.lastName}, ${emp.firstName}`}</TableCell>
                                         <TableCell>{projectNameMap[emp.projectId] || 'N/A'}</TableCell>
+                                        <TableCell>{positionNameMap[emp.positionId] || 'N/A'}</TableCell>
                                         <TableCell>
                                             <Badge variant={emp.condition === 'mensual' ? 'secondary' : 'outline'}>{emp.condition === "jornal" ? "Jornal" : "Mensual"}</Badge>
                                         </TableCell>
@@ -310,7 +318,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={7} className="h-24 text-center">
                                         {employees.length === 0 
                                             ? "No hay empleados creados."
                                             : "No se encontraron empleados con los filtros aplicados."
@@ -350,5 +358,3 @@ export default function EmployeesManager({ initialEmployees, initialProjects }: 
     </>
   );
 }
-
-    

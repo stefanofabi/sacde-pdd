@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Loader2, ArrowLeft, Save, CalendarIcon, User, Clock, UserX, Sparkles, Link as LinkIcon, FileSpreadsheet } from "lucide-react";
-import type { Employee, Project, EmployeeCondition, EmployeeStatus, DailyLaborData, DailyReport, DailyLaborEntry, Permission, AbsenceType, Crew, Phase, UnproductiveHourType, SpecialHourType, EmployeeSex } from "@/types";
+import type { Employee, Project, EmployeeCondition, EmployeeStatus, DailyLaborData, DailyReport, DailyLaborEntry, Permission, AbsenceType, Crew, Phase, UnproductiveHourType, SpecialHourType, EmployeeSex, EmployeePosition } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -27,6 +27,7 @@ import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import * as XLSX from 'xlsx';
+import { Combobox } from "@/components/ui/combobox";
 
 
 const emptyForm = {
@@ -37,7 +38,7 @@ const emptyForm = {
     hireDate: undefined as Date | undefined,
     sex: "" as EmployeeSex,
     projectId: "",
-    position: "",
+    positionId: "",
     condition: "" as EmployeeCondition | "",
     status: "" as EmployeeStatus | "",
     phoneNumber: "",
@@ -84,6 +85,7 @@ export default function EmployeeFormPage() {
     const [allProjects, setAllProjects] = useState<Project[]>([]);
     const [allCrews, setAllCrews] = useState<Crew[]>([]);
     const [allPhases, setAllPhases] = useState<Phase[]>([]);
+    const [allPositions, setAllPositions] = useState<EmployeePosition[]>([]);
     const [allUnproductiveTypes, setAllUnproductiveTypes] = useState<UnproductiveHourType[]>([]);
     const [allSpecialHourTypes, setAllSpecialHourTypes] = useState<SpecialHourType[]>([]);
     const [allAbsenceTypes, setAllAbsenceTypes] = useState<AbsenceType[]>([]);
@@ -94,74 +96,75 @@ export default function EmployeeFormPage() {
 
     const canManage = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('employees.manage'), [user]);
     const sortedProjects = useMemo(() => [...allProjects].sort((a,b) => a.name.localeCompare(b.name)), [allProjects]);
+    const positionOptions = useMemo(() => allPositions.map(p => ({ value: p.id, label: `${p.name} (${p.code})`})).sort((a, b) => a.label.localeCompare(b.label)), [allPositions]);
+
 
     useEffect(() => {
         async function fetchInitialData() {
-            if (isNewEmployee) {
-                const projectsSnapshot = await getDocs(collection(db, 'projects'));
-                setAllProjects(projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[]);
-                setFormState(emptyForm);
-                setLoading(false);
-                return;
-            }
-
             setLoading(true);
             try {
-                const employeeDocRef = doc(db, 'employees', employeeId as string);
-                
-                const laborQuery = query(collection(db, 'daily-labor'), where("employeeId", "==", employeeId));
-
                 const [
                     projectsSnapshot, 
-                    employeeDoc, 
                     crewsSnapshot,
                     phasesSnapshot,
                     unproductiveTypesSnapshot,
                     absenceTypesSnapshot,
                     specialHourTypesSnapshot,
-                    laborSnapshot,
-                    permissionsSnapshot
+                    positionsSnapshot
                 ] = await Promise.all([
                     getDocs(collection(db, 'projects')),
-                    getDoc(employeeDocRef),
                     getDocs(collection(db, 'crews')),
                     getDocs(collection(db, 'phases')),
                     getDocs(collection(db, 'unproductive-hour-types')),
                     getDocs(collection(db, 'absence-types')),
                     getDocs(collection(db, 'special-hour-types')),
-                    getDocs(laborQuery),
-                    getDocs(query(collection(db, 'permissions'), where("employeeId", "==", employeeId))),
+                    getDocs(collection(db, 'employee-positions')),
                 ]);
                 
-                const laborData = laborSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as DailyLaborEntry[];
-                setEmployeeLaborData(laborData);
-                
-                const reportIds = [...new Set(laborData.map(l => l.dailyReportId))];
-                if(reportIds.length > 0) {
-                    const reportsQuery = query(collection(db, 'daily-reports'), where('__name__', 'in', reportIds));
-                    const reportsSnapshot = await getDocs(reportsQuery);
-                    setEmployeeDailyReports(reportsSnapshot.docs.map(d => ({id: d.id, ...d.data()})) as DailyReport[]);
-                }
-
                 setAllProjects(projectsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Project[]);
                 setAllCrews(crewsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Crew[]);
                 setAllPhases(phasesSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Phase[]);
                 setAllUnproductiveTypes(unproductiveTypesSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as UnproductiveHourType[]);
                 setAllSpecialHourTypes(specialHourTypesSnapshot.docs.map(d => ({id: d.id, ...d.data()})) as SpecialHourType[]);
                 setAllAbsenceTypes(absenceTypesSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as AbsenceType[]);
-                
-                setEmployeePermissions(permissionsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Permission[]);
+                setAllPositions(positionsSnapshot.docs.map(d => ({ id: d.id, ...d.data()})) as EmployeePosition[]);
 
-                if (employeeDoc.exists()) {
-                    const employeeData = { id: employeeDoc.id, ...employeeDoc.data() } as Employee;
-                     setFormState({
-                        ...emptyForm,
-                        ...employeeData,
-                        hireDate: employeeData.hireDate ? new Date(employeeData.hireDate + 'T00:00:00') : undefined,
-                    });
+                if (!isNewEmployee) {
+                    const employeeDocRef = doc(db, 'employees', employeeId as string);
+                    const laborQuery = query(collection(db, 'daily-labor'), where("employeeId", "==", employeeId));
+                    const permissionsQuery = query(collection(db, 'permissions'), where("employeeId", "==", employeeId));
+
+                    const [employeeDoc, laborSnapshot, permissionsSnapshot] = await Promise.all([
+                        getDoc(employeeDocRef),
+                        getDocs(laborQuery),
+                        getDocs(permissionsQuery)
+                    ]);
+
+                    const laborData = laborSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as DailyLaborEntry[];
+                    setEmployeeLaborData(laborData);
+                    
+                    const reportIds = [...new Set(laborData.map(l => l.dailyReportId))];
+                    if(reportIds.length > 0) {
+                        const reportsQuery = query(collection(db, 'daily-reports'), where('__name__', 'in', reportIds));
+                        const reportsSnapshot = await getDocs(reportsQuery);
+                        setEmployeeDailyReports(reportsSnapshot.docs.map(d => ({id: d.id, ...d.data()})) as DailyReport[]);
+                    }
+                    
+                    setEmployeePermissions(permissionsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Permission[]);
+
+                    if (employeeDoc.exists()) {
+                        const employeeData = { id: employeeDoc.id, ...employeeDoc.data() } as Employee;
+                         setFormState({
+                            ...emptyForm,
+                            ...employeeData,
+                            hireDate: employeeData.hireDate ? new Date(employeeData.hireDate + 'T00:00:00') : undefined,
+                        });
+                    } else {
+                        toast({ title: "Error", description: "Empleado no encontrado.", variant: "destructive" });
+                        router.push("/empleados");
+                    }
                 } else {
-                    toast({ title: "Error", description: "Empleado no encontrado.", variant: "destructive" });
-                    router.push("/empleados");
+                    setFormState(emptyForm);
                 }
             } catch (error) {
                 console.error("Error fetching data for employee form:", error);
@@ -255,9 +258,9 @@ export default function EmployeeFormPage() {
     };
 
     const handleSaveEmployee = () => {
-        const { internalNumber, lastName, firstName, projectId, position, condition, status, hireDate, sex } = formState;
+        const { internalNumber, lastName, firstName, projectId, positionId, condition, status, hireDate, sex } = formState;
 
-        if (!internalNumber || !lastName || !firstName || !projectId || !position || !condition || !status || !hireDate || !sex) {
+        if (!internalNumber || !lastName || !firstName || !projectId || !positionId || !condition || !status || !hireDate || !sex) {
           toast({
             title: "Error de validación",
             description: "Debe completar todos los campos obligatorios (*).",
@@ -475,8 +478,16 @@ export default function EmployeeFormPage() {
                                                 </Select>
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="position">Posición *</Label>
-                                                <Input id="position" value={formState.position} onChange={(e) => handleInputChange('position', e.target.value)} placeholder="Ej. Oficial" disabled={isPending}/>
+                                                <Label htmlFor="positionId">Posición *</Label>
+                                                <Combobox
+                                                    options={positionOptions}
+                                                    value={formState.positionId}
+                                                    onValueChange={(value) => handleInputChange('positionId', value)}
+                                                    placeholder="Seleccione una posición"
+                                                    searchPlaceholder="Buscar posición..."
+                                                    emptyMessage="Posición no encontrada."
+                                                    disabled={isPending}
+                                                />
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="condition">Condición *</Label>
@@ -662,8 +673,3 @@ export default function EmployeeFormPage() {
     );
 
 }
-    
-
-    
-
-    

@@ -13,8 +13,9 @@ import { Label } from '@/components/ui/label';
 
 const allTabs: { value: string; label: string; permission: PermissionKey }[] = [
     { value: 'proyectos', label: 'Proyectos', permission: 'settings.projects' },
-    { value: 'tipos-de-ausentismo', label: 'Tipos de Ausentismo', permission: 'settings.absenceTypes' },
     { value: 'fases', label: 'Fases', permission: 'settings.phases' },
+    { value: 'posiciones', label: 'Posiciones', permission: 'settings.positions' },
+    { value: 'tipos-de-ausentismo', label: 'Tipos de Ausentismo', permission: 'settings.absenceTypes' },
     { value: 'tipos-de-horas-especiales', label: 'Tipos de Horas Especiales', permission: 'settings.specialHourTypes' },
     { value: 'tipos-de-horas-improductivas', label: 'Tipos de Horas Improductivas', permission: 'settings.unproductiveHourTypes' },
     { value: 'roles', label: 'Roles', permission: 'settings.roles' },
@@ -30,8 +31,9 @@ export default function SettingsNavigation() {
 
     const visibleTabs = useMemo(() => {
         if (!user) return [];
+        if (user.is_superuser) return allTabs;
         return allTabs.filter(tab => {
-            return user.is_superuser || userPermissions.some(p => p.startsWith(tab.permission));
+            return userPermissions.some(p => p.startsWith(tab.permission));
         });
     }, [user, userPermissions]);
 

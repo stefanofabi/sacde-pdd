@@ -1,5 +1,6 @@
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -31,6 +32,7 @@ export type PermissionKey =
   | 'settings.projects'
   | 'settings.absenceTypes'
   | 'settings.phases'
+  | 'settings.positions'
   | 'settings.specialHourTypes'
   | 'settings.unproductiveHourTypes'
   | 'settings.roles';
@@ -123,11 +125,17 @@ export interface Employee {
   hireDate: string; // ISO date string e.g. "2023-10-27"
   sex: EmployeeSex;
   projectId: string;
-  position: string;
+  positionId: string;
   condition: EmployeeCondition;
   status: EmployeeStatus;
   phoneNumber?: string;
   email?: string;
+}
+
+export interface EmployeePosition {
+  id: string;
+  name: string;
+  code: string;
 }
 
 export type PermissionStatus = "APROBADO POR RRHH" | "APROBADO POR SUPERVISOR" | "NO APROBADO";
@@ -183,7 +191,6 @@ export interface DailyReport {
   controlAndManagementId: string;
   status: DailyReportStatus;
   notifiedAt?: string | null;
-  // Further approval fields can be added here
 }
 
 // Represents a single employee's labor record for a given day and crew.
