@@ -252,6 +252,12 @@ export default function DailyLaborReport({
     return Array.from(personnel.values()).sort((a,b) => a.lastName.localeCompare(b.lastName));
   }, [selectedCrewId, crewMap, employeeMap, laborData, formattedDate]);
   
+  const hasExistingReport = useMemo(() => {
+    if (!selectedCrewId || selectedCrewId === 'all' || !formattedDate) return false;
+    const dailyEntries = laborData[formattedDate] || [];
+    return dailyEntries.some(entry => entry.crewId === selectedCrewId);
+  }, [laborData, formattedDate, selectedCrewId]);
+  
   const availableEmployeesForManualAdd = useMemo(() => {
     if (!selectedCrewId || selectedCrewId === 'all') return [];
 
@@ -1330,7 +1336,7 @@ export default function DailyLaborReport({
                             <UserPlus className="mr-2 h-4 w-4" />
                             Agregar Empleado
                         </Button>
-                        {canDelete && (
+                        {canDelete && hasExistingReport && (
                             <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isPending}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Eliminar Parte
