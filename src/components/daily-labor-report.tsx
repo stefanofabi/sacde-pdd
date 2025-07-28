@@ -193,7 +193,7 @@ export default function DailyLaborReport({
   
   const crewOptions = useMemo(() => {
     if (!selectedProjectId) return [];
-    const crews = initialCrews.filter(c => c.projectId === selectedProjectId);
+    const crews = initialCrews.filter(c => c.projectId === selectedProjectId).sort((a, b) => a.name.localeCompare(b.name));
     const options = crews.map(c => ({ value: c.id, label: c.name }));
      if (crews.length > 1) {
         options.unshift({ value: 'all', label: "Todas las Cuadrillas" });
@@ -1166,6 +1166,8 @@ export default function DailyLaborReport({
                                 const totalHours = totalProductive + totalUnproductive;
                                 const hasHours = totalHours > 0;
                                 const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
+                                
+                                const hasConflict = hasAbsence && hasHours;
 
                                 const isManual = entry.manual === true;
                                 
@@ -1189,7 +1191,7 @@ export default function DailyLaborReport({
                                               <UserPlus className="h-4 w-4 text-primary" />
                                               </TooltipTrigger>
                                               <TooltipContent>
-                                              <p>Empleado agregado manualmente</p>
+                                              <p>Empleado agregado manually</p>
                                               </TooltipContent>
                                           </Tooltip>
                                           )}
@@ -1202,6 +1204,16 @@ export default function DailyLaborReport({
                                                     <p>Advertencia: Más de 12 horas cargadas.</p>
                                                   </TooltipContent>
                                               </Tooltip>
+                                          )}
+                                          {hasConflict && (
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  <p>Advertencia: El empleado tiene horas y una ausencia cargadas en el mismo día.</p>
+                                                </TooltipContent>
+                                            </Tooltip>
                                           )}
                                       </div>
                                     </TableCell>
@@ -1671,3 +1683,4 @@ export default function DailyLaborReport({
     </TooltipProvider>
   );
 }
+
