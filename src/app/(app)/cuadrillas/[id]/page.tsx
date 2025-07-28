@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox";
 import { MultiSelectCombobox, type ComboboxOption } from "@/components/ui/multi-select-combobox";
 import { Loader2, ArrowLeft, Plus, X, Search, CalendarIcon, ArrowRightLeft, AlertTriangle, Save, Clock, UserX, Sparkles } from "lucide-react";
-import type { Crew, Project, Employee, Phase, CrewPhaseAssignment, DailyLaborData, DailyLaborEntry, LegacyDailyLaborEntry, AbsenceType } from "@/types";
+import type { Crew, Project, Employee, Phase, CrewPhaseAssignment, DailyReport, DailyLaborEntry } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -22,7 +22,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format, endOfMonth, isWithinInterval, eachDayOfInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, doc, getDocs } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc, getDocs, query, where } from "firebase/firestore";
 import { useAuth } from "@/context/auth-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DateRange } from "react-day-picker";
@@ -70,7 +70,8 @@ export default function CrewFormPage() {
     const [allProjects, setAllProjects] = useState<Project[]>([]);
     const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
     const [allPhases, setAllPhases] = useState<Phase[]>([]);
-    const [allLaborData, setAllLaborData] = useState<DailyLaborData>({});
+    const [allLaborData, setAllLaborData] = useState<DailyLaborEntry[]>([]);
+    const [allDailyReports, setAllDailyReports] = useState<DailyReport[]>([]);
     const [allAbsenceTypes, setAllAbsenceTypes] = useState<AbsenceType[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("info");
@@ -89,6 +90,7 @@ export default function CrewFormPage() {
   
     const phaseMap = useMemo(() => new Map(allPhases.map(p => [p.id, p])), [allPhases]);
     const projectMap = useMemo(() => new Map(allProjects.map(p => [p.id, p.name])), [allProjects]);
+    const sortedProjects = useMemo(() => [...allProjects].sort((a,b) => a.name.localeCompare(b.name)), [allProjects]);
   
     const employeeAssignments = useMemo(() => {
         const assignments = new Map<string, string[]>();
@@ -113,6 +115,7 @@ export default function CrewFormPage() {
                     employeesSnapshot, 
                     phasesSnapshot,
                     laborSnapshot,
+                    dailyReportsSnapshot,
                     absenceTypesSnapshot
                 ] = await Promise.all([
                     getDocs(collection(db, 'crews')),
@@ -120,6 +123,7 @@ export default function CrewFormPage() {
                     getDocs(collection(db, 'employees')),
                     getDocs(collection(db, 'phases')),
                     getDocs(collection(db, 'daily-labor')),
+                    getDocs(collection(db, 'daily-reports')),
                     getDocs(collection(db, 'absence-types')),
                 ]);
 
@@ -128,17 +132,10 @@ export default function CrewFormPage() {
                 setAllProjects(projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[]);
                 setAllEmployees(employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[]);
                 setAllPhases(phasesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Phase[]);
+                setAllDailyReports(dailyReportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as DailyReport[]);
                 setAllAbsenceTypes(absenceTypesSnapshot.docs.map(d => ({id: d.id, ...d.data()})) as AbsenceType[]);
 
-                const laborData: DailyLaborData = {};
-                laborSnapshot.docs.forEach(doc => {
-                    const entry = { id: doc.id, ...doc.data() } as { date: string } & (DailyLaborEntry | LegacyDailyLaborEntry);
-                    const { date, ...rest } = entry;
-                    if (!laborData[date]) {
-                        laborData[date] = [];
-                    }
-                    laborData[date].push(rest);
-                });
+                const laborData = laborSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as DailyLaborEntry[];
                 setAllLaborData(laborData);
 
                 if (!isNewCrew) {
@@ -182,6 +179,10 @@ export default function CrewFormPage() {
         }
 
         const crewEmployeeIds = new Set(formState.employeeIds);
+        
+        const relevantReportIds = new Set(allDailyReports.filter(r => r.crewId === crewId).map(r => r.id));
+
+        const relevantLabor = allLaborData.filter(l => relevantReportIds.has(l.dailyReportId));
 
         // Initialize all days in the range with 0 hours
         const daysInInterval = eachDayOfInterval({ start: selectedDateRange.from, end: selectedDateRange.to });
@@ -190,43 +191,32 @@ export default function CrewFormPage() {
             dailyHoursData[dateKey] = 0;
         });
 
-        Object.entries(allLaborData).forEach(([dateKey, entries]) => {
+        relevantLabor.forEach(entry => {
+            const report = allDailyReports.find(r => r.id === entry.dailyReportId);
+            if (!report) return;
+
+            const dateKey = report.date;
             const entryDate = new Date(dateKey + 'T00:00:00');
             if (!isWithinInterval(entryDate, { start: selectedDateRange.from!, end: selectedDateRange.to! })) {
                 return;
             }
 
-            entries.forEach(entry => {
-                if (crewEmployeeIds.has(entry.employeeId)) {
-                     if (entry.absenceReason) {
-                        totalAbsences++;
-                     } else {
-                        let productive = 0;
-                        let unproductive = 0;
-                        let special = 0;
-                        
-                        if ('productiveHours' in entry && entry.productiveHours) {
-                            productive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
-                            unproductive = Object.values(entry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
-                            special = Object.values(entry.specialHours || {}).reduce((sum, h) => sum + (h || 0), 0);
-                        } else {
-                            const legacyEntry = entry as LegacyDailyLaborEntry;
-                            if (legacyEntry.hours && legacyEntry.hours > 0) {
-                                productive = legacyEntry.hours;
-                            }
-                            if (legacyEntry.specialHours) {
-                                special = Object.values(legacyEntry.specialHours).reduce((sum, h) => sum + (h || 0), 0);
-                            }
-                        }
-                        const dailyTotal = productive + unproductive;
-                        totalHours += dailyTotal;
-                        totalSpecialHours += special;
-                        if(dailyHoursData[dateKey] !== undefined) {
-                            dailyHoursData[dateKey] += dailyTotal;
-                        }
-                     }
-                }
-            });
+            if (crewEmployeeIds.has(entry.employeeId)) {
+                 if (entry.absenceReason) {
+                    totalAbsences++;
+                 } else {
+                    let productive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                    let unproductive = Object.values(entry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                    let special = Object.values(entry.specialHours || {}).reduce((sum, h) => sum + (h || 0), 0);
+                    
+                    const dailyTotal = productive + unproductive;
+                    totalHours += dailyTotal;
+                    totalSpecialHours += special;
+                    if(dailyHoursData[dateKey] !== undefined) {
+                        dailyHoursData[dateKey] += dailyTotal;
+                    }
+                 }
+            }
         });
         
         const chartData = Object.entries(dailyHoursData)
@@ -237,7 +227,7 @@ export default function CrewFormPage() {
           .sort((a,b) => a.date.localeCompare(b.date));
 
         return { totalHours, totalSpecialHours, totalAbsences, chartData };
-    }, [allLaborData, formState.employeeIds, selectedDateRange, isNewCrew]);
+    }, [allDailyReports, allLaborData, formState.employeeIds, selectedDateRange, isNewCrew, crewId]);
 
 
     const employeeOptions = useMemo(() => {
@@ -401,7 +391,7 @@ export default function CrewFormPage() {
                                                 <Select onValueChange={(value) => handleInputChange('projectId', value)} value={formState.projectId} disabled={!isNewCrew}>
                                                 <SelectTrigger><SelectValue placeholder="Seleccione un proyecto" /></SelectTrigger>
                                                 <SelectContent>
-                                                    {allProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
+                                                    {sortedProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
                                                 </SelectContent>
                                                 </Select>
                                             </div>

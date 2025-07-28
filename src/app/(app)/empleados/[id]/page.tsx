@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Loader2, ArrowLeft, Save, CalendarIcon, User, Clock, UserX, Sparkles, Link as LinkIcon, FileSpreadsheet } from "lucide-react";
-import type { Employee, Project, EmployeeCondition, EmployeeStatus, DailyLaborData, LegacyDailyLaborEntry, DailyLaborEntry, Permission, AbsenceType, Crew, Phase, UnproductiveHourType, SpecialHourType, EmployeeSex } from "@/types";
+import type { Employee, Project, EmployeeCondition, EmployeeStatus, DailyLaborData, DailyReport, DailyLaborEntry, Permission, AbsenceType, Crew, Phase, UnproductiveHourType, SpecialHourType, EmployeeSex } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
@@ -87,11 +87,13 @@ export default function EmployeeFormPage() {
     const [allUnproductiveTypes, setAllUnproductiveTypes] = useState<UnproductiveHourType[]>([]);
     const [allSpecialHourTypes, setAllSpecialHourTypes] = useState<SpecialHourType[]>([]);
     const [allAbsenceTypes, setAllAbsenceTypes] = useState<AbsenceType[]>([]);
-    const [employeeLaborData, setEmployeeLaborData] = useState<(DailyLaborEntry | LegacyDailyLaborEntry)[]>([]);
+    const [employeeLaborData, setEmployeeLaborData] = useState<DailyLaborEntry[]>([]);
+    const [employeeDailyReports, setEmployeeDailyReports] = useState<DailyReport[]>([]);
     const [employeePermissions, setEmployeePermissions] = useState<Permission[]>([]);
     const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>(getCurrentFortnight());
 
     const canManage = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('employees.manage'), [user]);
+    const sortedProjects = useMemo(() => [...allProjects].sort((a,b) => a.name.localeCompare(b.name)), [allProjects]);
 
     useEffect(() => {
         async function fetchInitialData() {
@@ -106,6 +108,8 @@ export default function EmployeeFormPage() {
             setLoading(true);
             try {
                 const employeeDocRef = doc(db, 'employees', employeeId as string);
+                
+                const laborQuery = query(collection(db, 'daily-labor'), where("employeeId", "==", employeeId));
 
                 const [
                     projectsSnapshot, 
@@ -125,9 +129,19 @@ export default function EmployeeFormPage() {
                     getDocs(collection(db, 'unproductive-hour-types')),
                     getDocs(collection(db, 'absence-types')),
                     getDocs(collection(db, 'special-hour-types')),
-                    getDocs(query(collection(db, 'daily-labor'), where("employeeId", "==", employeeId))),
+                    getDocs(laborQuery),
                     getDocs(query(collection(db, 'permissions'), where("employeeId", "==", employeeId))),
                 ]);
+                
+                const laborData = laborSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as DailyLaborEntry[];
+                setEmployeeLaborData(laborData);
+                
+                const reportIds = [...new Set(laborData.map(l => l.dailyReportId))];
+                if(reportIds.length > 0) {
+                    const reportsQuery = query(collection(db, 'daily-reports'), where('__name__', 'in', reportIds));
+                    const reportsSnapshot = await getDocs(reportsQuery);
+                    setEmployeeDailyReports(reportsSnapshot.docs.map(d => ({id: d.id, ...d.data()})) as DailyReport[]);
+                }
 
                 setAllProjects(projectsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Project[]);
                 setAllCrews(crewsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Crew[]);
@@ -136,8 +150,6 @@ export default function EmployeeFormPage() {
                 setAllSpecialHourTypes(specialHourTypesSnapshot.docs.map(d => ({id: d.id, ...d.data()})) as SpecialHourType[]);
                 setAllAbsenceTypes(absenceTypesSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as AbsenceType[]);
                 
-                // @ts-ignore
-                setEmployeeLaborData(laborSnapshot.docs.map(d => ({ id: d.id, ...d.data() })));
                 setEmployeePermissions(permissionsSnapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Permission[]);
 
                 if (employeeDoc.exists()) {
@@ -177,74 +189,50 @@ export default function EmployeeFormPage() {
         const isInPeriod = (date: Date) => selectedDateRange?.from && selectedDateRange?.to && isWithinInterval(date, { start: selectedDateRange.from, end: selectedDateRange.to });
 
         employeeLaborData.forEach(entry => {
-            const dateStr = (entry as any).date;
+            const dailyReport = employeeDailyReports.find(dr => dr.id === entry.dailyReportId);
+            if (!dailyReport) return;
+            const dateStr = dailyReport.date;
             if (!dateStr) return;
             const entryDate = new Date(dateStr + 'T00:00:00');
             
             const isEntryInPeriod = isInPeriod(entryDate);
 
-            const crewData = allCrews.find(c => c.id === entry.crewId);
-            const projectId = crewData?.projectId || '';
+            const projectId = dailyReport.projectId;
             const project = projectMap.get(projectId) || 'N/A';
-            const crew = crewMap.get(entry.crewId) || 'N/A';
+            const crewId = dailyReport.crewId;
+            const crew = crewMap.get(crewId) || 'N/A';
             
             if (entry.absenceReason) {
                 if (isEntryInPeriod) {
                     totalAbsences++;
                     history.push({
-                        date: dateStr, project, crew, projectId, crewId: entry.crewId,
+                        date: dateStr, project, crew, projectId, crewId,
                         details: absenceTypeMap.get(entry.absenceReason) || 'Motivo desconocido',
                         variant: 'destructive',
                         hours: null
                     });
                 }
             } else {
-                let productive = 0;
-                let unproductive = 0;
-                let special = 0;
-
-                if ('productiveHours' in entry && entry.productiveHours) {
-                    const dailyEntry = entry as DailyLaborEntry;
-                    productive = Object.values(dailyEntry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
-                    unproductive = Object.values(dailyEntry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
-                    special = Object.values(dailyEntry.specialHours || {}).reduce((sum, h) => sum + (h || 0), 0);
-                    
-                    if (isEntryInPeriod) {
-                        Object.entries(dailyEntry.productiveHours).forEach(([phaseId, hours]) => {
-                            if (hours && hours > 0) {
-                                history.push({ date: dateStr, project, crew, projectId, crewId: entry.crewId, details: phaseMap.get(phaseId) || 'Fase desconocida', variant: 'secondary', hours });
-                            }
-                        });
-                        Object.entries(dailyEntry.unproductiveHours).forEach(([typeId, hours]) => {
-                            if (hours && hours > 0) {
-                                history.push({ date: dateStr, project, crew, projectId, crewId: entry.crewId, details: unproductiveMap.get(typeId) || 'Tipo desconocido', variant: 'secondary', hours });
-                            }
-                        });
-                        Object.entries(dailyEntry.specialHours || {}).forEach(([typeId, hours]) => {
-                            if (hours && hours > 0) {
-                                history.push({ date: dateStr, project, crew, projectId, crewId: entry.crewId, details: specialHourTypeMap.get(typeId) || 'Tipo especial desconocido', variant: 'default', hours });
-                            }
-                        });
-                    }
-
-                } else { // Legacy entry
-                    const legacyEntry = entry as LegacyDailyLaborEntry;
-                     if (legacyEntry.hours && legacyEntry.hours > 0) {
-                        productive = legacyEntry.hours;
-                         if (isEntryInPeriod) {
-                            history.push({ date: dateStr, project, crew, projectId, crewId: entry.crewId, details: phaseMap.get(legacyEntry.phaseId || '') || 'Fase desconocida', variant: 'secondary', hours: legacyEntry.hours });
-                         }
-                    }
-                    if (legacyEntry.specialHours) {
-                        special = Object.values(legacyEntry.specialHours).reduce((sum, h) => sum + (h || 0), 0);
-                         if (isEntryInPeriod) {
-                            Object.entries(legacyEntry.specialHours).forEach(([typeId, hours]) => {
-                                if (hours && hours > 0) {
-                                    history.push({ date: dateStr, project, crew, projectId, crewId: entry.crewId, details: specialHourTypeMap.get(typeId) || 'Tipo especial desconocido', variant: 'default', hours });
-                                }
-                            });
-                         }
-                    }
+                let productive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                let unproductive = Object.values(entry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                let special = Object.values(entry.specialHours || {}).reduce((sum, h) => sum + (h || 0), 0);
+                
+                if (isEntryInPeriod) {
+                    Object.entries(entry.productiveHours).forEach(([phaseId, hours]) => {
+                        if (hours && hours > 0) {
+                            history.push({ date: dateStr, project, crew, projectId, crewId, details: phaseMap.get(phaseId) || 'Fase desconocida', variant: 'secondary', hours });
+                        }
+                    });
+                    Object.entries(entry.unproductiveHours).forEach(([typeId, hours]) => {
+                        if (hours && hours > 0) {
+                            history.push({ date: dateStr, project, crew, projectId, crewId, details: unproductiveMap.get(typeId) || 'Tipo desconocido', variant: 'secondary', hours });
+                        }
+                    });
+                    Object.entries(entry.specialHours || {}).forEach(([typeId, hours]) => {
+                        if (hours && hours > 0) {
+                            history.push({ date: dateStr, project, crew, projectId, crewId, details: specialHourTypeMap.get(typeId) || 'Tipo especial desconocido', variant: 'default', hours });
+                        }
+                    });
                 }
                 
                 if (isEntryInPeriod) {
@@ -260,7 +248,7 @@ export default function EmployeeFormPage() {
             totalSpecialHours,
             history: history.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
         };
-    }, [employeeLaborData, allProjects, allCrews, allPhases, allUnproductiveTypes, allAbsenceTypes, allSpecialHourTypes, selectedDateRange]);
+    }, [employeeLaborData, employeeDailyReports, allProjects, allCrews, allPhases, allUnproductiveTypes, allAbsenceTypes, allSpecialHourTypes, selectedDateRange]);
 
     const handleInputChange = (field: keyof typeof emptyForm, value: any) => {
         setFormState(prev => ({ ...prev, [field]: value }));
@@ -483,7 +471,7 @@ export default function EmployeeFormPage() {
                                                 <Label htmlFor="projectId">Proyecto *</Label>
                                                 <Select onValueChange={(value) => handleInputChange('projectId', value)} value={formState.projectId} disabled={isPending}>
                                                     <SelectTrigger><SelectValue placeholder="Seleccione un proyecto" /></SelectTrigger>
-                                                    <SelectContent>{allProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}</SelectContent>
+                                                    <SelectContent>{sortedProjects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}</SelectContent>
                                                 </Select>
                                             </div>
                                             <div className="space-y-2">

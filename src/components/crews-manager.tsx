@@ -69,6 +69,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
   const canDelete = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('crews.editInfo'), [user]);
   
   const projectMap = useMemo(() => new Map(initialProjects.map(p => [p.id, p.name])), [initialProjects]);
+  const sortedProjects = useMemo(() => [...initialProjects].sort((a,b) => a.name.localeCompare(b.name)), [initialProjects]);
   const employeeNameMap = useMemo(() => new Map(initialEmployees.map(emp => [emp.id, `${emp.firstName} ${emp.lastName}`])), [initialEmployees]);
 
   const filteredCrews = useMemo(() => {
@@ -210,7 +211,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todos los Proyectos</SelectItem>
-                            {initialProjects.map((project) => (
+                            {sortedProjects.map((project) => (
                                 <SelectItem key={project.id} value={project.id}>
                                     {project.name}
                                 </SelectItem>

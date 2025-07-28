@@ -70,7 +70,7 @@ export default function StatisticsDashboard({
   const [selectedCrews, setSelectedCrews] = useState<string[]>([]);
 
   const projectOptions: ComboboxOption[] = useMemo(() =>
-    initialProjects.map(o => ({ value: o.id, label: o.name })),
+    initialProjects.map(o => ({ value: o.id, label: o.name })).sort((a, b) => a.label.localeCompare(b.label)),
     [initialProjects]
   );
   
