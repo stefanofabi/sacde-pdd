@@ -220,7 +220,8 @@ export type DailyLaborApprovalData = Record<string, Record<string, DailyLaborApp
 
 export interface DailyLaborNotification {
     notified: boolean;
-    notifiedAt: string;
+    notifiedAt: string | null;
+    projectId?: string;
     foremanId?: string;
     tallymanId?: string;
     projectManagerId?: string;

@@ -219,15 +219,39 @@ export default function DailyLaborReport({
     if (selectedCrewId === 'all') return null;
     return initialCrews.find(c => c.id === selectedCrewId);
   }, [initialCrews, selectedCrewId]);
-
-  const projectForCrew = useMemo(() => {
-    if (!selectedCrew) return null;
-    const dailyLaborForCrew = (laborData[formattedDate] || []).find(e => e.crewId === selectedCrew.id);
-    if(dailyLaborForCrew) {
-        return projectMap.get(dailyLaborForCrew.projectId);
+  
+  const dailyReportInfo = useMemo(() => {
+    if (!selectedCrewId || selectedCrewId === 'all' || !formattedDate) return { isNotified: false, notifiedAt: null, responsibles: null, project: null };
+    const notification: DailyLaborNotification | undefined = notificationData[formattedDate]?.[selectedCrewId];
+    
+    let responsibles = null;
+    if (notification) {
+        responsibles = notification;
+    } else if (selectedCrew) {
+        responsibles = {
+            foremanId: selectedCrew.foremanId,
+            tallymanId: selectedCrew.tallymanId,
+            projectManagerId: selectedCrew.projectManagerId,
+            controlAndManagementId: selectedCrew.controlAndManagementId,
+        };
     }
-    return projectMap.get(selectedCrew.projectId);
-  }, [selectedCrew, projectMap, laborData, formattedDate]);
+
+    let project = null;
+    if (notification?.projectId) {
+      project = projectMap.get(notification.projectId);
+    } else if (selectedCrew) {
+      project = projectMap.get(selectedCrew.projectId);
+    }
+
+    return {
+      isNotified: notification?.notified || false,
+      notifiedAt: notification?.notifiedAt ? format(new Date(notification.notifiedAt), 'Pp', { locale: es }) : null,
+      responsibles,
+      project,
+    }
+  }, [notificationData, formattedDate, selectedCrewId, selectedCrew, projectMap]);
+
+  const { isNotified, notifiedAt, responsibles: responsiblesForDisplay, project: projectForCrew } = dailyReportInfo;
   
   const personnelForTable = useMemo(() => {
     if (!selectedCrewId || selectedCrewId === 'all') return [];
@@ -314,25 +338,13 @@ export default function DailyLaborReport({
     return permissionsMap;
 }, [formattedDate, initialPermissions]);
 
-
-  const { isNotified, notifiedAt, responsiblesAtNotification } = useMemo(() => {
-    if (!selectedCrewId || selectedCrewId === 'all') return { isNotified: false, notifiedAt: null, responsiblesAtNotification: null };
-    const notification: DailyLaborNotification | undefined = notificationData[formattedDate]?.[selectedCrewId];
-    return {
-      isNotified: notification?.notified || false,
-      notifiedAt: notification?.notifiedAt ? format(new Date(notification.notifiedAt), 'Pp', { locale: es }) : null,
-      responsiblesAtNotification: notification?.notified ? notification : null,
-    }
-  }, [notificationData, formattedDate, selectedCrewId]);
-
   const approvalSettings = useMemo(() => {
-    if (!selectedCrew) return { requiresControl: false, requiresPM: false };
-    const project = projectMap.get(selectedCrew.projectId);
+    if (!projectForCrew) return { requiresControl: false, requiresPM: false };
     return {
-      requiresControl: project?.requiresControlGestionApproval ?? false,
-      requiresPM: project?.requiresJefeDeObraApproval ?? false
+      requiresControl: projectForCrew?.requiresControlGestionApproval ?? false,
+      requiresPM: projectForCrew?.requiresJefeDeObraApproval ?? false
     }
-  }, [selectedCrew, projectMap]);
+  }, [projectForCrew]);
 
   const specialHourTypesForProject = useMemo(() => {
       if (!projectForCrew || !projectForCrew.specialHourTypeIds) return [];
@@ -447,7 +459,7 @@ export default function DailyLaborReport({
   }
 
   const handleSave = () => {
-    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !projectForCrew) {
+    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !projectForCrew || !selectedCrew) {
       toast({
         title: "Selección requerida",
         description: "Por favor, seleccione una fecha, proyecto y cuadrilla para guardar.",
@@ -460,8 +472,10 @@ export default function DailyLaborReport({
         try {
             const batch = writeBatch(db);
             const laborRef = collection(db, 'daily-labor');
-            const q = query(laborRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
-            const oldDocs = await getDocs(q);
+            
+            // Delete old docs for this crew and date
+            const qOldLabor = query(laborRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
+            const oldDocs = await getDocs(qOldLabor);
             oldDocs.forEach(doc => batch.delete(doc.ref));
 
             const newCrewEntries: DailyLaborEntry[] = [];
@@ -471,14 +485,13 @@ export default function DailyLaborReport({
                 if (!stateEntry) return;
 
                 const isManual = selectedCrew ? !selectedCrew.employeeIds.includes(emp.id) : true;
-
                 const totalProductive = Object.values(stateEntry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
                 const totalUnproductive = Object.values(stateEntry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
                 const totalHours = totalProductive + totalUnproductive;
                 const hasNovelty = stateEntry.absenceReason || totalHours > 0;
                 
                 if (hasNovelty) {
-                    const dataToSave = { 
+                    const dataToSave: Omit<DailyLaborEntry, 'id'> = { 
                         date: formattedDate,
                         crewId: selectedCrewId,
                         projectId: projectForCrew.id,
@@ -491,25 +504,57 @@ export default function DailyLaborReport({
                     };
                     const newDocRef = doc(laborRef);
                     batch.set(newDocRef, dataToSave);
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const { date, crewId, ...rest } = dataToSave;
-                    newCrewEntries.push({ id: newDocRef.id, crewId: selectedCrewId, ...rest });
+                    newCrewEntries.push({ id: newDocRef.id, ...dataToSave });
                 }
             });
 
+            // If it's the first time saving, create the notification doc with responsibles
+            const notificationsRef = collection(db, 'daily-labor-notifications');
+            const qNotif = query(notificationsRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
+            const notifSnapshot = await getDocs(qNotif);
+            
+            let notificationPayload: DailyLaborNotification;
+            if (notifSnapshot.empty) {
+              notificationPayload = {
+                  notified: false,
+                  notifiedAt: null,
+                  projectId: projectForCrew.id,
+                  foremanId: selectedCrew.foremanId,
+                  tallymanId: selectedCrew.tallymanId,
+                  projectManagerId: selectedCrew.projectManagerId,
+                  controlAndManagementId: selectedCrew.controlAndManagementId,
+              };
+              const newNotifDocRef = doc(notificationsRef);
+              batch.set(newNotifDocRef, { date: formattedDate, crewId: selectedCrewId, ...notificationPayload });
+            } else {
+              notificationPayload = notifSnapshot.docs[0].data() as DailyLaborNotification;
+            }
+
             await batch.commit();
 
+            // Update local state
             const otherCrewEntries = (laborData[formattedDate] || []).filter(entry => entry.crewId !== selectedCrewId);
             setLaborData(prev => ({
                 ...prev,
                 [formattedDate]: [...otherCrewEntries, ...newCrewEntries]
             }));
+
+            if(notifSnapshot.empty) {
+              setNotificationData(prev => ({
+                ...prev,
+                [formattedDate]: {
+                  ...(prev[formattedDate] || {}),
+                  [selectedCrewId]: notificationPayload
+                }
+              }));
+            }
             
             toast({
               title: "Datos Guardados",
               description: "Las horas y ausencias se han registrado correctamente.",
             });
         } catch (error) {
+            console.error("Error saving data:", error);
             toast({
                 title: "Error al Guardar",
                 description: "No se pudieron guardar los datos.",
@@ -520,7 +565,7 @@ export default function DailyLaborReport({
   };
 
   const handleNotify = () => {
-    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !selectedCrew) return;
+    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !selectedCrew || !responsiblesForDisplay) return;
 
     startTransition(async () => {
         try {
@@ -531,10 +576,11 @@ export default function DailyLaborReport({
             const notificationDataPayload: DailyLaborNotification = {
                 notified: true,
                 notifiedAt: new Date().toISOString(),
-                foremanId: selectedCrew.foremanId,
-                tallymanId: selectedCrew.tallymanId,
-                projectManagerId: selectedCrew.projectManagerId,
-                controlAndManagementId: selectedCrew.controlAndManagementId,
+                projectId: projectForCrew?.id,
+                foremanId: responsiblesForDisplay.foremanId,
+                tallymanId: responsiblesForDisplay.tallymanId,
+                projectManagerId: responsiblesForDisplay.projectManagerId,
+                controlAndManagementId: responsiblesForDisplay.controlAndManagementId,
             };
 
             const dataToSave = {
@@ -913,10 +959,8 @@ export default function DailyLaborReport({
     
   const getCrewDetail = (field: 'foremanId' | 'tallymanId' | 'projectManagerId' | 'controlAndManagementId') => {
     let titularId;
-    if (responsiblesAtNotification) {
-      titularId = responsiblesAtNotification[field];
-    } else if (selectedCrew) {
-      titularId = selectedCrew[field];
+    if (responsiblesForDisplay && field in responsiblesForDisplay) {
+        titularId = responsiblesForDisplay[field];
     }
 
     if (!titularId) return 'N/A';
