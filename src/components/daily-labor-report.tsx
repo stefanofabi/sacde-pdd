@@ -265,7 +265,7 @@ export default function DailyLaborReport({
 
     return initialEmployees
       .filter(emp => 
-        emp.condition === 'jornal' && 
+        emp.condition === 'DAY' && 
         emp.status === 'activo' &&
         !alreadyInPart.has(emp.id)
       )
@@ -1318,7 +1318,7 @@ export default function DailyLaborReport({
                 )}
                 <div className="flex flex-col md:flex-row justify-between items-center mt-4 p-4 border-t gap-4">
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual}>
+                        <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual || !activeDailyReport}>
                             <UserPlus className="mr-2 h-4 w-4" />
                             Agregar Empleado
                         </Button>
@@ -1346,7 +1346,7 @@ export default function DailyLaborReport({
                             {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                             Guardar
                         </Button>
-                        <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId || !canNotify}>
+                        <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId || !canNotify || !activeDailyReport}>
                             <Send className="mr-2 h-4 w-4" />
                             Notificar
                         </Button>
