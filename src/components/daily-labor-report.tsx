@@ -680,38 +680,68 @@ export default function DailyLaborReport({
   };
 
   const handleAddManualEmployee = () => {
-    if (!employeeToAdd || !activeDailyReport) return;
-
+    if (!employeeToAdd) return;
+  
     startTransition(async () => {
-        try {
-            const batch = writeBatch(db);
-            const laborRef = collection(db, 'daily-labor');
-            const newEntryData = {
-                dailyReportId: activeDailyReport.id,
-                employeeId: employeeToAdd,
-                productiveHours: {},
-                unproductiveHours: {},
-                absenceReason: null,
-                specialHours: {},
-                manual: true,
-            };
-            const newDocRef = doc(laborRef);
-            batch.set(newDocRef, newEntryData);
-            await batch.commit();
-            
-            const newEntryForState = { id: newDocRef.id, ...newEntryData };
+      try {
+        const batch = writeBatch(db);
+        let reportId = activeDailyReport?.id;
+  
+        // If there's no active report, create one first.
+        if (!activeDailyReport && selectedCrew) {
+          const newReportData: Omit<DailyReport, 'id'> = {
+            date: formattedDate,
+            crewId: selectedCrewId,
+            projectId: selectedCrew.projectId,
+            foremanId: selectedCrew.foremanId,
+            tallymanId: selectedCrew.tallymanId,
+            projectManagerId: selectedCrew.projectManagerId,
+            controlAndManagementId: selectedCrew.controlAndManagementId,
+            status: 'PENDING',
+          };
+          const newReportRef = doc(collection(db, 'daily-reports'));
+          batch.set(newReportRef, newReportData);
+          reportId = newReportRef.id;
 
-            setLaborData(prev => ({
-                ...prev,
-                [activeDailyReport.id]: [...(prev[activeDailyReport.id] || []), newEntryForState]
-            }));
-
-            setEmployeeToAdd("");
-            setIsAddEmployeeDialogOpen(false);
-            toast({ title: "Empleado agregado" });
-        } catch (error) {
-            toast({ title: "Error", description: "No se pudo agregar al empleado.", variant: "destructive" });
+          // Update state immediately for UI to react
+          setDailyReports(prev => [...prev, { id: reportId!, ...newReportData }]);
         }
+  
+        if (!reportId) {
+          throw new Error("No se pudo crear o encontrar el parte diario.");
+        }
+  
+        const laborRef = collection(db, 'daily-labor');
+        const newEntryData = {
+          dailyReportId: reportId,
+          employeeId: employeeToAdd,
+          productiveHours: {},
+          unproductiveHours: {},
+          absenceReason: null,
+          specialHours: {},
+          manual: true,
+        };
+        const newDocRef = doc(laborRef);
+        batch.set(newDocRef, newEntryData);
+        await batch.commit();
+  
+        const newEntryForState = { id: newDocRef.id, ...newEntryData };
+  
+        setLaborData(prev => ({
+          ...prev,
+          [reportId!]: [...(prev[reportId!] || []), newEntryForState],
+        }));
+  
+        setEmployeeToAdd("");
+        setIsAddEmployeeDialogOpen(false);
+        toast({ title: "Empleado agregado" });
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudo agregar al empleado.",
+          variant: "destructive",
+        });
+      }
     });
   };
 
@@ -1318,7 +1348,7 @@ export default function DailyLaborReport({
                 )}
                 <div className="flex flex-col md:flex-row justify-between items-center mt-4 p-4 border-t gap-4">
                     <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual || !activeDailyReport}>
+                        <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual || (activeDailyReport && activeDailyReport.status !== 'PENDING')}>
                             <UserPlus className="mr-2 h-4 w-4" />
                             Agregar Empleado
                         </Button>
