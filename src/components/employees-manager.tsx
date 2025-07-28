@@ -42,6 +42,14 @@ import { deleteDoc, doc } from "firebase/firestore";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 
 interface EmployeesManagerProps {
   initialEmployees: Employee[];
