@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox";
 import { MultiSelectCombobox, type ComboboxOption } from "@/components/ui/multi-select-combobox";
 import { Loader2, ArrowLeft, Plus, X, Search, CalendarIcon, ArrowRightLeft, AlertTriangle, Save, Clock, UserX, Sparkles } from "lucide-react";
-import type { Crew, Project, Employee, Phase, CrewPhaseAssignment, DailyReport, DailyLaborEntry } from "@/types";
+import type { Crew, Project, Employee, Phase, CrewPhaseAssignment, DailyReport, DailyLaborEntry, AbsenceType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -245,7 +245,7 @@ export default function CrewFormPage() {
     }, [allPhases]);
   
     const jornalEmployees = useMemo(() => {
-      return allEmployees.filter(emp => emp.condition === 'jornal' && emp.status === 'activo');
+      return allEmployees.filter(emp => emp.condition === 'DAY' && emp.status === 'activo');
     }, [allEmployees]);
   
     const availablePersonnel = useMemo(() => {
