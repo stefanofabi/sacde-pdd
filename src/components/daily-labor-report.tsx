@@ -222,7 +222,7 @@ export default function DailyLaborReport({
   }, [initialCrews, selectedCrewId, dailyReports, formattedDate, projectMap]);
 
   const selectedCrew = useMemo(() => {
-    if (selectedCrewId === 'all') return null;
+    if (selectedCrewId === 'all' || !selectedCrewId) return null;
     return initialCrews.find(c => c.id === selectedCrewId);
   }, [initialCrews, selectedCrewId]);
   
