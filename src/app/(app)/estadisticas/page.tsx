@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import StatisticsDashboard from "@/components/statistics-dashboard";
 import { BarChart3, Loader2 } from "lucide-react";
-import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, LegacyDailyLaborEntry } from '@/types';
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, DailyReport } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -13,6 +13,7 @@ export default function EstadisticasPage() {
   const { user, loading: authLoading } = useAuth();
   const [crews, setCrews] = useState<Crew[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [dailyReports, setDailyReports] = useState<DailyReport[]>([]);
   const [dailyLabor, setDailyLabor] = useState<DailyLaborData>({});
   const [projects, setProjects] = useState<Project[]>([]);
   const [absenceTypes, setAbsenceTypes] = useState<AbsenceType[]>([]);
@@ -28,6 +29,7 @@ export default function EstadisticasPage() {
         const [
           crewsSnapshot,
           employeesSnapshot,
+          dailyReportsSnapshot,
           dailyLaborSnapshot,
           projectsSnapshot,
           absenceTypesSnapshot,
@@ -36,6 +38,7 @@ export default function EstadisticasPage() {
         ] = await Promise.all([
           getDocs(collection(db, 'crews')),
           getDocs(collection(db, 'employees')),
+          getDocs(collection(db, 'daily-reports')),
           getDocs(collection(db, 'daily-labor')),
           getDocs(collection(db, 'projects')),
           getDocs(collection(db, 'absence-types')),
@@ -45,16 +48,16 @@ export default function EstadisticasPage() {
         
         const laborData: DailyLaborData = {};
         dailyLaborSnapshot.docs.forEach(doc => {
-            const entry = { id: doc.id, ...doc.data() } as { date: string } & (DailyLaborEntry | LegacyDailyLaborEntry);
-            const { date, ...rest } = entry;
-            if (!laborData[date]) {
-                laborData[date] = [];
+            const entry = { id: doc.id, ...doc.data() } as DailyLaborEntry;
+            if (!laborData[entry.dailyReportId]) {
+                laborData[entry.dailyReportId] = [];
             }
-            laborData[date].push(rest);
+            laborData[entry.dailyReportId].push(entry);
         });
 
         setCrews(crewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Crew[]);
         setEmployees(employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[]);
+        setDailyReports(dailyReportsSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()})) as DailyReport[]);
         setDailyLabor(laborData);
         setProjects(projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[]);
         setAbsenceTypes(absenceTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as AbsenceType[]);
@@ -94,6 +97,7 @@ export default function EstadisticasPage() {
             <StatisticsDashboard
               initialCrews={crews}
               initialEmployees={employees}
+              initialDailyReports={dailyReports}
               initialDailyLabor={dailyLabor}
               initialProjects={projects}
               initialAbsenceTypes={absenceTypes}

@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from "react";
 import type { DateRange } from "react-day-picker";
-import { addDays, format } from "date-fns";
+import { addDays, format, isWithinInterval } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Bar,
@@ -33,11 +33,12 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { MultiSelectCombobox, type ComboboxOption } from "@/components/ui/multi-select-combobox";
 import { Calendar as CalendarIcon, Users, Clock, AlertCircle, UserX, Percent } from "lucide-react";
-import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, LegacyDailyLaborEntry, EmployeeSex } from "@/types";
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, DailyReport, EmployeeSex } from "@/types";
 
 interface StatisticsDashboardProps {
   initialCrews: Crew[];
   initialEmployees: Employee[];
+  initialDailyReports: DailyReport[];
   initialDailyLabor: DailyLaborData;
   initialProjects: Project[];
   initialAbsenceTypes: AbsenceType[];
@@ -55,6 +56,7 @@ const GENDER_COLORS: Record<EmployeeSex, string> = {
 export default function StatisticsDashboard({
   initialCrews,
   initialEmployees,
+  initialDailyReports,
   initialDailyLabor,
   initialProjects,
   initialAbsenceTypes,
@@ -93,14 +95,45 @@ export default function StatisticsDashboard({
     const absenceByCrew: Record<string, number> = {};
     const sexDistribution: Record<string, number> = { 'Masculino': 0, 'Femenino': 0, 'No binario': 0 };
 
-    const filteredCrewIds = selectedCrews.length > 0
-        ? new Set(selectedCrews)
-        : new Set(crewOptions.map(c => c.value));
+    const filteredCrewIds = selectedCrews.length > 0 ? new Set(selectedCrews) : new Set(crewOptions.map(c => c.value));
     
-    const relevantEmployeeIds = new Set(
-        initialCrews.filter(c => filteredCrewIds.has(c.id)).flatMap(c => c.employeeIds)
-    );
+    const relevantReports = initialDailyReports.filter(report => {
+        if (!date?.from || !date.to) return false;
+        const reportDate = new Date(report.date + "T00:00:00");
+        if (!isWithinInterval(reportDate, {start: date.from, end: date.to})) return false;
+        if (selectedProjects.length > 0 && !selectedProjects.includes(report.projectId)) return false;
+        if (!filteredCrewIds.has(report.crewId)) return false;
+        return true;
+    });
 
+    const relevantEmployeeIds = new Set<string>();
+    
+    relevantReports.forEach(report => {
+        const laborEntries = initialDailyLabor[report.id] || [];
+        laborEntries.forEach(entry => {
+            relevantEmployeeIds.add(entry.employeeId);
+            if (entry.absenceReason) {
+                totalAbsences++;
+                const reasonName = absenceTypeMap.get(entry.absenceReason) || "Unknown";
+                absenceCounts[reasonName] = (absenceCounts[reasonName] || 0) + 1;
+
+                const crewName = crewMap.get(report.crewId)?.name || 'Unknown';
+                absenceByCrew[crewName] = (absenceByCrew[crewName] || 0) + 1;
+            } else {
+                let entryProductive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                let entryUnproductive = Object.values(entry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
+
+                productiveHours += entryProductive;
+                totalUnproductiveHours += entryUnproductive;
+                totalHours += entryProductive + entryUnproductive;
+                
+                if(entry.specialHours) {
+                    totalSpecialHours += Object.values(entry.specialHours).reduce((sum, h) => sum + (h || 0), 0);
+                }
+            }
+        });
+    });
+    
     initialEmployees.forEach(emp => {
       if(relevantEmployeeIds.has(emp.id)) {
         if(emp.sex === 'M') sexDistribution['Masculino']++;
@@ -109,51 +142,8 @@ export default function StatisticsDashboard({
       }
     });
 
-    Object.entries(initialDailyLabor).forEach(([dateKey, entries]) => {
-      const currentDate = new Date(dateKey + "T00:00:00");
-      if (!date?.from || !date?.to || currentDate < date.from || currentDate > date.to) {
-        return;
-      }
-
-      entries.forEach(entry => {
-        if (!filteredCrewIds.has(entry.crewId)) {
-          return;
-        }
-
-        if (entry.absenceReason) {
-            totalAbsences++;
-            const reasonName = absenceTypeMap.get(entry.absenceReason) || "Unknown";
-            absenceCounts[reasonName] = (absenceCounts[reasonName] || 0) + 1;
-
-            const crewName = crewMap.get(entry.crewId)?.name || 'Unknown';
-            absenceByCrew[crewName] = (absenceByCrew[crewName] || 0) + 1;
-        } else {
-            let entryProductive = 0;
-            let entryUnproductive = 0;
-            if('productiveHours' in entry && entry.productiveHours) {
-                entryProductive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
-                entryUnproductive = Object.values(entry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
-            } else {
-                const legacyEntry = entry as LegacyDailyLaborEntry;
-                entryProductive = legacyEntry.hours || 0;
-            }
-
-            productiveHours += entryProductive;
-            totalUnproductiveHours += entryUnproductive;
-            totalHours += entryProductive + entryUnproductive;
-            
-            if(entry.specialHours) {
-                totalSpecialHours += Object.values(entry.specialHours).reduce((sum, h) => sum + (h || 0), 0);
-            }
-        }
-      });
-    });
-    
-    const relevantCrewIds = selectedCrews.length > 0 ? selectedCrews : crewOptions.map(c => c.value);
     const totalPersonnelInCrews = relevantEmployeeIds.size;
-
     const presentPersonnelCount = totalPersonnelInCrews - totalAbsences;
-
     const attendancePercentage = totalPersonnelInCrews > 0 ? (presentPersonnelCount / totalPersonnelInCrews) * 100 : 0;
     
     const absenceChartData = Object.entries(absenceCounts).map(([name, value]) => ({ name, value }));
@@ -178,7 +168,7 @@ export default function StatisticsDashboard({
       hoursChartData,
       sexChartData,
     };
-  }, [date, selectedProjects, selectedCrews, initialDailyLabor, crewOptions, absenceTypeMap, crewMap, initialEmployees]);
+  }, [date, selectedProjects, selectedCrews, initialDailyReports, initialDailyLabor, crewOptions, absenceTypeMap, crewMap, initialEmployees]);
 
   return (
     <div className="space-y-6">

@@ -9,7 +9,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from "@/components/ui/card";
 import {
   Table,
@@ -64,12 +63,12 @@ import { Label } from "@/components/ui/label";
 import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft, Edit } from "lucide-react";
 import { format, startOfToday, parse } from "date-fns";
 import { es } from "date-fns/locale";
-import type { Crew, Employee, DailyLaborData, Project, AbsenceType, DailyLaborNotificationData, DailyLaborEntry, Phase, SpecialHourType, UnproductiveHourType, LegacyDailyLaborEntry, Permission, DailyLaborNotification } from "@/types";
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission, DailyReport, DailyLaborEntry } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import { db } from "@/lib/firebase";
-import { collection, doc, query, where, getDocs, writeBatch, addDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, writeBatch, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "./ui/scroll-area";
 import { Badge } from "./ui/badge";
@@ -78,9 +77,9 @@ import { Badge } from "./ui/badge";
 interface DailyLaborReportProps {
   initialCrews: Crew[];
   initialEmployees: Employee[];
+  initialDailyReports: DailyReport[];
   initialLaborData: DailyLaborData;
   initialProjects: Project[];
-  initialNotificationData: DailyLaborNotificationData;
   initialAbsenceTypes: AbsenceType[];
   initialPhases: Phase[];
   initialSpecialHourTypes: SpecialHourType[];
@@ -109,9 +108,9 @@ interface MobileHoursModalState {
 export default function DailyLaborReport({ 
   initialCrews, 
   initialEmployees, 
+  initialDailyReports,
   initialLaborData, 
   initialProjects, 
-  initialNotificationData, 
   initialAbsenceTypes, 
   initialPhases,
   initialSpecialHourTypes,
@@ -126,8 +125,8 @@ export default function DailyLaborReport({
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
+  const [dailyReports, setDailyReports] = useState<DailyReport[]>(initialDailyReports);
   const [laborData, setLaborData] = useState<DailyLaborData>(initialLaborData);
-  const [notificationData, setNotificationData] = useState<DailyLaborNotificationData>(initialNotificationData);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedCrewId, setSelectedCrewId] = useState<string>("");
@@ -206,83 +205,52 @@ export default function DailyLaborReport({
     return initialCrews.filter(c => c.projectId === selectedProjectId);
   }, [initialCrews, selectedProjectId]);
 
+  const activeDailyReport = useMemo(() => {
+    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all') return null;
+    return dailyReports.find(r => r.date === formattedDate && r.crewId === selectedCrewId) || null;
+  }, [dailyReports, formattedDate, selectedCrewId]);
+
   const availableCrewsForMove = useMemo(() => {
     return initialCrews
-        .filter(c => 
-            c.id !== selectedCrewId && 
-            !notificationData[formattedDate]?.[c.id]?.notified
-        )
+        .filter(c => {
+          if (c.id === selectedCrewId) return false;
+          const report = dailyReports.find(r => r.date === formattedDate && r.crewId === c.id);
+          return !report || report.status !== 'NOTIFIED';
+        })
         .map(c => ({ value: c.id, label: `${c.name} (${projectMap.get(c.projectId)?.name || "Sin Proyecto"})` }));
-  }, [initialCrews, selectedCrewId, notificationData, formattedDate, projectMap]);
+  }, [initialCrews, selectedCrewId, dailyReports, formattedDate, projectMap]);
 
   const selectedCrew = useMemo(() => {
     if (selectedCrewId === 'all') return null;
     return initialCrews.find(c => c.id === selectedCrewId);
   }, [initialCrews, selectedCrewId]);
   
-  const dailyReportInfo = useMemo(() => {
-    if (!selectedCrewId || selectedCrewId === 'all' || !formattedDate) return { isNotified: false, notifiedAt: null, responsibles: null, project: null };
-    const notification: DailyLaborNotification | undefined = notificationData[formattedDate]?.[selectedCrewId];
-    
-    let responsibles = null;
-    if (notification) {
-        responsibles = notification;
-    } else if (selectedCrew) {
-        responsibles = {
-            foremanId: selectedCrew.foremanId,
-            tallymanId: selectedCrew.tallymanId,
-            projectManagerId: selectedCrew.projectManagerId,
-            controlAndManagementId: selectedCrew.controlAndManagementId,
-        };
+  const projectForCrew = useMemo(() => {
+    if (activeDailyReport) {
+      return projectMap.get(activeDailyReport.projectId);
     }
-
-    let project = null;
-    if (notification?.projectId) {
-      project = projectMap.get(notification.projectId);
-    } else if (selectedCrew) {
-      project = projectMap.get(selectedCrew.projectId);
-    }
-
-    return {
-      isNotified: notification?.notified || false,
-      notifiedAt: notification?.notifiedAt ? format(new Date(notification.notifiedAt), 'Pp', { locale: es }) : null,
-      responsibles,
-      project,
-    }
-  }, [notificationData, formattedDate, selectedCrewId, selectedCrew, projectMap]);
-
-  const { isNotified, notifiedAt, responsibles: responsiblesForDisplay, project: projectForCrew } = dailyReportInfo;
+    return selectedCrew ? projectMap.get(selectedCrew.projectId) : null;
+  }, [activeDailyReport, selectedCrew, projectMap]);
+  
+  const isNotified = activeDailyReport?.status === 'NOTIFIED';
   
   const personnelForTable = useMemo(() => {
-    if (!selectedCrewId || selectedCrewId === 'all') return [];
-
-    const dailyEntries = laborData[formattedDate] || [];
-    const crewEntries = dailyEntries.filter(entry => entry.crewId === selectedCrewId);
-    const personnel = new Map<string, Employee>();
-
-    // If there are entries for this day, use employees from those entries
-    if (crewEntries.length > 0) {
-      crewEntries.forEach(entry => {
-        const emp = employeeMap.get(entry.employeeId);
-        if (emp) personnel.set(emp.id, emp);
-      });
-    } else {
-      // Otherwise, use the current crew members as the initial list
-      const crew = crewMap.get(selectedCrewId);
-      (crew?.employeeIds || []).forEach(empId => {
-        const emp = employeeMap.get(empId);
-        if (emp) personnel.set(emp.id, emp);
-      });
+    if (!activeDailyReport) {
+      return selectedCrew?.employeeIds.map(id => employeeMap.get(id)).filter(Boolean) as Employee[] || [];
     }
 
+    const reportLaborEntries = laborData[activeDailyReport.id] || [];
+    const personnel = new Set<Employee>();
+
+    reportLaborEntries.forEach(entry => {
+      const emp = employeeMap.get(entry.employeeId);
+      if (emp) personnel.add(emp);
+    });
+
     return Array.from(personnel.values()).sort((a,b) => a.lastName.localeCompare(b.lastName));
-  }, [selectedCrewId, crewMap, employeeMap, laborData, formattedDate]);
+  }, [activeDailyReport, selectedCrew, laborData, employeeMap]);
   
-  const hasExistingReport = useMemo(() => {
-    if (!selectedCrewId || selectedCrewId === 'all' || !formattedDate) return false;
-    const dailyEntries = laborData[formattedDate] || [];
-    return dailyEntries.some(entry => entry.crewId === selectedCrewId);
-  }, [laborData, formattedDate, selectedCrewId]);
+  const hasExistingReport = !!activeDailyReport;
   
   const availableEmployeesForManualAdd = useMemo(() => {
     if (!selectedCrewId || selectedCrewId === 'all') return [];
@@ -362,13 +330,12 @@ export default function DailyLaborReport({
   }, [projectForCrew, initialAbsenceTypes]);
 
   useEffect(() => {
-    if (formattedDate && selectedCrewId && selectedCrewId !== 'all' && personnelForTable.length > 0) {
-        const dailyEntries = laborData[formattedDate] || [];
-        const crewEntries = dailyEntries.filter(entry => entry.crewId === selectedCrewId);
+    if (personnelForTable.length > 0) {
         const newLaborEntries: Record<string, LaborEntryState> = {};
+        const reportLaborEntries = activeDailyReport ? (laborData[activeDailyReport.id] || []) : [];
 
         personnelForTable.forEach(emp => {
-            const entriesForEmp = crewEntries.filter(e => e.employeeId === emp.id);
+            const entriesForEmp = reportLaborEntries.filter(e => e.employeeId === emp.id);
             const initialEntryState: LaborEntryState = {
                 productiveHours: {},
                 unproductiveHours: {},
@@ -378,24 +345,10 @@ export default function DailyLaborReport({
 
             if (entriesForEmp.length > 0) {
                 const firstEntry = entriesForEmp[0];
-                if ('productiveHours' in firstEntry && firstEntry.productiveHours) {
-                    const entry = firstEntry as DailyLaborEntry;
-                    initialEntryState.productiveHours = entry.productiveHours;
-                    initialEntryState.unproductiveHours = entry.unproductiveHours;
-                    initialEntryState.specialHours = entry.specialHours;
-                    initialEntryState.absenceReason = entry.absenceReason;
-                } else {
-                    const legacyEntries = entriesForEmp as LegacyDailyLaborEntry[];
-                    legacyEntries.forEach(e => {
-                        if (e.phaseId && e.hours) {
-                            initialEntryState.productiveHours[e.phaseId] = e.hours;
-                        }
-                        if (e.absenceReason) {
-                            initialEntryState.absenceReason = e.absenceReason;
-                        }
-                    });
-                    initialEntryState.specialHours = firstEntry.specialHours ?? {};
-                }
+                initialEntryState.productiveHours = firstEntry.productiveHours;
+                initialEntryState.unproductiveHours = firstEntry.unproductiveHours;
+                initialEntryState.specialHours = firstEntry.specialHours;
+                initialEntryState.absenceReason = firstEntry.absenceReason;
             } else {
                 const permissionAbsenceId = permissionsForDate.get(emp.id);
                 if (permissionAbsenceId) {
@@ -408,7 +361,7 @@ export default function DailyLaborReport({
     } else {
         setLaborEntries({});
     }
-}, [formattedDate, selectedCrewId, laborData, personnelForTable, permissionsForDate]);
+}, [personnelForTable, activeDailyReport, laborData, permissionsForDate]);
 
   const handleAbsenceChange = (
       employeeId: string, 
@@ -459,7 +412,7 @@ export default function DailyLaborReport({
   }
 
   const handleSave = () => {
-    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !projectForCrew || !selectedCrew) {
+    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !selectedCrew) {
       toast({
         title: "Selección requerida",
         description: "Por favor, seleccione una fecha, proyecto y cuadrilla para guardar.",
@@ -471,15 +424,38 @@ export default function DailyLaborReport({
     startTransition(async () => {
         try {
             const batch = writeBatch(db);
-            const laborRef = collection(db, 'daily-labor');
+            let reportId = activeDailyReport?.id;
+            let finalDailyReport: DailyReport;
+
+            // Create or get daily report
+            if (!activeDailyReport) {
+                const newReportData: Omit<DailyReport, 'id'> = {
+                    date: formattedDate,
+                    crewId: selectedCrewId,
+                    projectId: selectedCrew.projectId,
+                    foremanId: selectedCrew.foremanId,
+                    tallymanId: selectedCrew.tallymanId,
+                    projectManagerId: selectedCrew.projectManagerId,
+                    controlAndManagementId: selectedCrew.controlAndManagementId,
+                    status: 'PENDING'
+                };
+                const newReportRef = doc(collection(db, 'daily-reports'));
+                batch.set(newReportRef, newReportData);
+                reportId = newReportRef.id;
+                finalDailyReport = { id: reportId, ...newReportData };
+            } else {
+                finalDailyReport = activeDailyReport;
+            }
+
+            if (!reportId) throw new Error("Could not establish a daily report ID.");
             
-            // Delete old docs for this crew and date
-            const qOldLabor = query(laborRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
+            // Delete old labor entries for this report
+            const qOldLabor = query(collection(db, 'daily-labor'), where("dailyReportId", "==", reportId));
             const oldDocs = await getDocs(qOldLabor);
             oldDocs.forEach(doc => batch.delete(doc.ref));
 
-            const newCrewEntries: DailyLaborEntry[] = [];
-            
+            // Create new labor entries
+            const newLaborEntries: DailyLaborEntry[] = [];
             personnelForTable.forEach(emp => {
                 const stateEntry = laborEntries[emp.id];
                 if (!stateEntry) return;
@@ -492,9 +468,7 @@ export default function DailyLaborReport({
                 
                 if (hasNovelty) {
                     const dataToSave: Omit<DailyLaborEntry, 'id'> = { 
-                        date: formattedDate,
-                        crewId: selectedCrewId,
-                        projectId: projectForCrew.id,
+                        dailyReportId: reportId!,
                         employeeId: emp.id, 
                         absenceReason: stateEntry.absenceReason,
                         productiveHours: stateEntry.productiveHours,
@@ -502,52 +476,19 @@ export default function DailyLaborReport({
                         specialHours: stateEntry.specialHours,
                         manual: isManual, 
                     };
-                    const newDocRef = doc(laborRef);
+                    const newDocRef = doc(collection(db, 'daily-labor'));
                     batch.set(newDocRef, dataToSave);
-                    newCrewEntries.push({ id: newDocRef.id, ...dataToSave });
+                    newLaborEntries.push({ id: newDocRef.id, ...dataToSave });
                 }
             });
-
-            // If it's the first time saving, create the notification doc with responsibles
-            const notificationsRef = collection(db, 'daily-labor-notifications');
-            const qNotif = query(notificationsRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
-            const notifSnapshot = await getDocs(qNotif);
-            
-            let notificationPayload: DailyLaborNotification;
-            if (notifSnapshot.empty) {
-              notificationPayload = {
-                  notified: false,
-                  notifiedAt: null,
-                  projectId: projectForCrew.id,
-                  foremanId: selectedCrew.foremanId,
-                  tallymanId: selectedCrew.tallymanId,
-                  projectManagerId: selectedCrew.projectManagerId,
-                  controlAndManagementId: selectedCrew.controlAndManagementId,
-              };
-              const newNotifDocRef = doc(notificationsRef);
-              batch.set(newNotifDocRef, { date: formattedDate, crewId: selectedCrewId, ...notificationPayload });
-            } else {
-              notificationPayload = notifSnapshot.docs[0].data() as DailyLaborNotification;
-            }
 
             await batch.commit();
 
             // Update local state
-            const otherCrewEntries = (laborData[formattedDate] || []).filter(entry => entry.crewId !== selectedCrewId);
-            setLaborData(prev => ({
-                ...prev,
-                [formattedDate]: [...otherCrewEntries, ...newCrewEntries]
-            }));
-
-            if(notifSnapshot.empty) {
-              setNotificationData(prev => ({
-                ...prev,
-                [formattedDate]: {
-                  ...(prev[formattedDate] || {}),
-                  [selectedCrewId]: notificationPayload
-                }
-              }));
+            if (!activeDailyReport) {
+                setDailyReports(prev => [...prev, finalDailyReport]);
             }
+            setLaborData(prev => ({ ...prev, [reportId!]: newLaborEntries }));
             
             toast({
               title: "Datos Guardados",
@@ -565,43 +506,20 @@ export default function DailyLaborReport({
   };
 
   const handleNotify = () => {
-    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !selectedCrew || !responsiblesForDisplay) return;
+    if (!activeDailyReport) return;
 
     startTransition(async () => {
         try {
-            const notificationsRef = collection(db, 'daily-labor-notifications');
-            const q = query(notificationsRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
-            const snapshot = await getDocs(q);
-            
-            const notificationDataPayload: DailyLaborNotification = {
-                notified: true,
+            const reportRef = doc(db, 'daily-reports', activeDailyReport.id);
+            const updateData = {
+                status: 'NOTIFIED',
                 notifiedAt: new Date().toISOString(),
-                projectId: projectForCrew?.id,
-                foremanId: responsiblesForDisplay.foremanId,
-                tallymanId: responsiblesForDisplay.tallymanId,
-                projectManagerId: responsiblesForDisplay.projectManagerId,
-                controlAndManagementId: responsiblesForDisplay.controlAndManagementId,
             };
 
-            const dataToSave = {
-                date: formattedDate,
-                crewId: selectedCrewId,
-                ...notificationDataPayload
-            };
+            await updateDoc(reportRef, updateData);
+            
+            setDailyReports(prev => prev.map(r => r.id === activeDailyReport.id ? {...r, ...updateData} : r));
 
-            if (snapshot.empty) {
-                await addDoc(notificationsRef, dataToSave);
-            } else {
-                await updateDoc(snapshot.docs[0].ref, dataToSave);
-            }
-
-            setNotificationData(prev => ({
-                ...prev,
-                [formattedDate]: {
-                    ...(prev[formattedDate] || {}),
-                    [selectedCrewId]: notificationDataPayload
-                }
-            }));
             setIsNotifyDialogOpen(false);
             toast({
                 title: "Parte Notificado",
@@ -679,24 +597,46 @@ export default function DailyLaborReport({
   };
 
   const handleMoveEmployee = () => {
-    if (!employeeToMove || !destinationCrewId || !selectedCrewId || !formattedDate || selectedCrewId === 'all' || !projectForCrew) return;
+    if (!employeeToMove || !destinationCrewId || !activeDailyReport) return;
     
     startTransition(async () => {
         try {
             const batch = writeBatch(db);
-            const dailyLaborRef = collection(db, 'daily-labor');
-            const q = query(dailyLaborRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId), where("employeeId", "==", employeeToMove.id));
-            const snapshot = await getDocs(q);
+            const laborEntriesForReport = laborData[activeDailyReport.id] || [];
+            const entryToMove = laborEntriesForReport.find(e => e.employeeId === employeeToMove.id);
 
-            snapshot.docs.forEach(doc => {
-                batch.delete(doc.ref);
-            });
+            if (entryToMove) {
+                batch.delete(doc(db, "daily-labor", entryToMove.id));
+            }
+
+            // Find or create destination report
+            let destReport = dailyReports.find(r => r.date === formattedDate && r.crewId === destinationCrewId);
+            let destReportId: string;
+
+            if (destReport) {
+                destReportId = destReport.id;
+            } else {
+                const destCrew = crewMap.get(destinationCrewId);
+                if (!destCrew) throw new Error("Destination crew not found");
+                const newReportData: Omit<DailyReport, 'id'> = {
+                    date: formattedDate,
+                    crewId: destinationCrewId,
+                    projectId: destCrew.projectId,
+                    foremanId: destCrew.foremanId,
+                    tallymanId: destCrew.tallymanId,
+                    projectManagerId: destCrew.projectManagerId,
+                    controlAndManagementId: destCrew.controlAndManagementId,
+                    status: 'PENDING'
+                };
+                const newReportRef = doc(collection(db, 'daily-reports'));
+                batch.set(newReportRef, newReportData);
+                destReportId = newReportRef.id;
+                destReport = { id: destReportId, ...newReportData };
+            }
 
             const newEntry = {
-                date: formattedDate,
+                dailyReportId: destReportId,
                 employeeId: employeeToMove.id,
-                crewId: destinationCrewId,
-                projectId: projectForCrew.id,
                 productiveHours: {},
                 unproductiveHours: {},
                 absenceReason: null,
@@ -708,10 +648,18 @@ export default function DailyLaborReport({
             
             await batch.commit();
 
-            const updatedLaborData = { ...laborData };
-            const currentDayEntries = updatedLaborData[formattedDate] || [];
-            updatedLaborData[formattedDate] = currentDayEntries.filter(e => !(e.crewId === selectedCrewId && e.employeeId === employeeToMove.id));
-            setLaborData(updatedLaborData);
+            // Update state
+            if (entryToMove) {
+                setLaborData(prev => ({
+                    ...prev,
+                    [activeDailyReport.id]: prev[activeDailyReport.id].filter(e => e.id !== entryToMove.id)
+                }));
+            }
+            if (!dailyReports.some(r => r.id === destReport!.id)) {
+                setDailyReports(prev => [...prev, destReport!]);
+            }
+            setLaborData(prev => ({ ...prev, [destReport!.id]: [...(prev[destReport!.id] || []), {id: newDocRef.id, ...newEntry}] }));
+
             
             toast({
                 title: "Empleado Movido",
@@ -731,16 +679,14 @@ export default function DailyLaborReport({
   };
 
   const handleAddManualEmployee = () => {
-    if (!employeeToAdd || !selectedCrewId || selectedCrewId === 'all' || !formattedDate || !projectForCrew) return;
+    if (!employeeToAdd || !activeDailyReport) return;
 
     startTransition(async () => {
         try {
             const batch = writeBatch(db);
             const laborRef = collection(db, 'daily-labor');
             const newEntryData = {
-                date: formattedDate,
-                crewId: selectedCrewId,
-                projectId: projectForCrew.id,
+                dailyReportId: activeDailyReport.id,
                 employeeId: employeeToAdd,
                 productiveHours: {},
                 unproductiveHours: {},
@@ -752,13 +698,11 @@ export default function DailyLaborReport({
             batch.set(newDocRef, newEntryData);
             await batch.commit();
             
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const {date, crewId, ...rest} = newEntryData;
-            const newEntryForState = { id: newDocRef.id, crewId, ...rest };
+            const newEntryForState = { id: newDocRef.id, ...newEntryData };
 
             setLaborData(prev => ({
                 ...prev,
-                [formattedDate]: [...(prev[formattedDate] || []), newEntryForState]
+                [activeDailyReport.id]: [...(prev[activeDailyReport.id] || []), newEntryForState]
             }));
 
             setEmployeeToAdd("");
@@ -771,21 +715,23 @@ export default function DailyLaborReport({
   };
 
   const handleRemoveManualEmployee = (employeeId: string) => {
-    if (selectedCrewId === 'all' || !formattedDate) return;
+    if (!activeDailyReport) return;
     
     startTransition(async () => {
         try {
             const batch = writeBatch(db);
-            const laborRef = collection(db, 'daily-labor');
-            const q = query(laborRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId), where("employeeId", "==", employeeId));
-            const snapshot = await getDocs(q);
-            snapshot.forEach(doc => batch.delete(doc.ref));
-            await batch.commit();
-            
-            const updatedEntries = (laborData[formattedDate] || []).filter(e => !(e.crewId === selectedCrewId && e.employeeId === employeeId));
-            setLaborData(prev => ({ ...prev, [formattedDate]: updatedEntries }));
+            const laborEntriesForReport = laborData[activeDailyReport.id] || [];
+            const entryToRemove = laborEntriesForReport.find(e => e.employeeId === employeeId);
 
-            toast({ title: "Empleado removido" });
+            if (entryToRemove) {
+              batch.delete(doc(db, 'daily-labor', entryToRemove.id));
+              await batch.commit();
+              
+              const updatedEntries = laborEntriesForReport.filter(e => e.id !== entryToRemove.id);
+              setLaborData(prev => ({ ...prev, [activeDailyReport.id]: updatedEntries }));
+
+              toast({ title: "Empleado removido" });
+            }
         } catch (error) {
             toast({ title: "Error", description: "No se pudo remover al empleado.", variant: "destructive" });
         }
@@ -793,36 +739,28 @@ export default function DailyLaborReport({
   };
   
   const handleDeleteDailyReport = () => {
-    if (!formattedDate || !selectedCrewId || selectedCrewId === 'all') return;
+    if (!activeDailyReport) return;
 
     startTransition(async () => {
         try {
             const batch = writeBatch(db);
 
             // Delete labor entries
-            const laborRef = collection(db, 'daily-labor');
-            const laborQuery = query(laborRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
-            const laborDocs = await getDocs(laborQuery);
-            laborDocs.forEach(doc => batch.delete(doc.ref));
+            const laborEntriesToDelete = laborData[activeDailyReport.id] || [];
+            laborEntriesToDelete.forEach(entry => {
+                batch.delete(doc(db, 'daily-labor', entry.id));
+            });
 
-            // Delete notification entry
-            const notificationsRef = collection(db, 'daily-labor-notifications');
-            const notificationQuery = query(notificationsRef, where("date", "==", formattedDate), where("crewId", "==", selectedCrewId));
-            const notificationDocs = await getDocs(notificationQuery);
-            notificationDocs.forEach(doc => batch.delete(doc.ref));
+            // Delete daily report header
+            batch.delete(doc(db, 'daily-reports', activeDailyReport.id));
             
             await batch.commit();
 
             // Update local state
-            const updatedLaborData = { ...laborData };
-            delete updatedLaborData[formattedDate];
-            setLaborData(updatedLaborData);
-
-            const updatedNotificationData = { ...notificationData };
-            if (updatedNotificationData[formattedDate]) {
-                delete updatedNotificationData[formattedDate][selectedCrewId];
-            }
-            setNotificationData(updatedNotificationData);
+            setDailyReports(prev => prev.filter(r => r.id !== activeDailyReport.id));
+            const newLaborData = { ...laborData };
+            delete newLaborData[activeDailyReport.id];
+            setLaborData(newLaborData);
 
             // Reset view
             setLaborEntries({});
@@ -959,8 +897,8 @@ export default function DailyLaborReport({
     
   const getCrewDetail = (field: 'foremanId' | 'tallymanId' | 'projectManagerId' | 'controlAndManagementId') => {
     let titularId;
-    if (responsiblesForDisplay && field in responsiblesForDisplay) {
-        titularId = responsiblesForDisplay[field];
+    if (activeDailyReport && field in activeDailyReport) {
+        titularId = activeDailyReport[field];
     }
 
     if (!titularId) return 'N/A';
@@ -1063,16 +1001,17 @@ export default function DailyLaborReport({
                 <TableBody>
                   {crewsForListView.length > 0 ? (
                     crewsForListView.map(crew => {
-                      const isCrewNotified = notificationData[formattedDate]?.[crew.id]?.notified;
-                      const hasEntries = (laborData[formattedDate] || []).some(e => e.crewId === crew.id);
+                      const report = dailyReports.find(r => r.date === formattedDate && r.crewId === crew.id);
                       let statusText = "No Iniciado";
                       let statusColor = 'text-muted-foreground';
-                      if (isCrewNotified) {
-                        statusText = "Notificado";
-                        statusColor = 'text-green-600';
-                      } else if (hasEntries) {
-                        statusText = "Pendiente";
-                        statusColor = 'text-yellow-600';
+                      if (report) {
+                          if (report.status === 'NOTIFIED') {
+                              statusText = "Notificado";
+                              statusColor = 'text-green-600';
+                          } else {
+                              statusText = "Pendiente";
+                              statusColor = 'text-yellow-600';
+                          }
                       }
 
                       return (
@@ -1105,12 +1044,12 @@ export default function DailyLaborReport({
                 <Info className="h-4 w-4" />
                 <AlertTitle>Parte Notificado</AlertTitle>
                 <AlertDescription>
-                  Este parte fue notificado el {notifiedAt}. No se admiten más cambios.
+                  Este parte fue notificado el {activeDailyReport?.notifiedAt ? format(new Date(activeDailyReport.notifiedAt), 'Pp', { locale: es }) : ''}. No se admiten más cambios.
                 </AlertDescription>
               </Alert>
             )}
 
-            {selectedCrew && (
+            {activeDailyReport && (
               <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border p-4 bg-muted/50">
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Capataz</p>
@@ -1197,7 +1136,7 @@ export default function DailyLaborReport({
                                 const hasHours = totalHours > 0;
                                 const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
 
-                                const isManual = selectedCrew ? !selectedCrew.employeeIds.includes(emp.id) : true;
+                                const isManual = entry.manual === true;
                                 
                                 const hasOvertimeWarning = totalHours > 12;
 

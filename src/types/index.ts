@@ -1,4 +1,5 @@
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -168,12 +169,28 @@ export interface UnproductiveHourType {
   code: string;
 }
 
+export type DailyReportStatus = "PENDING" | "NOTIFIED" | "APPROVED_CONTROL" | "APPROVED_PM" | "COMPLETED";
+
+// Represents the header of a daily report
+export interface DailyReport {
+  id: string;
+  date: string; // "yyyy-MM-dd"
+  crewId: string;
+  projectId: string;
+  foremanId: string;
+  tallymanId: string;
+  projectManagerId: string;
+  controlAndManagementId: string;
+  status: DailyReportStatus;
+  notifiedAt?: string | null;
+  // Further approval fields can be added here
+}
+
 // Represents a single employee's labor record for a given day and crew.
 export interface DailyLaborEntry {
   id: string;
+  dailyReportId: string;
   employeeId: string;
-  crewId: string;
-  projectId: string;
   absenceReason: string | null; // If present, all hour fields should be empty/null
   productiveHours: Record<string, number | null>; // Key: phaseId, Value: hours
   unproductiveHours: Record<string, number | null>; // Key: unproductiveTypeId, Value: hours
@@ -181,20 +198,9 @@ export interface DailyLaborEntry {
   manual?: boolean;
 }
 
-// This type is for backward compatibility when reading old data.
-export interface LegacyDailyLaborEntry {
-  id: string;
-  employeeId: string;
-  crewId: string;
-  projectId: string;
-  hours: number | null;
-  phaseId: string | null;
-  absenceReason: string | null;
-  specialHours?: Record<string, number | null>;
-  manual?: boolean;
-}
+// Maps a dailyReportId to its labor entries
+export type DailyLaborData = Record<string, DailyLaborEntry[]>;
 
-export type DailyLaborData = Record<string, (DailyLaborEntry | LegacyDailyLaborEntry)[]>;
 
 export type ApprovalStatus = 
   | 'PENDING_FOREMAN'
@@ -218,22 +224,6 @@ export interface DailyLaborApproval {
 // dateKey -> crewId -> Approval
 export type DailyLaborApprovalData = Record<string, Record<string, DailyLaborApproval>>;
 
-export interface DailyLaborNotification {
-    notified: boolean;
-    notifiedAt: string | null;
-    projectId?: string;
-    foremanId?: string;
-    tallymanId?: string;
-    projectManagerId?: string;
-    controlAndManagementId?: string;
-}
-export interface DailyLaborNotificationData {
-  [dateKey: string]: {
-      [crewId: string]: DailyLaborNotification;
-  };
-}
 
 // This type is now deprecated, use Role and PermissionKey instead.
 export type EmployeeRole = 'admin' | 'crew_manager' | 'foreman' | 'tallyman' | 'project_manager' | 'management_control' | 'recursos_humanos' | 'invitado';
-
-    

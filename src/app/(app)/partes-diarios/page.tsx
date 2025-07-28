@@ -3,10 +3,10 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import DailyLaborReport from "@/components/daily-labor-report";
-import type { Crew, Employee, DailyLaborData, Project, DailyLaborNotificationData, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission, LegacyDailyLaborEntry, DailyLaborEntry } from '@/types';
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission, DailyReport, DailyLaborEntry } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -15,9 +15,9 @@ function PartesDiariosContent() {
   const searchParams = useSearchParams();
   const [initialCrews, setInitialCrews] = useState<Crew[]>([]);
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
+  const [initialDailyReports, setInitialDailyReports] = useState<DailyReport[]>([]);
   const [initialLaborData, setInitialLaborData] = useState<DailyLaborData>({});
   const [initialProjects, setInitialProjects] = useState<Project[]>([]);
-  const [initialNotificationData, setInitialNotificationData] = useState<DailyLaborNotificationData>({});
   const [initialAbsenceTypes, setInitialAbsenceTypes] = useState<AbsenceType[]>([]);
   const [initialPhases, setInitialPhases] = useState<Phase[]>([]);
   const [initialSpecialHourTypes, setInitialSpecialHourTypes] = useState<SpecialHourType[]>([]);
@@ -55,9 +55,9 @@ function PartesDiariosContent() {
         const [
           crewsSnapshot,
           employeesSnapshot,
+          dailyReportsSnapshot,
           laborSnapshot,
           projectsSnapshot,
-          notificationSnapshot,
           absenceTypesSnapshot,
           phasesSnapshot,
           specialHourTypesSnapshot,
@@ -66,9 +66,9 @@ function PartesDiariosContent() {
         ] = await Promise.all([
           getDocs(collection(db, 'crews')),
           getDocs(collection(db, 'employees')),
+          getDocs(collection(db, 'daily-reports')),
           getDocs(collection(db, 'daily-labor')),
           getDocs(collection(db, 'projects')),
-          getDocs(collection(db, 'daily-labor-notifications')),
           getDocs(collection(db, 'absence-types')),
           getDocs(collection(db, 'phases')),
           getDocs(collection(db, 'special-hour-types')),
@@ -85,31 +85,22 @@ function PartesDiariosContent() {
         const unproductiveHourTypesData = unproductiveHourTypesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as UnproductiveHourType[];
         const permissionsData = permissionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Permission[];
 
+        const dailyReportsData = dailyReportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as DailyReport[];
+
         const laborData: DailyLaborData = {};
         laborSnapshot.docs.forEach(doc => {
-            const entry = { id: doc.id, ...doc.data() } as { date: string } & (DailyLaborEntry | LegacyDailyLaborEntry);
-            const { date, ...rest } = entry;
-            if (!laborData[date]) {
-                laborData[date] = [];
+            const entry = { id: doc.id, ...doc.data() } as DailyLaborEntry;
+            if (!laborData[entry.dailyReportId]) {
+                laborData[entry.dailyReportId] = [];
             }
-            laborData[date].push(rest);
-        });
-        
-        const notificationsData: DailyLaborNotificationData = {};
-        notificationSnapshot.docs.forEach(doc => {
-            const entry = doc.data() as { date: string; crewId: string; notified: boolean; notifiedAt: string };
-            const { date, crewId, notified, notifiedAt } = entry;
-            if (!notificationsData[date]) {
-                notificationsData[date] = {};
-            }
-            notificationsData[date][crewId] = { notified, notifiedAt };
+            laborData[entry.dailyReportId].push(entry);
         });
 
         setInitialCrews(crewsData);
         setInitialEmployees(employeesData);
+        setInitialDailyReports(dailyReportsData);
         setInitialLaborData(laborData);
         setInitialProjects(projectsData);
-        setInitialNotificationData(notificationsData);
         setInitialAbsenceTypes(absenceTypesData);
         setInitialPhases(phasesData);
         setInitialSpecialHourTypes(specialHourTypesData);
@@ -143,9 +134,9 @@ function PartesDiariosContent() {
             <DailyLaborReport
               initialCrews={initialCrews}
               initialEmployees={initialEmployees}
+              initialDailyReports={initialDailyReports}
               initialLaborData={initialLaborData}
               initialProjects={initialProjects}
-              initialNotificationData={initialNotificationData}
               initialAbsenceTypes={initialAbsenceTypes}
               initialPhases={initialPhases}
               initialSpecialHourTypes={initialSpecialHourTypes}
@@ -169,5 +160,3 @@ export default function PartesDiariosPage() {
     </Suspense>
   )
 }
-
-    
