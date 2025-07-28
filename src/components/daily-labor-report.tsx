@@ -186,7 +186,9 @@ export default function DailyLaborReport({
 
   const projectsWithCrews = useMemo(() => {
     const projectIdsWithCrews = new Set(initialCrews.map(crew => crew.projectId));
-    return initialProjects.filter(project => projectIdsWithCrews.has(project.id));
+    return initialProjects
+      .filter(project => projectIdsWithCrews.has(project.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [initialCrews, initialProjects]);
   
   const crewOptions = useMemo(() => {
@@ -1655,4 +1657,3 @@ export default function DailyLaborReport({
     </TooltipProvider>
   );
 }
-
