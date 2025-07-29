@@ -313,6 +313,37 @@ export default function DailyLaborReport({
     return permissionsMap;
 }, [formattedDate, initialPermissions]);
 
+  const dailyEmployeeStatus = useMemo(() => {
+    if (!formattedDate) return new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
+
+    const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
+
+    const reportIdsForDate = initialDailyReports
+      .filter(r => r.date === formattedDate)
+      .map(r => r.id);
+
+    const allLaborForDate: DailyLaborEntry[] = reportIdsForDate.flatMap(reportId => initialLaborData[reportId] || []);
+
+    allLaborForDate.forEach(entry => {
+      if (!statusMap.has(entry.employeeId)) {
+        statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
+      }
+      const currentStatus = statusMap.get(entry.employeeId)!;
+
+      if (entry.absenceReason) {
+        currentStatus.hasAbsence = true;
+      } else {
+        const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
+        const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
+        if ((totalProductive + totalUnproductive) > 0) {
+          currentStatus.hasHours = true;
+        }
+      }
+    });
+
+    return statusMap;
+  }, [formattedDate, initialDailyReports, initialLaborData]);
+
   const approvalSettings = useMemo(() => {
     if (!projectForCrew) return { requiresControl: false, requiresPM: false };
     return {
@@ -464,9 +495,10 @@ export default function DailyLaborReport({
 
             // Create new labor entries
             const newLaborEntries: DailyLaborEntry[] = [];
-            personnelForTable.forEach(emp => {
-                const stateEntry = laborEntries[emp.id];
-                if (!stateEntry) return;
+            Object.keys(laborEntries).forEach(empId => {
+                const emp = employeeMap.get(empId);
+                const stateEntry = laborEntries[empId];
+                if (!stateEntry || !emp) return;
 
                 const isManual = stateEntry.manual === true;
                 
@@ -1160,15 +1192,14 @@ export default function DailyLaborReport({
                             {personnelForTable.length > 0 ? (
                                 personnelForTable.map(emp => {
                                 const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
-                                const hasAbsence = !!entry.absenceReason;
                                 
                                 const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
                                 const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
                                 const totalHours = totalProductive + totalUnproductive;
-                                const hasHours = totalHours > 0;
                                 const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
                                 
-                                const hasConflict = hasAbsence && hasHours;
+                                const employeeGlobalStatus = dailyEmployeeStatus.get(emp.id);
+                                const hasGlobalConflict = employeeGlobalStatus && employeeGlobalStatus.hasAbsence && employeeGlobalStatus.hasHours;
 
                                 const isManual = entry.manual === true;
                                 
@@ -1192,7 +1223,7 @@ export default function DailyLaborReport({
                                               <UserPlus className="h-4 w-4 text-primary" />
                                               </TooltipTrigger>
                                               <TooltipContent>
-                                              <p>Empleado agregado manually</p>
+                                              <p>Empleado agregado manualmente</p>
                                               </TooltipContent>
                                           </Tooltip>
                                           )}
@@ -1206,13 +1237,13 @@ export default function DailyLaborReport({
                                                   </TooltipContent>
                                               </Tooltip>
                                           )}
-                                          {hasConflict && (
+                                          {hasGlobalConflict && (
                                             <Tooltip>
                                                 <TooltipTrigger>
                                                     <AlertTriangle className="h-4 w-4 text-destructive" />
                                                 </TooltipTrigger>
                                                 <TooltipContent>
-                                                  <p>Advertencia: El empleado tiene horas y una ausencia cargadas en el mismo día.</p>
+                                                  <p>Advertencia: El empleado tiene horas y una ausencia cargadas en el mismo día en distintos partes.</p>
                                                 </TooltipContent>
                                             </Tooltip>
                                           )}
@@ -1223,7 +1254,7 @@ export default function DailyLaborReport({
                                           <Select
                                               value={entry.absenceReason ?? "NONE"}
                                               onValueChange={(value) => handleAbsenceChange(emp.id, value)}
-                                              disabled={isPending || hasHours}
+                                              disabled={isPending || totalHours > 0}
                                           >
                                               <SelectTrigger>
                                                   <SelectValue placeholder="Seleccionar motivo..." />
@@ -1257,7 +1288,7 @@ export default function DailyLaborReport({
                                                 placeholder="-"
                                                 value={entry.productiveHours[phase.id] ?? ""}
                                                 onChange={(e) => handleProductiveHourChange(emp.id, phase.id, e.target.value)}
-                                                disabled={isPending || hasAbsence}
+                                                disabled={isPending || !!entry.absenceReason}
                                                 step="0.5"
                                                 min="0"
                                             />
@@ -1272,7 +1303,7 @@ export default function DailyLaborReport({
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={() => handleOpenUnproductiveHoursModal(emp)}
-                                                    disabled={isPending || hasAbsence}
+                                                    disabled={isPending || !!entry.absenceReason}
                                                 >
                                                     <Hourglass className="h-4 w-4" />
                                                 </Button>
@@ -1295,7 +1326,7 @@ export default function DailyLaborReport({
                                                     variant="ghost"
                                                     size="icon"
                                                     onClick={() => handleOpenSpecialHoursModal(emp)}
-                                                    disabled={isPending || hasAbsence || !hasHours}
+                                                    disabled={isPending || !!entry.absenceReason || totalHours === 0}
                                                 >
                                                     <Sparkles className="h-4 w-4" />
                                                 </Button>
