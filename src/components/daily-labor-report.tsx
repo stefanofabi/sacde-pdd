@@ -314,35 +314,51 @@ export default function DailyLaborReport({
 }, [formattedDate, initialPermissions]);
 
   const dailyEmployeeStatus = useMemo(() => {
-    if (!formattedDate) return new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
-
     const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
+    if (!formattedDate) return statusMap;
 
-    const reportIdsForDate = initialDailyReports
-      .filter(r => r.date === formattedDate)
-      .map(r => r.id);
-
-    const allLaborForDate: DailyLaborEntry[] = reportIdsForDate.flatMap(reportId => initialLaborData[reportId] || []);
-
-    allLaborForDate.forEach(entry => {
-      if (!statusMap.has(entry.employeeId)) {
-        statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
-      }
-      const currentStatus = statusMap.get(entry.employeeId)!;
-
-      if (entry.absenceReason) {
-        currentStatus.hasAbsence = true;
-      } else {
-        const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
-        const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
-        if ((totalProductive + totalUnproductive) > 0) {
-          currentStatus.hasHours = true;
+    // Process saved data from other reports on the same day
+    initialDailyReports.forEach(report => {
+        if (report.date === formattedDate && report.id !== activeDailyReport?.id) {
+            const reportLabor = laborData[report.id] || [];
+            reportLabor.forEach(entry => {
+                if (!statusMap.has(entry.employeeId)) {
+                    statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
+                }
+                const currentStatus = statusMap.get(entry.employeeId)!;
+                if (entry.absenceReason) {
+                    currentStatus.hasAbsence = true;
+                } else {
+                    const totalHours = Object.values(entry.productiveHours).reduce((a, b) => a + (b || 0), 0) +
+                                       Object.values(entry.unproductiveHours).reduce((a, b) => a + (b || 0), 0);
+                    if (totalHours > 0) {
+                        currentStatus.hasHours = true;
+                    }
+                }
+            });
         }
-      }
+    });
+
+    // Process local, unsaved data for the current report
+    Object.entries(laborEntries).forEach(([employeeId, stateEntry]) => {
+        if (!statusMap.has(employeeId)) {
+            statusMap.set(employeeId, { hasHours: false, hasAbsence: false });
+        }
+        const currentStatus = statusMap.get(employeeId)!;
+
+        if (stateEntry.absenceReason) {
+            currentStatus.hasAbsence = true;
+        } else {
+            const totalHours = Object.values(stateEntry.productiveHours).reduce((a, b) => a + (b || 0), 0) +
+                               Object.values(stateEntry.unproductiveHours).reduce((a, b) => a + (b || 0), 0);
+            if (totalHours > 0) {
+                currentStatus.hasHours = true;
+            }
+        }
     });
 
     return statusMap;
-  }, [formattedDate, initialDailyReports, initialLaborData]);
+  }, [formattedDate, initialDailyReports, laborData, activeDailyReport, laborEntries]);
 
   const approvalSettings = useMemo(() => {
     if (!projectForCrew) return { requiresControl: false, requiresPM: false };
@@ -493,23 +509,27 @@ export default function DailyLaborReport({
             const oldDocs = await getDocs(qOldLabor);
             oldDocs.forEach(doc => batch.delete(doc.ref));
 
-            // Create new labor entries
+            // Create new labor entries for everyone in the part list
             const newLaborEntries: DailyLaborEntry[] = [];
-            Object.keys(laborEntries).forEach(empId => {
-                const emp = employeeMap.get(empId);
-                const stateEntry = laborEntries[empId];
-                if (!stateEntry || !emp) return;
+            
+            personnelForTable.forEach(emp => {
+                const empId = emp.id;
+                const stateEntry = laborEntries[empId] || {
+                    productiveHours: {},
+                    unproductiveHours: {},
+                    absenceReason: null,
+                    specialHours: {},
+                    manual: selectedCrew?.employeeIds.includes(empId) === false,
+                };
 
-                const isManual = stateEntry.manual === true;
-                
                 const dataToSave: Omit<DailyLaborEntry, 'id'> = { 
                     dailyReportId: reportId!,
-                    employeeId: emp.id, 
+                    employeeId: empId, 
                     absenceReason: stateEntry.absenceReason,
                     productiveHours: stateEntry.productiveHours,
                     unproductiveHours: stateEntry.unproductiveHours,
                     specialHours: stateEntry.specialHours,
-                    manual: isManual, 
+                    manual: stateEntry.manual, 
                 };
                 const newDocRef = doc(collection(db, 'daily-labor'));
                 batch.set(newDocRef, dataToSave);
