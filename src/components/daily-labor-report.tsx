@@ -7,9 +7,9 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardFooter
 } from "@/components/ui/card";
 import {
   Table,
@@ -319,38 +319,44 @@ export default function DailyLaborReport({
   const dailyEmployeeStatus = useMemo(() => {
     const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
     if (!formattedDate) return statusMap;
-
+  
     const allReportsForDate = dailyReports.filter(r => r.date === formattedDate);
-
+    
     allReportsForDate.forEach(report => {
         const isCurrentReport = report.id === activeDailyReport?.id;
+        
         let entriesForReport: { employeeId: string; absenceReason: any; productiveHours: any; unproductiveHours: any }[];
         
-        // Combine saved data with current state for dynamic checks
-        const currentLaborEntries = laborData[report.id] || [];
-        if(isCurrentReport) {
-             const editedEntries = Object.entries(laborEntries).map(([employeeId, stateEntry]) => ({
-                employeeId,
-                ...stateEntry,
-             }));
-             const editedEmployeeIds = new Set(editedEntries.map(e => e.employeeId));
-             const uneditedEntries = currentLaborEntries.filter(e => !editedEmployeeIds.has(e.employeeId));
-             entriesForReport = [...editedEntries, ...uneditedEntries]
+        const savedEntries = laborData[report.id] || [];
+
+        if (isCurrentReport) {
+            // For the current report, merge saved data with unsaved edits from the state
+            const allEmployeeIdsInReport = new Set([
+                ...savedEntries.map(e => e.employeeId),
+                ...Object.keys(laborEntries)
+            ]);
+
+            entriesForReport = Array.from(allEmployeeIdsInReport).map(employeeId => {
+                return laborEntries[employeeId] || savedEntries.find(e => e.employeeId === employeeId)!;
+            });
         } else {
-            entriesForReport = currentLaborEntries
+            // For other reports, just use the saved data
+            entriesForReport = savedEntries;
         }
 
         entriesForReport.forEach(entry => {
+            if (!entry) return;
             if (!statusMap.has(entry.employeeId)) {
                 statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
             }
             const currentStatus = statusMap.get(entry.employeeId)!;
-
+            
             if (entry.absenceReason) {
                 currentStatus.hasAbsence = true;
             } else {
-                const totalHours = Object.values(entry.productiveHours).reduce((a, b) => a + (b || 0), 0) +
-                                   Object.values(entry.unproductiveHours).reduce((a, b) => a + (b || 0), 0);
+                const totalHours = 
+                    Object.values(entry.productiveHours || {}).reduce((a: number, b) => a + (b || 0), 0) +
+                    Object.values(entry.unproductiveHours || {}).reduce((a: number, b) => a + (b || 0), 0);
                 if (totalHours > 0) {
                     currentStatus.hasHours = true;
                 }
