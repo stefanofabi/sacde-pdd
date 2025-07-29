@@ -61,7 +61,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft, Edit } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft, Edit, FileSpreadsheet, Copy } from "lucide-react";
 import { format, startOfToday, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, Employee, DailyLaborData, Project, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission, DailyReport, DailyLaborEntry } from "@/types";
@@ -73,6 +73,7 @@ import { collection, doc, query, where, getDocs, writeBatch, addDoc, updateDoc, 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "./ui/scroll-area";
 import { Badge } from "./ui/badge";
+import * as XLSX from 'xlsx';
 
 
 interface DailyLaborReportProps {
@@ -317,48 +318,34 @@ export default function DailyLaborReport({
     const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
     if (!formattedDate) return statusMap;
 
-    // Process saved data from other reports on the same day
-    initialDailyReports.forEach(report => {
-        if (report.date === formattedDate && report.id !== activeDailyReport?.id) {
-            const reportLabor = laborData[report.id] || [];
-            reportLabor.forEach(entry => {
-                if (!statusMap.has(entry.employeeId)) {
-                    statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
-                }
-                const currentStatus = statusMap.get(entry.employeeId)!;
-                if (entry.absenceReason) {
-                    currentStatus.hasAbsence = true;
-                } else {
-                    const totalHours = Object.values(entry.productiveHours).reduce((a, b) => a + (b || 0), 0) +
-                                       Object.values(entry.unproductiveHours).reduce((a, b) => a + (b || 0), 0);
-                    if (totalHours > 0) {
-                        currentStatus.hasHours = true;
-                    }
-                }
-            });
-        }
-    });
+    const allReportsForDate = initialDailyReports.filter(r => r.date === formattedDate);
+    
+    allReportsForDate.forEach(report => {
+        const reportIsCurrent = report.id === activeDailyReport?.id;
+        const entries = reportIsCurrent 
+            ? Object.entries(laborEntries).map(([employeeId, stateEntry]) => ({ employeeId, ...stateEntry }))
+            : (laborData[report.id] || []);
 
-    // Process local, unsaved data for the current report
-    Object.entries(laborEntries).forEach(([employeeId, stateEntry]) => {
-        if (!statusMap.has(employeeId)) {
-            statusMap.set(employeeId, { hasHours: false, hasAbsence: false });
-        }
-        const currentStatus = statusMap.get(employeeId)!;
-
-        if (stateEntry.absenceReason) {
-            currentStatus.hasAbsence = true;
-        } else {
-            const totalHours = Object.values(stateEntry.productiveHours).reduce((a, b) => a + (b || 0), 0) +
-                               Object.values(stateEntry.unproductiveHours).reduce((a, b) => a + (b || 0), 0);
-            if (totalHours > 0) {
-                currentStatus.hasHours = true;
+        entries.forEach(entry => {
+            if (!statusMap.has(entry.employeeId)) {
+                statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
             }
-        }
+            const currentStatus = statusMap.get(entry.employeeId)!;
+
+            if (entry.absenceReason) {
+                currentStatus.hasAbsence = true;
+            } else {
+                const totalHours = Object.values(entry.productiveHours).reduce((a, b) => a + (b || 0), 0) +
+                                   Object.values(entry.unproductiveHours).reduce((a, b) => a + (b || 0), 0);
+                if (totalHours > 0) {
+                    currentStatus.hasHours = true;
+                }
+            }
+        });
     });
 
     return statusMap;
-  }, [formattedDate, initialDailyReports, laborData, activeDailyReport, laborEntries]);
+  }, [formattedDate, initialDailyReports, laborData, laborEntries, activeDailyReport]);
 
   const approvalSettings = useMemo(() => {
     if (!projectForCrew) return { requiresControl: false, requiresPM: false };
@@ -864,6 +851,59 @@ export default function DailyLaborReport({
     });
   }
 
+  const handleExport = () => {
+    if (!activeDailyReport) return;
+
+    startTransition(() => {
+        try {
+            const dataToExport = personnelForTable.map(emp => {
+                const entry = laborEntries[emp.id];
+                if (!entry) return null;
+
+                const totalProductive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                const totalUnproductive = Object.values(entry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                const totalHours = totalProductive + totalUnproductive;
+                const absenceName = entry.absenceReason ? (absenceTypesForProject.find(a => a.id === entry.absenceReason)?.name || entry.absenceReason) : "-";
+
+                return {
+                    "Legajo": emp.internalNumber,
+                    "Apellido y Nombre": `${emp.lastName}, ${emp.firstName}`,
+                    "Novedad": absenceName !== "-" ? absenceName : `${totalHours} hs`,
+                    ...activePhases.reduce((acc, phase) => {
+                        acc[phase.name] = entry.productiveHours[phase.id] || 0;
+                        return acc;
+                    }, {} as Record<string, number>),
+                    ...unproductiveHourTypesForProject.reduce((acc, type) => {
+                        acc[type.name] = entry.unproductiveHours[type.id] || 0;
+                        return acc;
+                    }, {} as Record<string, number>),
+                     ...specialHourTypesForProject.reduce((acc, type) => {
+                        acc[type.name] = entry.specialHours[type.id] || 0;
+                        return acc;
+                    }, {} as Record<string, number>),
+                };
+            }).filter(Boolean);
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, `Parte Diario`);
+            
+            XLSX.writeFile(workbook, `Parte_Diario_${selectedCrew?.name}_${formattedDate}.xlsx`);
+
+            toast({
+                title: "Exportación exitosa",
+                description: "El parte diario se ha descargado como archivo Excel.",
+            });
+        } catch (error) {
+            toast({
+                title: "Error al exportar",
+                description: "No se pudo generar el archivo Excel.",
+                variant: "destructive"
+            });
+        }
+    });
+  };
+
   useEffect(() => {
     if (selectedProjectId) {
         const crewsForProject = initialCrews.filter(c => c.projectId === selectedProjectId);
@@ -1134,7 +1174,16 @@ export default function DailyLaborReport({
             )}
 
             {activeDailyReport && (
-              <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border p-4 bg-muted/50">
+              <div className="mb-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 rounded-lg border p-4 bg-muted/50">
+                <div className="lg:col-span-1">
+                  <p className="text-sm font-semibold text-muted-foreground">ID del Parte</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-mono text-xs" title={activeDailyReport.id}>{activeDailyReport.id}</p>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(activeDailyReport.id).then(() => toast({title: "ID Copiado"}))}>
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Capataz</p>
                   <p className="truncate">{getCrewDetail('foremanId')}</p>
@@ -1422,6 +1471,10 @@ export default function DailyLaborReport({
                                 Eliminar Parte
                             </Button>
                         )}
+                         <Button variant="outline" onClick={handleExport} disabled={isPending || !activeDailyReport}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Exportar
+                        </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {selectedCrewId && selectedCrewId !== 'all' && crewOptions.some(o => o.value === 'all') && (
