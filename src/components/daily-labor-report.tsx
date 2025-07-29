@@ -61,7 +61,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft, Edit, FileSpreadsheet, Copy } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft, Edit, FileSpreadsheet, Copy, MessageSquare } from "lucide-react";
 import { format, startOfToday, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, Employee, DailyLaborData, Project, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission, DailyReport, DailyLaborEntry } from "@/types";
@@ -74,6 +74,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "./ui/scroll-area";
 import { Badge } from "./ui/badge";
 import * as XLSX from 'xlsx';
+import { Textarea } from "./ui/textarea";
 
 
 interface DailyLaborReportProps {
@@ -97,6 +98,7 @@ interface LaborEntryState {
     unproductiveHours: Record<string, number | null>;
     absenceReason: string | null;
     specialHours: Record<string, number | null>;
+    observations?: string;
     manual?: boolean;
 }
 
@@ -318,15 +320,27 @@ export default function DailyLaborReport({
     const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
     if (!formattedDate) return statusMap;
 
-    const allReportsForDate = initialDailyReports.filter(r => r.date === formattedDate);
-    
-    allReportsForDate.forEach(report => {
-        const reportIsCurrent = report.id === activeDailyReport?.id;
-        const entries = reportIsCurrent 
-            ? Object.entries(laborEntries).map(([employeeId, stateEntry]) => ({ employeeId, ...stateEntry }))
-            : (laborData[report.id] || []);
+    const allReportsForDate = dailyReports.filter(r => r.date === formattedDate);
 
-        entries.forEach(entry => {
+    allReportsForDate.forEach(report => {
+        const isCurrentReport = report.id === activeDailyReport?.id;
+        let entriesForReport: { employeeId: string; absenceReason: any; productiveHours: any; unproductiveHours: any }[];
+        
+        // Combine saved data with current state for dynamic checks
+        const currentLaborEntries = laborData[report.id] || [];
+        if(isCurrentReport) {
+             const editedEntries = Object.entries(laborEntries).map(([employeeId, stateEntry]) => ({
+                employeeId,
+                ...stateEntry,
+             }));
+             const editedEmployeeIds = new Set(editedEntries.map(e => e.employeeId));
+             const uneditedEntries = currentLaborEntries.filter(e => !editedEmployeeIds.has(e.employeeId));
+             entriesForReport = [...editedEntries, ...uneditedEntries]
+        } else {
+            entriesForReport = currentLaborEntries
+        }
+
+        entriesForReport.forEach(entry => {
             if (!statusMap.has(entry.employeeId)) {
                 statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
             }
@@ -345,7 +359,8 @@ export default function DailyLaborReport({
     });
 
     return statusMap;
-  }, [formattedDate, initialDailyReports, laborData, laborEntries, activeDailyReport]);
+  }, [formattedDate, dailyReports, laborData, laborEntries, activeDailyReport]);
+
 
   const approvalSettings = useMemo(() => {
     if (!projectForCrew) return { requiresControl: false, requiresPM: false };
@@ -382,6 +397,7 @@ export default function DailyLaborReport({
                 unproductiveHours: {},
                 absenceReason: null,
                 specialHours: {},
+                observations: '',
                 manual: false,
             };
 
@@ -390,6 +406,7 @@ export default function DailyLaborReport({
                 initialEntryState.unproductiveHours = entryForEmp.unproductiveHours;
                 initialEntryState.specialHours = entryForEmp.specialHours;
                 initialEntryState.absenceReason = entryForEmp.absenceReason;
+                initialEntryState.observations = entryForEmp.observations;
                 initialEntryState.manual = entryForEmp.manual;
             } else {
                 const permissionAbsenceId = permissionsForDate.get(emp.id);
@@ -453,6 +470,16 @@ export default function DailyLaborReport({
       });
   }
 
+  const handleObservationChange = (employeeId: string, value: string) => {
+    setLaborEntries(prev => ({
+        ...prev,
+        [employeeId]: {
+            ...(prev[employeeId] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} }),
+            observations: value
+        }
+    }));
+  };
+
   const handleSave = () => {
     if (!formattedDate || !selectedCrewId || selectedCrewId === 'all' || !selectedCrew) {
       toast({
@@ -506,6 +533,7 @@ export default function DailyLaborReport({
                     unproductiveHours: {},
                     absenceReason: null,
                     specialHours: {},
+                    observations: '',
                     manual: selectedCrew?.employeeIds.includes(empId) === false,
                 };
 
@@ -516,6 +544,7 @@ export default function DailyLaborReport({
                     productiveHours: stateEntry.productiveHours,
                     unproductiveHours: stateEntry.unproductiveHours,
                     specialHours: stateEntry.specialHours,
+                    observations: stateEntry.observations,
                     manual: stateEntry.manual, 
                 };
                 const newDocRef = doc(collection(db, 'daily-labor'));
@@ -1067,724 +1096,751 @@ export default function DailyLaborReport({
 
   return (
     <TooltipProvider>
-    <Card>
-      <CardHeader>
-        <CardTitle>Carga de Horas por Empleado</CardTitle>
-        <CardDescription>
-          Seleccione fecha, proyecto y cuadrilla para registrar las horas o ausencias del personal.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-col md:flex-row flex-wrap items-center gap-4">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full md:w-[280px] justify-start text-left font-normal" disabled={isPending}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {displayDate}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus locale={es} disabled={(date) => date > new Date()} />
-            </PopoverContent>
-          </Popover>
+      <Card>
+        <CardHeader>
+          <CardTitle>Carga de Horas por Empleado</CardTitle>
+          <CardDescription>
+            Seleccione fecha, proyecto y cuadrilla para registrar las horas o ausencias del personal.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-col md:flex-row flex-wrap items-center gap-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full md:w-[280px] justify-start text-left font-normal" disabled={isPending}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {displayDate}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus locale={es} disabled={(date) => date > new Date()} />
+              </PopoverContent>
+            </Popover>
 
-          <Select value={selectedProjectId} onValueChange={setSelectedProjectId} disabled={isPending}>
-            <SelectTrigger className="w-full md:w-[250px]">
-              <SelectValue placeholder="Seleccione un proyecto" />
-            </SelectTrigger>
-            <SelectContent>
-              {projectsWithCrews.map(project => (
-                <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select value={selectedProjectId} onValueChange={setSelectedProjectId} disabled={isPending}>
+              <SelectTrigger className="w-full md:w-[250px]">
+                <SelectValue placeholder="Seleccione un proyecto" />
+              </SelectTrigger>
+              <SelectContent>
+                {projectsWithCrews.map(project => (
+                  <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Combobox
-            options={crewOptions}
-            value={selectedCrewId}
-            onValueChange={setSelectedCrewId}
-            placeholder="Seleccione una cuadrilla"
-            searchPlaceholder="Buscar cuadrilla..."
-            emptyMessage="No hay cuadrillas para este proyecto."
-            disabled={!selectedProjectId || isPending}
-            className="w-full md:w-[250px]"
-          />
-        </div>
-        
-        {selectedCrewId === 'all' && selectedProjectId ? (
-            <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Cuadrilla</TableHead>
-                    <TableHead>Capataz</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {crewsForListView.length > 0 ? (
-                    crewsForListView.map(crew => {
-                      const report = dailyReports.find(r => r.date === formattedDate && r.crewId === crew.id);
-                      let statusText = "No Iniciado";
-                      let statusColor = 'text-muted-foreground';
-                      if (report) {
-                          if (report.status === 'NOTIFIED') {
-                              statusText = "Notificado";
-                              statusColor = 'text-green-600';
-                          } else {
-                              statusText = "Pendiente";
-                              statusColor = 'text-yellow-600';
-                          }
-                      }
-
-                      return (
-                        <TableRow key={crew.id}>
-                          <TableCell className="font-medium">{crew.name}</TableCell>
-                          <TableCell>{employeeMap.get(crew.foremanId)?.lastName}, {employeeMap.get(crew.foremanId)?.firstName}</TableCell>
-                          <TableCell className={cn("font-semibold", statusColor)}>{statusText}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => setSelectedCrewId(crew.id)}>
-                              Ver / Editar
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })
-                  ) : (
+            <Combobox
+              options={crewOptions}
+              value={selectedCrewId}
+              onValueChange={setSelectedCrewId}
+              placeholder="Seleccione una cuadrilla"
+              searchPlaceholder="Buscar cuadrilla..."
+              emptyMessage="No hay cuadrillas para este proyecto."
+              disabled={!selectedProjectId || isPending}
+              className="w-full md:w-[250px]"
+            />
+          </div>
+          
+          {selectedCrewId === 'all' && selectedProjectId ? (
+              <div className="rounded-lg border">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">
-                        No hay partes para mostrar para este proyecto y fecha.
-                      </TableCell>
+                      <TableHead>Cuadrilla</TableHead>
+                      <TableHead>Capataz</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          ) : selectedCrewId ? (
-          <div>
-            {isNotified && (
-              <Alert className="mb-4 border-primary/50 text-primary [&>svg]:text-primary">
-                <Info className="h-4 w-4" />
-                <AlertTitle>Parte Notificado</AlertTitle>
-                <AlertDescription>
-                  Este parte fue notificado el {activeDailyReport?.notifiedAt ? format(new Date(activeDailyReport.notifiedAt), 'Pp', { locale: es }) : ''}. No se admiten más cambios.
-                </AlertDescription>
-              </Alert>
-            )}
+                  </TableHeader>
+                  <TableBody>
+                    {crewsForListView.length > 0 ? (
+                      crewsForListView.map(crew => {
+                        const report = dailyReports.find(r => r.date === formattedDate && r.crewId === crew.id);
+                        let statusText = "No Iniciado";
+                        let statusColor = 'text-muted-foreground';
+                        if (report) {
+                            if (report.status === 'NOTIFIED') {
+                                statusText = "Notificado";
+                                statusColor = 'text-green-600';
+                            } else {
+                                statusText = "Pendiente";
+                                statusColor = 'text-yellow-600';
+                            }
+                        }
 
-            {activeDailyReport && (
-              <div className="mb-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 rounded-lg border p-4 bg-muted/50">
-                <div className="lg:col-span-1">
-                  <p className="text-sm font-semibold text-muted-foreground">ID del Parte</p>
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-mono text-xs" title={activeDailyReport.id}>{activeDailyReport.id}</p>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(activeDailyReport.id).then(() => toast({title: "ID Copiado"}))}>
-                      <Copy className="h-3 w-3" />
-                    </Button>
+                        return (
+                          <TableRow key={crew.id}>
+                            <TableCell className="font-medium">{crew.name}</TableCell>
+                            <TableCell>{employeeMap.get(crew.foremanId)?.lastName}, {employeeMap.get(crew.foremanId)?.firstName}</TableCell>
+                            <TableCell className={cn("font-semibold", statusColor)}>{statusText}</TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="outline" size="sm" onClick={() => setSelectedCrewId(crew.id)}>
+                                Ver / Editar
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                          No hay partes para mostrar para este proyecto y fecha.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : selectedCrewId ? (
+            <div>
+              {isNotified && (
+                <Alert className="mb-4 border-primary/50 text-primary [&>svg]:text-primary">
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Parte Notificado</AlertTitle>
+                  <AlertDescription>
+                    Este parte fue notificado el {activeDailyReport?.notifiedAt ? format(new Date(activeDailyReport.notifiedAt), 'Pp', { locale: es }) : ''}. No se admiten más cambios.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {activeDailyReport && (
+                <div className="mb-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 rounded-lg border p-4 bg-muted/50">
+                  <div className="lg:col-span-1">
+                    <p className="text-sm font-semibold text-muted-foreground">ID del Parte</p>
+                    <div className="flex items-center gap-2">
+                      <p className="truncate font-mono text-xs" title={activeDailyReport.id}>{activeDailyReport.id}</p>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(activeDailyReport.id).then(() => toast({title: "ID Copiado"}))}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground">Capataz</p>
+                    <p className="truncate">{getCrewDetail('foremanId')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground">Apuntador</p>
+                    <p className="truncate">{getCrewDetail('tallymanId')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground">Jefe de Proyecto</p>
+                    <p className="truncate">{getCrewDetail('projectManagerId')}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground">Control y Gestión</p>
+                    <p className="truncate">{getCrewDetail('controlAndManagementId')}</p>
                   </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Capataz</p>
-                  <p className="truncate">{getCrewDetail('foremanId')}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Apuntador</p>
-                  <p className="truncate">{getCrewDetail('tallymanId')}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Jefe de Proyecto</p>
-                  <p className="truncate">{getCrewDetail('projectManagerId')}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Control y Gestión</p>
-                  <p className="truncate">{getCrewDetail('controlAndManagementId')}</p>
-                </div>
-              </div>
-            )}
+              )}
 
-            <fieldset disabled={isNotified}>
-                {isMobile ? (
-                    <div className="space-y-4">
-                        {personnelForTable.map(emp => {
-                            const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
-                            const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
-                            const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
-                            const totalHours = totalProductive + totalUnproductive;
-                            const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
-                            const absenceName = entry.absenceReason ? absenceTypesForProject.find(at => at.id === entry.absenceReason)?.name : null;
+              <fieldset disabled={isNotified}>
+                  {isMobile ? (
+                      <div className="space-y-4">
+                          {personnelForTable.map(emp => {
+                              const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
+                              const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
+                              const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
+                              const totalHours = totalProductive + totalUnproductive;
+                              const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
+                              const absenceName = entry.absenceReason ? absenceTypesForProject.find(at => at.id === entry.absenceReason)?.name : null;
 
-                            return (
-                                <Card key={emp.id} className={cn(entry.absenceReason ? "bg-red-50" : (totalHours > 0 ? "bg-green-50" : ""))}>
-                                    <CardHeader className="pb-4">
-                                        <CardTitle className="text-base">{`${emp.lastName}, ${emp.firstName}`}</CardTitle>
-                                        <CardDescription>Legajo: {emp.internalNumber}</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2 text-sm">
-                                        {absenceName ? (
-                                            <Badge variant="destructive">{absenceName}</Badge>
-                                        ) : (
-                                            <>
-                                                <p><strong>Horas Prod:</strong> {totalProductive} hs</p>
-                                                <p><strong>Horas Improd:</strong> {totalUnproductive} hs</p>
-                                                <p><strong>Total Trabajadas:</strong> {totalHours} hs</p>
-                                            </>
-                                        )}
-                                        {totalSpecialHours > 0 && <p><strong>Horas Especiales:</strong> {totalSpecialHours} hs</p>}
-                                    </CardContent>
-                                    <CardFooter className="flex-col gap-2 items-stretch">
-                                        <Button variant="outline" size="sm" onClick={() => handleOpenMobileHoursModal(emp)} disabled={isPending || isNotified}><Edit className="mr-2 h-4 w-4" /> Cargar Novedades</Button>
-                                        <Button variant="outline" size="sm" onClick={() => handleOpenSpecialHoursModal(emp)} disabled={isPending || isNotified || !totalHours}><Sparkles className="mr-2 h-4 w-4" /> H. Especiales</Button>
-                                    </CardFooter>
-                                </Card>
-                            )
-                        })}
-                    </div>
-                ) : (
-                    <div className="relative w-full overflow-auto">
-                        <Table>
-                            <TableHeader>
-                            <TableRow>
-                                <TableHead className="sticky left-0 bg-background z-10">Legajo</TableHead>
-                                <TableHead className="sticky left-[70px] bg-background z-10 min-w-[200px]">Apellido y Nombre</TableHead>
-                                <TableHead className="w-[220px]">Ausencia</TableHead>
-                                {activePhases.map(phase => (
-                                    <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
-                                ))}
-                                <TableHead className="w-[150px] text-center">Horas Improductivas</TableHead>
-                                <TableHead className="w-[120px] text-center font-bold text-foreground">Horas Totales</TableHead>
-                                <TableHead className="w-[150px] text-center">Horas Especiales</TableHead>
-                                <TableHead className="w-[100px] text-right">Acciones</TableHead>
-                            </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                            {personnelForTable.length > 0 ? (
-                                personnelForTable.map(emp => {
-                                const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
-                                
-                                const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
-                                const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
-                                const totalHours = totalProductive + totalUnproductive;
-                                const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
-                                
-                                const employeeGlobalStatus = dailyEmployeeStatus.get(emp.id);
-                                const hasGlobalConflict = employeeGlobalStatus && employeeGlobalStatus.hasAbsence && employeeGlobalStatus.hasHours;
-
-                                const isManual = entry.manual === true;
-                                
-                                const hasOvertimeWarning = totalHours > 12;
-
-                                const permissionAbsenceId = permissionsForDate.get(emp.id);
-                                const isAbsenceFromPermission = !!permissionAbsenceId && entry.absenceReason === permissionAbsenceId;
-
-                                return (
-                                <TableRow key={emp.id} className={cn(
-                                    isManual ? "bg-accent/50" : "",
-                                    hasOvertimeWarning ? "bg-destructive/10" : ""
-                                )}>
-                                    <TableCell className="font-mono sticky left-0 bg-background z-10">{emp.internalNumber}</TableCell>
-                                    <TableCell className="font-medium sticky left-[70px] bg-background z-10">
-                                      <div className="flex items-center gap-2">
-                                          {`${emp.lastName}, ${emp.firstName}`}
-                                          {isManual && (
-                                          <Tooltip>
-                                              <TooltipTrigger>
-                                              <UserPlus className="h-4 w-4 text-primary" />
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                              <p>Empleado agregado manualmente</p>
-                                              </TooltipContent>
-                                          </Tooltip>
+                              return (
+                                  <Card key={emp.id} className={cn(entry.absenceReason ? "bg-red-50" : (totalHours > 0 ? "bg-green-50" : ""))}>
+                                      <CardHeader className="pb-4">
+                                          <CardTitle className="text-base">{`${emp.lastName}, ${emp.firstName}`}</CardTitle>
+                                          <CardDescription>Legajo: {emp.internalNumber}</CardDescription>
+                                      </CardHeader>
+                                      <CardContent className="space-y-2 text-sm">
+                                          {absenceName ? (
+                                              <Badge variant="destructive">{absenceName}</Badge>
+                                          ) : (
+                                              <>
+                                                  <p><strong>Horas Prod:</strong> {totalProductive} hs</p>
+                                                  <p><strong>Horas Improd:</strong> {totalUnproductive} hs</p>
+                                                  <p><strong>Total Trabajadas:</strong> {totalHours} hs</p>
+                                              </>
                                           )}
-                                          {hasOvertimeWarning && (
+                                          {totalSpecialHours > 0 && <p><strong>Horas Especiales:</strong> {totalSpecialHours} hs</p>}
+                                      </CardContent>
+                                      <CardFooter className="flex-col gap-2 items-stretch">
+                                          <Button variant="outline" size="sm" onClick={() => handleOpenMobileHoursModal(emp)} disabled={isPending || isNotified}><Edit className="mr-2 h-4 w-4" /> Cargar Novedades</Button>
+                                          <Button variant="outline" size="sm" onClick={() => handleOpenSpecialHoursModal(emp)} disabled={isPending || isNotified || !totalHours}><Sparkles className="mr-2 h-4 w-4" /> H. Especiales</Button>
+                                      </CardFooter>
+                                  </Card>
+                              )
+                          })}
+                      </div>
+                  ) : (
+                      <div className="relative w-full overflow-auto">
+                          <Table>
+                              <TableHeader>
+                              <TableRow>
+                                  <TableHead className="sticky left-0 bg-background z-10">Legajo</TableHead>
+                                  <TableHead className="sticky left-[70px] bg-background z-10 min-w-[200px]">Apellido y Nombre</TableHead>
+                                  <TableHead className="w-[220px]">Ausencia</TableHead>
+                                  {activePhases.map(phase => (
+                                      <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
+                                  ))}
+                                  <TableHead className="w-[150px] text-center">Horas Improductivas</TableHead>
+                                  <TableHead className="w-[120px] text-center font-bold text-foreground">Horas Totales</TableHead>
+                                  <TableHead className="w-[150px] text-center">Horas Especiales</TableHead>
+                                  <TableHead className="w-[100px] text-right">Acciones</TableHead>
+                              </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                              {personnelForTable.length > 0 ? (
+                                  personnelForTable.map(emp => {
+                                  const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
+                                  
+                                  const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
+                                  const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
+                                  const totalHours = totalProductive + totalUnproductive;
+                                  const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
+                                  
+                                  const employeeGlobalStatus = dailyEmployeeStatus.get(emp.id);
+                                  const hasGlobalConflict = employeeGlobalStatus && employeeGlobalStatus.hasAbsence && employeeGlobalStatus.hasHours;
+
+                                  const isManual = entry.manual === true;
+                                  
+                                  const hasOvertimeWarning = totalHours > 12;
+
+                                  const permissionAbsenceId = permissionsForDate.get(emp.id);
+                                  const isAbsenceFromPermission = !!permissionAbsenceId && entry.absenceReason === permissionAbsenceId;
+
+                                  return (
+                                  <TableRow key={emp.id} className={cn(
+                                      isManual ? "bg-accent/50" : "",
+                                      hasOvertimeWarning ? "bg-destructive/10" : ""
+                                  )}>
+                                      <TableCell className="font-mono sticky left-0 bg-background z-10">{emp.internalNumber}</TableCell>
+                                      <TableCell className="font-medium sticky left-[70px] bg-background z-10">
+                                        <div className="flex items-center gap-2">
+                                            {`${emp.lastName}, ${emp.firstName}`}
+                                            {isManual && (
+                                            <Tooltip>
+                                                <TooltipTrigger>
+                                                <UserPlus className="h-4 w-4 text-primary" />
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                <p>Empleado agregado manualmente</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                            )}
+                                            {hasOvertimeWarning && (
+                                                <Tooltip>
+                                                    <TooltipTrigger>
+                                                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                      <p>Advertencia: Más de 12 horas cargadas.</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
+                                            {hasGlobalConflict && (
                                               <Tooltip>
                                                   <TooltipTrigger>
                                                       <AlertTriangle className="h-4 w-4 text-destructive" />
                                                   </TooltipTrigger>
                                                   <TooltipContent>
-                                                    <p>Advertencia: Más de 12 horas cargadas.</p>
+                                                    <p>Advertencia: El empleado tiene horas y una ausencia cargadas en el mismo día en distintos partes.</p>
+                                                  </TooltipContent>
+                                              </Tooltip>
+                                            )}
+                                        </div>
+                                      </TableCell>
+                                       <TableCell>
+                                          <div className="flex items-center gap-2">
+                                            <Select
+                                                value={entry.absenceReason ?? "NONE"}
+                                                onValueChange={(value) => handleAbsenceChange(emp.id, value)}
+                                                disabled={isPending || totalHours > 0}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Seleccionar motivo..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="NONE">-</SelectItem>
+                                                    {absenceTypesForProject.map(reason => (
+                                                        <SelectItem key={reason.id} value={reason.id}>
+                                                            {reason.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {isAbsenceFromPermission && (
+                                              <Tooltip>
+                                                  <TooltipTrigger>
+                                                      <Info className="h-4 w-4 text-primary" />
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>
+                                                      <p>Ausencia sugerida automáticamente por un permiso aprobado.</p>
+                                                  </TooltipContent>
+                                              </Tooltip>
+                                            )}
+                                          </div>
+                                      </TableCell>
+                                      {activePhases.map(phase => (
+                                          <TableCell key={phase.id}>
+                                              <Input
+                                                  type="number"
+                                                  className="text-center"
+                                                  placeholder="-"
+                                                  value={entry.productiveHours[phase.id] ?? ""}
+                                                  onChange={(e) => handleProductiveHourChange(emp.id, phase.id, e.target.value)}
+                                                  disabled={isPending || !!entry.absenceReason}
+                                                  step="0.5"
+                                                  min="0"
+                                              />
+                                          </TableCell>
+                                      ))}
+                                      <TableCell className="text-center">
+                                          <div className="flex items-center justify-center gap-2">
+                                              <span className="font-medium">{totalUnproductive > 0 ? totalUnproductive : "-"}</span>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button
+                                                      variant="ghost"
+                                                      size="icon"
+                                                      onClick={() => handleOpenUnproductiveHoursModal(emp)}
+                                                      disabled={isPending || !!entry.absenceReason}
+                                                  >
+                                                      <Hourglass className="h-4 w-4" />
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  <p>Editar horas improductivas para {`${emp.lastName}, ${emp.firstName}`}</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                          </div>
+                                      </TableCell>
+                                       <TableCell className="text-center font-bold">
+                                          {totalHours > 0 ? totalHours : "-"}
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                          <div className="flex items-center justify-center gap-2">
+                                              <span className="font-medium">{totalSpecialHours > 0 ? totalSpecialHours : "-"}</span>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Button
+                                                      variant="ghost"
+                                                      size="icon"
+                                                      onClick={() => handleOpenSpecialHoursModal(emp)}
+                                                      disabled={isPending || !!entry.absenceReason || totalHours === 0}
+                                                  >
+                                                      <Sparkles className="h-4 w-4" />
+                                                  </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  <p>Editar horas especiales para {`${emp.lastName}, ${emp.firstName}`}</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                          </div>
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        <div className="flex justify-end items-center">
+                                          <Popover>
+                                              <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                      <PopoverTrigger asChild>
+                                                          <Button variant="ghost" size="icon" disabled={isPending}>
+                                                              <MessageSquare className={cn("h-4 w-4", entry.observations ? "text-primary" : "")} />
+                                                          </Button>
+                                                      </PopoverTrigger>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent><p>Observaciones</p></TooltipContent>
+                                              </Tooltip>
+                                              <PopoverContent className="w-80">
+                                                  <div className="grid gap-4">
+                                                  <div className="space-y-2">
+                                                      <h4 className="font-medium leading-none">Observaciones</h4>
+                                                      <p className="text-sm text-muted-foreground">
+                                                      Añada una observación para {emp.firstName} {emp.lastName}.
+                                                      </p>
+                                                  </div>
+                                                  <Textarea
+                                                      value={entry.observations || ""}
+                                                      onChange={(e) => handleObservationChange(emp.id, e.target.value)}
+                                                      className="min-h-[100px]"
+                                                  />
+                                                  </div>
+                                              </PopoverContent>
+                                          </Popover>
+
+                                          {canMoveEmployee && (
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => handleOpenMoveDialog(emp)}
+                                                    disabled={isPending}
+                                                >
+                                                    <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+                                                    <span className="sr-only">Mover empleado</span>
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                  <p>Mover a otra cuadrilla</p>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                          {isManual && (
+                                              <Tooltip>
+                                                  <TooltipTrigger asChild>
+                                                      <Button
+                                                          variant="ghost"
+                                                          size="icon"
+                                                          onClick={() => handleRemoveManualEmployee(emp.id)}
+                                                          disabled={isPending}
+                                                      >
+                                                          <Trash2 className="h-4 w-4 text-destructive" />
+                                                          <span className="sr-only">Quitar empleado</span>
+                                                      </Button>
+                                                  </TooltipTrigger>
+                                                  <TooltipContent>
+                                                      <p>Quitar de este parte</p>
                                                   </TooltipContent>
                                               </Tooltip>
                                           )}
-                                          {hasGlobalConflict && (
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                  <p>Advertencia: El empleado tiene horas y una ausencia cargadas en el mismo día en distintos partes.</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                          )}
-                                      </div>
-                                    </TableCell>
-                                     <TableCell>
-                                        <div className="flex items-center gap-2">
-                                          <Select
-                                              value={entry.absenceReason ?? "NONE"}
-                                              onValueChange={(value) => handleAbsenceChange(emp.id, value)}
-                                              disabled={isPending || totalHours > 0}
-                                          >
-                                              <SelectTrigger>
-                                                  <SelectValue placeholder="Seleccionar motivo..." />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                  <SelectItem value="NONE">-</SelectItem>
-                                                  {absenceTypesForProject.map(reason => (
-                                                      <SelectItem key={reason.id} value={reason.id}>
-                                                          {reason.name}
-                                                      </SelectItem>
-                                                  ))}
-                                              </SelectContent>
-                                          </Select>
-                                          {isAbsenceFromPermission && (
-                                            <Tooltip>
-                                                <TooltipTrigger>
-                                                    <Info className="h-4 w-4 text-primary" />
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Ausencia sugerida automáticamente por un permiso aprobado.</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                          )}
                                         </div>
-                                    </TableCell>
-                                    {activePhases.map(phase => (
-                                        <TableCell key={phase.id}>
-                                            <Input
-                                                type="number"
-                                                className="text-center"
-                                                placeholder="-"
-                                                value={entry.productiveHours[phase.id] ?? ""}
-                                                onChange={(e) => handleProductiveHourChange(emp.id, phase.id, e.target.value)}
-                                                disabled={isPending || !!entry.absenceReason}
-                                                step="0.5"
-                                                min="0"
-                                            />
-                                        </TableCell>
-                                    ))}
-                                    <TableCell className="text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <span className="font-medium">{totalUnproductive > 0 ? totalUnproductive : "-"}</span>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleOpenUnproductiveHoursModal(emp)}
-                                                    disabled={isPending || !!entry.absenceReason}
-                                                >
-                                                    <Hourglass className="h-4 w-4" />
-                                                </Button>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                <p>Editar horas improductivas para {`${emp.lastName}, ${emp.firstName}`}</p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-                                    </TableCell>
-                                     <TableCell className="text-center font-bold">
-                                        {totalHours > 0 ? totalHours : "-"}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <span className="font-medium">{totalSpecialHours > 0 ? totalSpecialHours : "-"}</span>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleOpenSpecialHoursModal(emp)}
-                                                    disabled={isPending || !!entry.absenceReason || totalHours === 0}
-                                                >
-                                                    <Sparkles className="h-4 w-4" />
-                                                </Button>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                <p>Editar horas especiales para {`${emp.lastName}, ${emp.firstName}`}</p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                      <div className="flex justify-end items-center">
-                                        {canMoveEmployee && (
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Button
-                                                  variant="ghost"
-                                                  size="icon"
-                                                  onClick={() => handleOpenMoveDialog(emp)}
-                                                  disabled={isPending}
-                                              >
-                                                  <ArrowRightLeft className="h-4 w-4 text-blue-600" />
-                                                  <span className="sr-only">Mover empleado</span>
-                                              </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Mover a otra cuadrilla</p>
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        )}
-                                        {isManual && (
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        onClick={() => handleRemoveManualEmployee(emp.id)}
-                                                        disabled={isPending}
-                                                    >
-                                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                                        <span className="sr-only">Quitar empleado</span>
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Quitar de este parte</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                </TableRow>
-                                )})
-                            ) : (
-                                <TableRow>
-                                <TableCell colSpan={8 + activePhases.length} className="h-24 text-center">
-                                    Esta cuadrilla no tiene personal asignado o no se han cargado partes para este día.
-                                </TableCell>
-                                </TableRow>
-                            )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                )}
-                <div className="flex flex-col md:flex-row justify-between items-center mt-4 p-4 border-t gap-4">
-                    <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual || (activeDailyReport && activeDailyReport.status !== 'PENDING')}>
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Agregar Empleado
-                        </Button>
-                        {canDelete && hasExistingReport && (
-                            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isPending}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Eliminar Parte
-                            </Button>
-                        )}
-                         <Button variant="outline" onClick={handleExport} disabled={isPending || !activeDailyReport}>
-                            <FileSpreadsheet className="mr-2 h-4 w-4" />
-                            Exportar
-                        </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {selectedCrewId && selectedCrewId !== 'all' && crewOptions.some(o => o.value === 'all') && (
-                            <Button variant="outline" onClick={() => setSelectedCrewId('all')} disabled={isPending}>
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Volver
-                            </Button>
-                        )}
-                         {canApproveControl && approvalSettings.requiresControl && (
-                            <Button disabled={isPending}>Aprobar (C&G)</Button>
-                        )}
-                        {canApprovePM && approvalSettings.requiresPM && (
-                            <Button disabled={isPending}>Aprobar (PM)</Button>
-                        )}
-                        <Button onClick={handleSave} disabled={isPending || !selectedCrewId || !canSave}>
-                            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                            Guardar
-                        </Button>
-                        <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId || !canNotify || !activeDailyReport}>
-                            <Send className="mr-2 h-4 w-4" />
-                            Notificar
-                        </Button>
-                    </div>
-                </div>
-            </fieldset>
-          </div>
-        ) : (
-            <div className="flex items-center justify-center h-40 text-muted-foreground border-2 border-dashed rounded-lg">
-                <p>Seleccione un proyecto y una cuadrilla para ver al personal.</p>
+                                      </TableCell>
+                                  </TableRow>
+                                  )})
+                              ) : (
+                                  <TableRow>
+                                  <TableCell colSpan={8 + activePhases.length} className="h-24 text-center">
+                                      Esta cuadrilla no tiene personal asignado o no se han cargado partes para este día.
+                                  </TableCell>
+                                  </TableRow>
+                              )}
+                              </TableBody>
+                          </Table>
+                      </div>
+                  )}
+                  <div className="flex flex-col md:flex-row justify-between items-center mt-4 p-4 border-t gap-4">
+                      <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual || (activeDailyReport && activeDailyReport.status !== 'PENDING')}>
+                              <UserPlus className="mr-2 h-4 w-4" />
+                              Agregar Empleado
+                          </Button>
+                          {canDelete && hasExistingReport && (
+                              <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isPending}>
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Eliminar Parte
+                              </Button>
+                          )}
+                           <Button variant="outline" onClick={handleExport} disabled={isPending || !activeDailyReport}>
+                              <FileSpreadsheet className="mr-2 h-4 w-4" />
+                              Exportar
+                          </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                          {selectedCrewId && selectedCrewId !== 'all' && crewOptions.some(o => o.value === 'all') && (
+                              <Button variant="outline" onClick={() => setSelectedCrewId('all')} disabled={isPending}>
+                                  <ArrowLeft className="mr-2 h-4 w-4" />
+                                  Volver
+                              </Button>
+                          )}
+                           {canApproveControl && approvalSettings.requiresControl && (
+                              <Button disabled={isPending}>Aprobar (C&G)</Button>
+                          )}
+                          {canApprovePM && approvalSettings.requiresPM && (
+                              <Button disabled={isPending}>Aprobar (PM)</Button>
+                          )}
+                          <Button onClick={handleSave} disabled={isPending || !selectedCrewId || !canSave}>
+                              {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                              Guardar
+                          </Button>
+                          <Button onClick={handleOpenNotifyDialog} disabled={isPending || !selectedCrewId || !canNotify || !activeDailyReport}>
+                              <Send className="mr-2 h-4 w-4" />
+                              Notificar
+                          </Button>
+                      </div>
+                  </div>
+              </fieldset>
             </div>
-        )}
-      </CardContent>
-    </Card>
-
-    <Dialog open={isAddEmployeeDialogOpen} onOpenChange={setIsAddEmployeeDialogOpen}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Agregar Empleado Manualmente</DialogTitle>
-          <DialogDescription>
-            Seleccione un empleado para agregarlo a este parte diario. Solo se guardará cuando presione "Guardar Parte".
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-4">
-          <Label htmlFor="employee-to-add">Empleado</Label>
-          <Combobox
-            options={availableEmployeesForManualAdd}
-            value={employeeToAdd}
-            onValueChange={setEmployeeToAdd}
-            placeholder="Seleccione un empleado"
-            searchPlaceholder="Buscar por nombre o legajo..."
-            emptyMessage="No hay más empleados disponibles."
-          />
-        </div>
-        <DialogFooter>
-          <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
-          <Button onClick={handleAddManualEmployee} disabled={!employeeToAdd || isPending}>
-            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Agregar"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-    
-    <Dialog open={!!employeeToMove} onOpenChange={(open) => !open && setEmployeeToMove(null)}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Mover Empleado</DialogTitle>
-                <DialogDescription>
-                    Mover a <strong>{employeeToMove?.lastName}, {employeeToMove?.firstName}</strong> a otra cuadrilla para la fecha <strong>{displayDate}</strong>. Esta acción quitará al empleado del parte actual y creará una entrada en blanco en el parte de destino.
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-2">
-                <Label htmlFor="destination-crew">Cuadrilla de Destino</Label>
-                <Select value={destinationCrewId} onValueChange={setDestinationCrewId}>
-                    <SelectTrigger id="destination-crew">
-                        <SelectValue placeholder="Seleccione una cuadrilla" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {availableCrewsForMove.length > 0 ? (
-                            availableCrewsForMove.map(crew => (
-                                <SelectItem key={crew.value} value={crew.value}>{crew.label}</SelectItem>
-                            ))
-                        ) : (
-                            <div className="p-4 text-center text-sm text-muted-foreground">
-                                No hay otras cuadrillas disponibles para mover.
-                            </div>
-                        )}
-                    </SelectContent>
-                </Select>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
-                <Button onClick={handleMoveEmployee} disabled={isPending || !destinationCrewId}>
-                  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Mover
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
-
-    <AlertDialog open={isNotifyDialogOpen} onOpenChange={setIsNotifyDialogOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Notificar y cerrar el parte diario?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Esta acción es irreversible. Once notificado, el parte diario para la cuadrilla <strong>{selectedCrew?.name}</strong> en la fecha <strong>{displayDate}</strong> no podrá ser modificado. Asegúrese de que todos los datos son correctos.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setIsNotifyDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction 
-                    onClick={handleNotify} 
-                    disabled={isPending}
-                    className={buttonVariants({ variant: "default" })}
-                >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, notificar y cerrar"}
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
-    
-    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>¿Eliminar el parte diario completo?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Esta acción es irreversible. Se eliminarán permanentemente todas las horas y ausencias cargadas para la cuadrilla <strong>{selectedCrew?.name}</strong> en la fecha <strong>{displayDate}</strong>.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction 
-                    onClick={handleDeleteDailyReport} 
-                    disabled={isPending}
-                    className={buttonVariants({ variant: "destructive" })}
-                >
-                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar parte"}
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
-
-    <Dialog open={specialHoursModalState.isOpen} onOpenChange={(isOpen) => setSpecialHoursModalState({ isOpen, employee: isOpen ? specialHoursModalState.employee : null })}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Registrar Horas Especiales</DialogTitle>
-          <DialogDescription>
-            Registre las horas especiales para {`${specialHoursModalState.employee?.lastName}, ${specialHoursModalState.employee?.firstName}`} en la fecha {displayDate}. El total no puede exceder las horas totales trabajadas.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-4 grid gap-4">
-          <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
-             <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Horas Totales Trabajadas</p>
-                <p className="text-2xl font-bold">{totalHoursForModal} hs</p>
-             </div>
-             <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Horas Especiales</p>
-                <p className="text-2xl font-bold">{Object.values(modalSpecialHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
-             </div>
-          </div>
-          {specialHourTypesForProject.length > 0 ? specialHourTypesForProject.map(sht => (
-            <div key={sht.id} className="grid grid-cols-3 items-center gap-4">
-              <Label htmlFor={`special-hours-${sht.id}`} className="text-right">
-                {sht.name}
-              </Label>
-              <Input 
-                id={`special-hours-${sht.id}`}
-                type="number"
-                className="col-span-2"
-                value={modalSpecialHours[sht.id] ?? ""}
-                onChange={(e) => handleModalSpecialHourChange(sht.id, e.target.value)}
-                step="0.5"
-                min="0"
-                max={totalHoursForModal}
-              />
-            </div>
-          )) : (
-            <p className="text-center text-sm text-muted-foreground">Este proyecto no tiene tipos de horas especiales configurados.</p>
+          ) : (
+              <div className="flex items-center justify-center h-40 text-muted-foreground border-2 border-dashed rounded-lg">
+                  <p>Seleccione un proyecto y una cuadrilla para ver al personal.</p>
+              </div>
           )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setSpecialHoursModalState({ isOpen: false, employee: null })}>Cancelar</Button>
-          <Button onClick={handleSaveSpecialHours}>Guardar</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </CardContent>
+      </Card>
 
-    <Dialog open={unproductiveHoursModalState.isOpen} onOpenChange={(isOpen) => setUnproductiveHoursModalState({ isOpen, employee: isOpen ? unproductiveHoursModalState.employee : null })}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Registrar Horas Improductivas</DialogTitle>
-          <DialogDescription>
-            Registre las horas improductivas para {`${unproductiveHoursModalState.employee?.lastName}, ${unproductiveHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-4 grid gap-4">
-          <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
-             <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Horas Productivas Totales</p>
-                <p className="text-2xl font-bold">{totalProductiveHoursForModal} hs</p>
-             </div>
-             <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Horas Improductivas</p>
-                <p className="text-2xl font-bold">{Object.values(modalUnproductiveHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
-             </div>
-          </div>
-          {unproductiveHourTypesForProject.length > 0 ? unproductiveHourTypesForProject.map(uht => (
-            <div key={uht.id} className="grid grid-cols-3 items-center gap-4">
-              <Label htmlFor={`unproductive-hours-${uht.id}`} className="text-right">
-                {uht.name}
-              </Label>
-              <Input 
-                id={`unproductive-hours-${uht.id}`}
-                type="number"
-                className="col-span-2"
-                value={modalUnproductiveHours[uht.id] ?? ""}
-                onChange={(e) => handleModalUnproductiveHourChange(uht.id, e.target.value)}
-                step="0.5"
-                min="0"
-              />
-            </div>
-          )) : (
-            <p className="text-center text-sm text-muted-foreground">Este proyecto no tiene tipos de horas improductivas configurados.</p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setUnproductiveHoursModalState({ isOpen: false, employee: null })}>Cancelar</Button>
-          <Button onClick={handleSaveUnproductiveHours}>Guardar</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-    
-    <Dialog open={mobileHoursModalState.isOpen} onOpenChange={(isOpen) => setMobileHoursModalState({ ...mobileHoursModalState, isOpen })}>
+      <Dialog open={isAddEmployeeDialogOpen} onOpenChange={setIsAddEmployeeDialogOpen}>
         <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Cargar Novedades</DialogTitle>
-                <DialogDescription>
-                    Para {`${mobileHoursModalState.employee?.lastName}, ${mobileHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
-                </DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="max-h-[60vh]">
-                <div className="p-4 space-y-4">
-                    <div className="space-y-2">
-                        <Label>Ausencia</Label>
-                        <Select
-                            value={mobileHoursModalState.absence ?? 'NONE'}
-                            onValueChange={(value) => setMobileHoursModalState(p => ({ ...p, absence: value === 'NONE' ? null : value, productive: {}, unproductive: {} }))}
-                            disabled={isPending}
-                        >
-                            <SelectTrigger><SelectValue placeholder="Seleccionar motivo..." /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="NONE">Sin Ausencia (trabajó)</SelectItem>
-                                {absenceTypesForProject.map(reason => (
-                                    <SelectItem key={reason.id} value={reason.id}>{reason.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    
-                    {!mobileHoursModalState.absence && (
-                        <>
-                             <div>
-                                <h4 className="font-medium mb-2">Horas Productivas</h4>
-                                <div className="space-y-2 rounded-md border p-2">
-                                    {activePhases.length > 0 ? activePhases.map(phase => (
-                                        <div key={phase.id} className="flex items-center justify-between">
-                                            <Label htmlFor={`mobile-prod-${phase.id}`} className="flex-1">{phase.name}</Label>
-                                            <Input
-                                                id={`mobile-prod-${phase.id}`}
-                                                type="number"
-                                                className="w-24 text-center"
-                                                placeholder="-"
-                                                value={mobileHoursModalState.productive[phase.id] ?? ""}
-                                                onChange={(e) => setMobileHoursModalState(p => ({ ...p, productive: {...p.productive, [phase.id]: e.target.value === '' ? null : parseFloat(e.target.value)} }))}
-                                                step="0.5" min="0"
-                                            />
-                                        </div>
-                                    )) : <p className="text-center text-sm text-muted-foreground p-2">No hay fases activas.</p>}
-                                </div>
-                             </div>
-                             <div>
-                                <h4 className="font-medium mb-2">Horas Improductivas</h4>
-                                <div className="space-y-2 rounded-md border p-2">
-                                     {unproductiveHourTypesForProject.length > 0 ? unproductiveHourTypesForProject.map(type => (
-                                        <div key={type.id} className="flex items-center justify-between">
-                                            <Label htmlFor={`mobile-unprod-${type.id}`} className="flex-1">{type.name}</Label>
-                                            <Input
-                                                id={`mobile-unprod-${type.id}`}
-                                                type="number"
-                                                className="w-24 text-center"
-                                                placeholder="-"
-                                                value={mobileHoursModalState.unproductive[type.id] ?? ""}
-                                                onChange={(e) => setMobileHoursModalState(p => ({ ...p, unproductive: {...p.unproductive, [type.id]: e.target.value === '' ? null : parseFloat(e.target.value)} }))}
-                                                step="0.5" min="0"
-                                            />
-                                        </div>
-                                    )) : <p className="text-center text-sm text-muted-foreground p-2">No hay tipos improductivos.</p>}
-                                </div>
-                             </div>
-                        </>
-                    )}
-                </div>
-            </ScrollArea>
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setMobileHoursModalState({ ...mobileHoursModalState, isOpen: false })}>Cancelar</Button>
-                <Button onClick={handleSaveMobileHours}>Guardar Novedades</Button>
-            </DialogFooter>
+          <DialogHeader>
+            <DialogTitle>Agregar Empleado Manualmente</DialogTitle>
+            <DialogDescription>
+              Seleccione un empleado para agregarlo a este parte diario. Solo se guardará cuando presione "Guardar Parte".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="employee-to-add">Empleado</Label>
+            <Combobox
+              options={availableEmployeesForManualAdd}
+              value={employeeToAdd}
+              onValueChange={setEmployeeToAdd}
+              placeholder="Seleccione un empleado"
+              searchPlaceholder="Buscar por nombre o legajo..."
+              emptyMessage="No hay más empleados disponibles."
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+            <Button onClick={handleAddManualEmployee} disabled={!employeeToAdd || isPending}>
+              {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Agregar"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
-    </Dialog>
+      </Dialog>
+      
+      <Dialog open={!!employeeToMove} onOpenChange={(open) => !open && setEmployeeToMove(null)}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Mover Empleado</DialogTitle>
+                  <DialogDescription>
+                      Mover a <strong>{employeeToMove?.lastName}, {employeeToMove?.firstName}</strong> a otra cuadrilla para la fecha <strong>{displayDate}</strong>. Esta acción quitará al empleado del parte actual y creará una entrada en blanco en el parte de destino.
+                  </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-2">
+                  <Label htmlFor="destination-crew">Cuadrilla de Destino</Label>
+                  <Select value={destinationCrewId} onValueChange={setDestinationCrewId}>
+                      <SelectTrigger id="destination-crew">
+                          <SelectValue placeholder="Seleccione una cuadrilla" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          {availableCrewsForMove.length > 0 ? (
+                              availableCrewsForMove.map(crew => (
+                                  <SelectItem key={crew.value} value={crew.value}>{crew.label}</SelectItem>
+                              ))
+                          ) : (
+                              <div className="p-4 text-center text-sm text-muted-foreground">
+                                  No hay otras cuadrillas disponibles para mover.
+                              </div>
+                          )}
+                      </SelectContent>
+                  </Select>
+              </div>
+              <DialogFooter>
+                  <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                  <Button onClick={handleMoveEmployee} disabled={isPending || !destinationCrewId}>
+                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Mover
+                  </Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
 
+      <AlertDialog open={isNotifyDialogOpen} onOpenChange={setIsNotifyDialogOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>¿Notificar y cerrar el parte diario?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Esta acción es irreversible. Once notificado, el parte diario para la cuadrilla <strong>{selectedCrew?.name}</strong> en la fecha <strong>{displayDate}</strong> no podrá ser modificado. Asegúrese de que todos los datos son correctos.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setIsNotifyDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                      onClick={handleNotify} 
+                      disabled={isPending}
+                      className={buttonVariants({ variant: "default" })}
+                  >
+                      {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, notificar y cerrar"}
+                  </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+      
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar el parte diario completo?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Esta acción es irreversible. Se eliminarán permanentemente todas las horas y ausencias cargadas para la cuadrilla <strong>{selectedCrew?.name}</strong> en la fecha <strong>{displayDate}</strong>.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                      onClick={handleDeleteDailyReport} 
+                      disabled={isPending}
+                      className={buttonVariants({ variant: "destructive" })}
+                  >
+                      {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar parte"}
+                  </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={specialHoursModalState.isOpen} onOpenChange={(isOpen) => setSpecialHoursModalState({ isOpen, employee: isOpen ? specialHoursModalState.employee : null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Horas Especiales</DialogTitle>
+            <DialogDescription>
+              Registre las horas especiales para {`${specialHoursModalState.employee?.lastName}, ${specialHoursModalState.employee?.firstName}`} en la fecha {displayDate}. El total no puede exceder las horas totales trabajadas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 grid gap-4">
+            <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
+               <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Horas Totales Trabajadas</p>
+                  <p className="text-2xl font-bold">{totalHoursForModal} hs</p>
+               </div>
+               <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Horas Especiales</p>
+                  <p className="text-2xl font-bold">{Object.values(modalSpecialHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
+               </div>
+            </div>
+            {specialHourTypesForProject.length > 0 ? specialHourTypesForProject.map(sht => (
+              <div key={sht.id} className="grid grid-cols-3 items-center gap-4">
+                <Label htmlFor={`special-hours-${sht.id}`} className="text-right">
+                  {sht.name}
+                </Label>
+                <Input 
+                  id={`special-hours-${sht.id}`}
+                  type="number"
+                  className="col-span-2"
+                  value={modalSpecialHours[sht.id] ?? ""}
+                  onChange={(e) => handleModalSpecialHourChange(sht.id, e.target.value)}
+                  step="0.5"
+                  min="0"
+                  max={totalHoursForModal}
+                />
+              </div>
+            )) : (
+              <p className="text-center text-sm text-muted-foreground">Este proyecto no tiene tipos de horas especiales configurados.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSpecialHoursModalState({ isOpen: false, employee: null })}>Cancelar</Button>
+            <Button onClick={handleSaveSpecialHours}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={unproductiveHoursModalState.isOpen} onOpenChange={(isOpen) => setUnproductiveHoursModalState({ isOpen, employee: isOpen ? unproductiveHoursModalState.employee : null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Horas Improductivas</DialogTitle>
+            <DialogDescription>
+              Registre las horas improductivas para {`${unproductiveHoursModalState.employee?.lastName}, ${unproductiveHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 grid gap-4">
+            <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
+               <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Horas Productivas Totales</p>
+                  <p className="text-2xl font-bold">{totalProductiveHoursForModal} hs</p>
+               </div>
+               <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Horas Improductivas</p>
+                  <p className="text-2xl font-bold">{Object.values(modalUnproductiveHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
+               </div>
+            </div>
+            {unproductiveHourTypesForProject.length > 0 ? unproductiveHourTypesForProject.map(uht => (
+              <div key={uht.id} className="grid grid-cols-3 items-center gap-4">
+                <Label htmlFor={`unproductive-hours-${uht.id}`} className="text-right">
+                  {uht.name}
+                </Label>
+                <Input 
+                  id={`unproductive-hours-${uht.id}`}
+                  type="number"
+                  className="col-span-2"
+                  value={modalUnproductiveHours[uht.id] ?? ""}
+                  onChange={(e) => handleModalUnproductiveHourChange(uht.id, e.target.value)}
+                  step="0.5"
+                  min="0"
+                />
+              </div>
+            )) : (
+              <p className="text-center text-sm text-muted-foreground">Este proyecto no tiene tipos de horas improductivas configurados.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUnproductiveHoursModalState({ isOpen: false, employee: null })}>Cancelar</Button>
+            <Button onClick={handleSaveUnproductiveHours}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={mobileHoursModalState.isOpen} onOpenChange={(isOpen) => setMobileHoursModalState({ ...mobileHoursModalState, isOpen })}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Cargar Novedades</DialogTitle>
+                  <DialogDescription>
+                      Para {`${mobileHoursModalState.employee?.lastName}, ${mobileHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
+                  </DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="max-h-[60vh]">
+                  <div className="p-4 space-y-4">
+                      <div className="space-y-2">
+                          <Label>Ausencia</Label>
+                          <Select
+                              value={mobileHoursModalState.absence ?? 'NONE'}
+                              onValueChange={(value) => setMobileHoursModalState(p => ({ ...p, absence: value === 'NONE' ? null : value, productive: {}, unproductive: {} }))}
+                              disabled={isPending}
+                          >
+                              <SelectTrigger><SelectValue placeholder="Seleccionar motivo..." /></SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="NONE">Sin Ausencia (trabajó)</SelectItem>
+                                  {absenceTypesForProject.map(reason => (
+                                      <SelectItem key={reason.id} value={reason.id}>{reason.name}</SelectItem>
+                                  ))}
+                              </SelectContent>
+                          </Select>
+                      </div>
+                      
+                      {!mobileHoursModalState.absence && (
+                          <>
+                               <div>
+                                  <h4 className="font-medium mb-2">Horas Productivas</h4>
+                                  <div className="space-y-2 rounded-md border p-2">
+                                      {activePhases.length > 0 ? activePhases.map(phase => (
+                                          <div key={phase.id} className="flex items-center justify-between">
+                                              <Label htmlFor={`mobile-prod-${phase.id}`} className="flex-1">{phase.name}</Label>
+                                              <Input
+                                                  id={`mobile-prod-${phase.id}`}
+                                                  type="number"
+                                                  className="w-24 text-center"
+                                                  placeholder="-"
+                                                  value={mobileHoursModalState.productive[phase.id] ?? ""}
+                                                  onChange={(e) => setMobileHoursModalState(p => ({ ...p, productive: {...p.productive, [phase.id]: e.target.value === '' ? null : parseFloat(e.target.value)} }))}
+                                                  step="0.5" min="0"
+                                              />
+                                          </div>
+                                      )) : <p className="text-center text-sm text-muted-foreground p-2">No hay fases activas.</p>}
+                                  </div>
+                               </div>
+                               <div>
+                                  <h4 className="font-medium mb-2">Horas Improductivas</h4>
+                                  <div className="space-y-2 rounded-md border p-2">
+                                       {unproductiveHourTypesForProject.map(type => (
+                                          <div key={type.id} className="flex items-center justify-between">
+                                              <Label htmlFor={`mobile-unprod-${type.id}`} className="flex-1">{type.name}</Label>
+                                              <Input
+                                                  id={`mobile-unprod-${type.id}`}
+                                                  type="number"
+                                                  className="w-24 text-center"
+                                                  placeholder="-"
+                                                  value={mobileHoursModalState.unproductive[type.id] ?? ""}
+                                                  onChange={(e) => setMobileHoursModalState(p => ({ ...p, unproductive: {...p.unproductive, [type.id]: e.target.value === '' ? null : parseFloat(e.target.value)} }))}
+                                                  step="0.5" min="0"
+                                              />
+                                          </div>
+                                      )) : <p className="text-center text-sm text-muted-foreground p-2">No hay tipos improductivos.</p>}
+                                  </div>
+                               </div>
+                          </>
+                      )}
+                  </div>
+              </ScrollArea>
+              <DialogFooter>
+                  <Button variant="outline" onClick={() => setMobileHoursModalState({ ...mobileHoursModalState, isOpen: false })}>Cancelar</Button>
+                  <Button onClick={handleSaveMobileHours}>Guardar Novedades</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 }

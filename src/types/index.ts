@@ -2,6 +2,7 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -203,6 +204,7 @@ export interface DailyLaborEntry {
   productiveHours: Record<string, number | null>; // Key: phaseId, Value: hours
   unproductiveHours: Record<string, number | null>; // Key: unproductiveTypeId, Value: hours
   specialHours: Record<string, number | null>; // Key: specialHourTypeId, Value: hours
+  observations?: string;
   manual?: boolean;
 }
 
