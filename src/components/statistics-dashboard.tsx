@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { MultiSelectCombobox, type ComboboxOption } from "@/components/ui/multi-select-combobox";
 import { Calendar as CalendarIcon, Users, Clock, AlertCircle, UserX, Percent } from "lucide-react";
-import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, DailyReport, EmployeeSex } from "@/types";
+import type { Crew, Employee, DailyLaborData, Project, AbsenceType, SpecialHourType, UnproductiveHourType, DailyLaborEntry, DailyReport, EmployeeSex, EmployeePosition } from "@/types";
 
 interface StatisticsDashboardProps {
   initialCrews: Crew[];
@@ -44,6 +44,7 @@ interface StatisticsDashboardProps {
   initialAbsenceTypes: AbsenceType[];
   initialSpecialHourTypes: SpecialHourType[];
   initialUnproductiveHourTypes: UnproductiveHourType[];
+  initialPositions: EmployeePosition[];
 }
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"];
@@ -60,6 +61,7 @@ export default function StatisticsDashboard({
   initialDailyLabor,
   initialProjects,
   initialAbsenceTypes,
+  initialPositions,
 }: StatisticsDashboardProps) {
 
   const [date, setDate] = useState<DateRange | undefined>({
@@ -83,6 +85,7 @@ export default function StatisticsDashboard({
   
   const absenceTypeMap = useMemo(() => new Map(initialAbsenceTypes.map(at => [at.id, at.name])), [initialAbsenceTypes]);
   const crewMap = useMemo(() => new Map(initialCrews.map(c => [c.id, c])), [initialCrews]);
+  const positionMap = useMemo(() => new Map(initialPositions.map(p => [p.id, p.name])), [initialPositions]);
 
   const filteredData = useMemo(() => {
     let totalHours = 0;
@@ -94,6 +97,7 @@ export default function StatisticsDashboard({
     const absenceCounts: Record<string, number> = {};
     const absenceByCrew: Record<string, number> = {};
     const sexDistribution: Record<string, number> = { 'Masculino': 0, 'Femenino': 0, 'No binario': 0 };
+    const positionDistribution: Record<string, number> = {};
 
     const filteredCrewIds = selectedCrews.length > 0 ? new Set(selectedCrews) : new Set(crewOptions.map(c => c.value));
     
@@ -139,6 +143,9 @@ export default function StatisticsDashboard({
         if(emp.sex === 'M') sexDistribution['Masculino']++;
         else if(emp.sex === 'F') sexDistribution['Femenino']++;
         else if(emp.sex === 'X') sexDistribution['No binario']++;
+        
+        const positionName = positionMap.get(emp.positionId) || 'Sin Posición';
+        positionDistribution[positionName] = (positionDistribution[positionName] || 0) + 1;
       }
     });
 
@@ -156,6 +163,8 @@ export default function StatisticsDashboard({
     const sexChartData = Object.entries(sexDistribution)
       .map(([name, value]) => ({ name, value }))
       .filter(item => item.value > 0);
+      
+    const positionChartData = Object.entries(positionDistribution).map(([name, value]) => ({ name, value }));
 
     return {
       totalHours,
@@ -167,8 +176,9 @@ export default function StatisticsDashboard({
       absenceByCrewChartData,
       hoursChartData,
       sexChartData,
+      positionChartData
     };
-  }, [date, selectedProjects, selectedCrews, initialDailyReports, initialDailyLabor, crewOptions, absenceTypeMap, crewMap, initialEmployees]);
+  }, [date, selectedProjects, selectedCrews, initialDailyReports, initialDailyLabor, crewOptions, absenceTypeMap, crewMap, initialEmployees, positionMap]);
 
   return (
     <div className="space-y-6">
@@ -273,7 +283,7 @@ export default function StatisticsDashboard({
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
         <Card>
             <CardHeader>
                 <CardTitle>Distribución de Tipos de Ausentismo</CardTitle>
@@ -354,6 +364,34 @@ export default function StatisticsDashboard({
                               if (entry.name === 'Femenino') color = GENDER_COLORS.F;
                               return <Cell key={`cell-${entry.name}`} fill={color} />
                             })}
+                        </Pie>
+                        <Tooltip />
+                        <Legend />
+                    </PieChart>
+                </ResponsiveContainer>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader>
+                <CardTitle>Distribución por Posición</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                        <Pie
+                            data={filteredData.positionChartData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            nameKey="name"
+                            label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                        >
+                            {filteredData.positionChartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
                         </Pie>
                         <Tooltip />
                         <Legend />
