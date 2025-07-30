@@ -316,55 +316,58 @@ export default function DailyLaborReport({
     return permissionsMap;
 }, [formattedDate, initialPermissions]);
 
-  const dailyEmployeeStatus = useMemo(() => {
-    const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
-    if (!formattedDate) return statusMap;
-  
-    const allReportsForDate = dailyReports.filter(r => r.date === formattedDate);
-    
-    allReportsForDate.forEach(report => {
-        const isCurrentReport = report.id === activeDailyReport?.id;
-        
-        let entriesForReport: { employeeId: string; absenceReason: any; productiveHours: any; unproductiveHours: any }[];
-        
-        const savedEntries = laborData[report.id] || [];
+    const dailyEmployeeStatus = useMemo(() => {
+        const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
+        if (!formattedDate) return statusMap;
 
-        if (isCurrentReport) {
-            // For the current report, merge saved data with unsaved edits from the state
-            const allEmployeeIdsInReport = new Set([
-                ...savedEntries.map(e => e.employeeId),
-                ...Object.keys(laborEntries)
-            ]);
+        // Consolidate all data for the day, including live edits
+        const combinedLaborData = new Map<string, { productive: number; unproductive: number; absence: boolean }>();
 
-            entriesForReport = Array.from(allEmployeeIdsInReport).map(employeeId => {
-                return laborEntries[employeeId] || savedEntries.find(e => e.employeeId === employeeId)!;
-            });
-        } else {
-            // For other reports, just use the saved data
-            entriesForReport = savedEntries;
-        }
-
-        entriesForReport.forEach(entry => {
-            if (!entry) return;
-            if (!statusMap.has(entry.employeeId)) {
-                statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
-            }
-            const currentStatus = statusMap.get(entry.employeeId)!;
+        // 1. Process all saved reports for the day
+        dailyReports.forEach(report => {
+            if (report.date !== formattedDate) return;
+            const isCurrentReport = report.id === activeDailyReport?.id;
             
-            if (entry.absenceReason) {
-                currentStatus.hasAbsence = true;
+            // Get personnel list: from laborEntries for current report, from saved data for others
+            let personnelInReport: string[];
+            if (isCurrentReport) {
+                personnelInReport = Object.keys(laborEntries);
             } else {
-                const totalHours = 
-                    Object.values(entry.productiveHours || {}).reduce((a: number, b) => a + (b || 0), 0) +
-                    Object.values(entry.unproductiveHours || {}).reduce((a: number, b) => a + (b || 0), 0);
-                if (totalHours > 0) {
-                    currentStatus.hasHours = true;
-                }
+                personnelInReport = (laborData[report.id] || []).map(e => e.employeeId);
             }
-        });
-    });
 
-    return statusMap;
+            personnelInReport.forEach(employeeId => {
+                let entry: LaborEntryState | DailyLaborEntry | undefined;
+
+                if (isCurrentReport) {
+                    entry = laborEntries[employeeId];
+                } else {
+                    entry = (laborData[report.id] || []).find(e => e.employeeId === employeeId);
+                }
+
+                if (!entry) return;
+
+                const existing = combinedLaborData.get(employeeId) || { productive: 0, unproductive: 0, absence: false };
+
+                const totalProductive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
+                const totalUnproductive = Object.values(entry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
+
+                existing.productive += totalProductive;
+                existing.unproductive += totalUnproductive;
+                if (entry.absenceReason) {
+                    existing.absence = true;
+                }
+                combinedLaborData.set(employeeId, existing);
+            });
+        });
+    
+        // 2. Calculate final status
+        combinedLaborData.forEach((data, employeeId) => {
+            const hasHours = (data.productive + data.unproductive) > 0;
+            statusMap.set(employeeId, { hasHours, hasAbsence: data.absence });
+        });
+    
+        return statusMap;
   }, [formattedDate, dailyReports, laborData, laborEntries, activeDailyReport]);
 
 
@@ -1444,14 +1447,11 @@ export default function DailyLaborReport({
                                       <TableCell className="text-right">
                                         <div className="flex justify-end items-center">
                                           <Popover>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
+                                            <PopoverTrigger asChild>
                                                 <Button variant="ghost" size="icon" disabled={isPending}>
-                                                  <MessageSquare className={cn("h-4 w-4", entry.observations && "text-primary")} />
+                                                    <MessageSquare className={cn("h-4 w-4", entry.observations && "text-primary")} />
                                                 </Button>
-                                              </TooltipTrigger>
-                                              <TooltipContent><p>Observaciones</p></TooltipContent>
-                                            </Tooltip>
+                                            </PopoverTrigger>
                                             <PopoverContent className="w-80">
                                               <div className="grid gap-4">
                                                 <div className="space-y-2">
@@ -1522,7 +1522,7 @@ export default function DailyLaborReport({
                   )}
                   <div className="flex flex-col md:flex-row justify-between items-center mt-4 p-4 border-t gap-4">
                       <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual || (activeDailyReport !== null && activeDailyReport.status !== 'PENDING')}>
+                          <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual || (activeDailyReport !== null && activeDailyReport.status === 'NOTIFIED')}>
                               <UserPlus className="mr-2 h-4 w-4" />
                               Agregar Empleado
                           </Button>
@@ -1848,5 +1848,3 @@ export default function DailyLaborReport({
     </TooltipProvider>
   );
 }
-
-    
