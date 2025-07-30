@@ -1444,31 +1444,29 @@ export default function DailyLaborReport({
                                       <TableCell className="text-right">
                                         <div className="flex justify-end items-center">
                                           <Popover>
-                                              <Tooltip>
-                                                  <TooltipTrigger asChild>
-                                                      <PopoverTrigger asChild>
-                                                          <Button variant="ghost" size="icon" disabled={isPending}>
-                                                              <MessageSquare className={cn("h-4 w-4", entry.observations ? "text-primary" : "")} />
-                                                          </Button>
-                                                      </PopoverTrigger>
-                                                  </TooltipTrigger>
-                                                  <TooltipContent><p>Observaciones</p></TooltipContent>
-                                              </Tooltip>
-                                              <PopoverContent className="w-80">
-                                                  <div className="grid gap-4">
-                                                  <div className="space-y-2">
-                                                      <h4 className="font-medium leading-none">Observaciones</h4>
-                                                      <p className="text-sm text-muted-foreground">
-                                                      Añada una observación para {emp.firstName} {emp.lastName}.
-                                                      </p>
-                                                  </div>
-                                                  <Textarea
-                                                      value={entry.observations || ""}
-                                                      onChange={(e) => handleObservationChange(emp.id, e.target.value)}
-                                                      className="min-h-[100px]"
-                                                  />
-                                                  </div>
-                                              </PopoverContent>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button variant="ghost" size="icon" disabled={isPending}>
+                                                  <MessageSquare className={cn("h-4 w-4", entry.observations && "text-primary")} />
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent><p>Observaciones</p></TooltipContent>
+                                            </Tooltip>
+                                            <PopoverContent className="w-80">
+                                              <div className="grid gap-4">
+                                                <div className="space-y-2">
+                                                  <h4 className="font-medium leading-none">Observaciones</h4>
+                                                  <p className="text-sm text-muted-foreground">
+                                                    Añada una observación para {emp.firstName} {emp.lastName}.
+                                                  </p>
+                                                </div>
+                                                <Textarea
+                                                  value={entry.observations || ""}
+                                                  onChange={(e) => handleObservationChange(emp.id, e.target.value)}
+                                                  className="min-h-[100px]"
+                                                />
+                                              </div>
+                                            </PopoverContent>
                                           </Popover>
 
                                           {canMoveEmployee && (
@@ -1524,7 +1522,7 @@ export default function DailyLaborReport({
                   )}
                   <div className="flex flex-col md:flex-row justify-between items-center mt-4 p-4 border-t gap-4">
                       <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual || (activeDailyReport && activeDailyReport.status !== 'PENDING')}>
+                          <Button variant="outline" onClick={() => setIsAddEmployeeDialogOpen(true)} disabled={isPending || !canAddManual || (activeDailyReport !== null && activeDailyReport.status !== 'PENDING')}>
                               <UserPlus className="mr-2 h-4 w-4" />
                               Agregar Empleado
                           </Button>
@@ -1850,3 +1848,5 @@ export default function DailyLaborReport({
     </TooltipProvider>
   );
 }
+
+    
