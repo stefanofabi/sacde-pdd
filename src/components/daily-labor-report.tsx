@@ -1709,7 +1709,6 @@ export default function DailyLaborReport({
                   onChange={(e) => handleModalSpecialHourChange(sht.id, e.target.value)}
                   step="0.5"
                   min="0"
-                  max={totalHoursForModal}
                 />
               </div>
             )) : (
@@ -1717,7 +1716,7 @@ export default function DailyLaborReport({
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSpecialHoursModalState({ isOpen: false, employee: null })}>Cancelar</Button>
+            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
             <Button onClick={handleSaveSpecialHours}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
@@ -1762,7 +1761,7 @@ export default function DailyLaborReport({
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUnproductiveHoursModalState({ isOpen: false, employee: null })}>Cancelar</Button>
+            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
             <Button onClick={handleSaveUnproductiveHours}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
@@ -1840,7 +1839,7 @@ export default function DailyLaborReport({
                   </div>
               </ScrollArea>
               <DialogFooter>
-                  <Button variant="outline" onClick={() => setMobileHoursModalState({ ...mobileHoursModalState, isOpen: false })}>Cancelar</Button>
+                  <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
                   <Button onClick={handleSaveMobileHours}>Guardar Novedades</Button>
               </DialogFooter>
           </DialogContent>
