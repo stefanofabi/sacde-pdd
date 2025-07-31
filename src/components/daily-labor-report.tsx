@@ -1446,28 +1446,28 @@ export default function DailyLaborReport({
                                       </TableCell>
                                       <TableCell className="text-right">
                                         <div className="flex justify-end items-center">
-                                          <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="ghost" size="icon" disabled={isPending}>
-                                                    <MessageSquare className={cn("h-4 w-4", entry.observations && "text-primary")} />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-80">
-                                              <div className="grid gap-4">
-                                                <div className="space-y-2">
-                                                  <h4 className="font-medium leading-none">Observaciones</h4>
-                                                  <p className="text-sm text-muted-foreground">
-                                                    Añada una observación para {emp.firstName} {emp.lastName}.
-                                                  </p>
-                                                </div>
-                                                <Textarea
-                                                  value={entry.observations || ""}
-                                                  onChange={(e) => handleObservationChange(emp.id, e.target.value)}
-                                                  className="min-h-[100px]"
-                                                />
-                                              </div>
-                                            </PopoverContent>
-                                          </Popover>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="ghost" size="icon" disabled={isPending}>
+                                                        <MessageSquare className={cn("h-4 w-4", entry.observations && "text-primary")} />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-80">
+                                                    <div className="grid gap-4">
+                                                        <div className="space-y-2">
+                                                            <h4 className="font-medium leading-none">Observaciones</h4>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                Añada una observación para {emp.firstName} {emp.lastName}.
+                                                            </p>
+                                                        </div>
+                                                        <Textarea
+                                                            value={entry.observations || ""}
+                                                            onChange={(e) => handleObservationChange(emp.id, e.target.value)}
+                                                            className="min-h-[100px]"
+                                                        />
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
 
                                           {canMoveEmployee && (
                                             <Tooltip>
@@ -1827,7 +1827,7 @@ export default function DailyLaborReport({
                                                   className="w-24 text-center"
                                                   placeholder="-"
                                                   value={mobileHoursModalState.unproductive[type.id] ?? ""}
-                                                  onChange={(e) => setMobileHoursModalState(p => ({ ...p, unproductive: {...p.unproductive, [type.id]: e.target.value === '' ? null : parseFloat(e.target.value)} }))}
+                                                  onChange={(e) => setMobileHoursModalState(p => ({ ...p, unproductive: {...p.unproductive, [type.id]: e.target.value === '' ? null : parseFloat(e.target.value) } }))}
                                                   step="0.5" min="0"
                                               />
                                           </div>
