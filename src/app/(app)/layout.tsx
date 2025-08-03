@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import { LogOut, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout, loading } = useAuth();
@@ -42,6 +43,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (user) {
     const displayName = user?.email;
     const roleName = user?.is_superuser ? "Superusuario" : user?.role?.name || "Sin Rol";
+    const userInitials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase();
+
     return (
       <SidebarProvider>
         <Sidebar>
@@ -71,8 +74,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <SidebarNavigation />
           </SidebarContent>
           <SidebarFooter className="flex-col gap-2 p-2">
-              <div className="text-center text-xs text-sidebar-foreground/70 mb-2 group-data-[collapsible=icon]:hidden">
-                <p className="truncate" title={displayName}>{displayName}</p>
+              <div className="text-center space-y-2 mb-2 group-data-[collapsible=icon]:hidden">
+                <Avatar className='mx-auto h-16 w-16 border-2 border-primary'>
+                  <AvatarImage src={user.photoURL} alt={`${user.firstName} ${user.lastName}`} />
+                  <AvatarFallback>{userInitials}</AvatarFallback>
+                </Avatar>
+                <p className="truncate text-sm font-medium" title={displayName}>{displayName}</p>
                 <Badge variant="secondary" className="mt-1">{roleName}</Badge>
               </div>
               <Button variant="ghost" onClick={logout} className="w-full justify-start gap-2">

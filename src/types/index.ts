@@ -3,6 +3,7 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -53,6 +54,7 @@ export interface User {
   roleId: string;
   authUid?: string; // UID from Firebase Auth
   is_superuser?: boolean;
+  photoURL?: string;
 }
 
 export interface Project {

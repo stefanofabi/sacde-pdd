@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import type { User, Role } from '@/types';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, User as FirebaseUser, createUserWithEmailAndPassword } from 'firebase/auth';
@@ -14,6 +14,7 @@ interface AuthContextType {
   login: (email: string, password?: string) => Promise<void>;
   registerUser: (email: string, password?: string, additionalData?: { firstName: string; lastName: string }) => Promise<void>;
   logout: () => void;
+  forceUserRefresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -52,26 +53,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<(User & { role: Role | null }) | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshUserData = useCallback(async (fbUser: FirebaseUser | null) => {
+    if (fbUser && fbUser.email) {
+      try {
+        const appUser = await getFullUser(fbUser.email);
+        setUser(appUser);
+      } catch (error) {
+        console.error("Failed to fetch app user, signing out.", error);
+        await signOut(auth);
+        setUser(null);
+      }
+    } else {
+      setUser(null);
+    }
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       setFirebaseUser(fbUser);
-      if (fbUser && fbUser.email) {
-          try {
-            const appUser = await getFullUser(fbUser.email);
-            setUser(appUser);
-          } catch (error) {
-            console.error("Failed to fetch app user, signing out.", error);
-            await signOut(auth);
-            setUser(null);
-          }
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
+      await refreshUserData(fbUser);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [refreshUserData]);
 
   const login = async (email: string, password?: string): Promise<void> => {
     if (!password) {
@@ -94,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       roleId: '', // Register user without a role initially
       is_superuser: false,
       authUid: userCredential.user.uid,
+      photoURL: '',
     };
 
     try {
@@ -106,9 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-
   const logout = async () => {
     await signOut(auth);
+  };
+  
+  const forceUserRefresh = async () => {
+    setLoading(true);
+    await refreshUserData(firebaseUser);
   };
 
   const authContextValue: AuthContextType = {
@@ -118,6 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     registerUser,
     logout,
+    forceUserRefresh
   };
 
   return (
@@ -134,5 +145,3 @@ export function useAuth() {
   }
   return context;
 }
-
-    

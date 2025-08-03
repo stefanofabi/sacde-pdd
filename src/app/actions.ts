@@ -51,6 +51,7 @@ export async function createUser(userData: Omit<User, 'id' | 'authUid'>, passwor
     roleId,
     is_superuser: is_superuser || false,
     authUid: createdAuthUser.uid, // Store the Auth UID
+    photoURL: '',
   };
 
   try {
@@ -120,4 +121,8 @@ export async function moveEmployeeBetweenCrews(employeeId: string, sourceCrewId:
   await batch.commit();
 }
 
+export async function updateUserProfilePhoto(userId: string, photoURL: string): Promise<void> {
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, { photoURL });
+}
     
