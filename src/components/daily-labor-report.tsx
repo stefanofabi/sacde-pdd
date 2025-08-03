@@ -7,9 +7,9 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardFooter
 } from "@/components/ui/card";
 import {
   Table,
@@ -61,7 +61,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Combobox } from "@/components/ui/combobox";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft, Edit } from "lucide-react";
+import { Calendar as CalendarIcon, Loader2, Save, UserPlus, Trash2, AlertTriangle, Send, Info, ArrowRightLeft, Sparkles, Hourglass, ArrowLeft, Edit, FileSpreadsheet, Copy, MessageSquare } from "lucide-react";
 import { format, startOfToday, parse } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Crew, Employee, DailyLaborData, Project, AbsenceType, Phase, SpecialHourType, UnproductiveHourType, Permission, DailyReport, DailyLaborEntry } from "@/types";
@@ -73,6 +73,8 @@ import { collection, doc, query, where, getDocs, writeBatch, addDoc, updateDoc, 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "./ui/scroll-area";
 import { Badge } from "./ui/badge";
+import * as XLSX from 'xlsx';
+import { Textarea } from "./ui/textarea";
 
 
 interface DailyLaborReportProps {
@@ -314,52 +316,38 @@ export default function DailyLaborReport({
     return permissionsMap;
 }, [formattedDate, initialPermissions]);
 
-    const dailyEmployeeStatus = useMemo(() => {
-        const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
-        if (!formattedDate) return statusMap;
+  const dailyEmployeeStatus = useMemo(() => {
+    const statusMap = new Map<string, { hasHours: boolean; hasAbsence: boolean }>();
+    if (!formattedDate) return statusMap;
 
-    // Process saved data from other reports on the same day
-    initialDailyReports.forEach(report => {
-        if (report.date === formattedDate && report.id !== activeDailyReport?.id) {
-            const reportLabor = laborData[report.id] || [];
-            reportLabor.forEach(entry => {
-                if (!statusMap.has(entry.employeeId)) {
-                    statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
-                }
-                const currentStatus = statusMap.get(entry.employeeId)!;
-                if (entry.absenceReason) {
-                    currentStatus.hasAbsence = true;
-                } else {
-                    const totalHours = Object.values(entry.productiveHours).reduce((a, b) => a + (b || 0), 0) +
-                                       Object.values(entry.unproductiveHours).reduce((a, b) => a + (b || 0), 0);
-                    if (totalHours > 0) {
-                        currentStatus.hasHours = true;
-                    }
-                }
-            });
-        }
-    });
+    const allReportsForDate = initialDailyReports.filter(r => r.date === formattedDate);
+    
+    allReportsForDate.forEach(report => {
+        const reportIsCurrent = report.id === activeDailyReport?.id;
+        const entries = reportIsCurrent 
+            ? Object.entries(laborEntries).map(([employeeId, stateEntry]) => ({ employeeId, ...stateEntry }))
+            : (laborData[report.id] || []);
 
-    // Process local, unsaved data for the current report
-    Object.entries(laborEntries).forEach(([employeeId, stateEntry]) => {
-        if (!statusMap.has(employeeId)) {
-            statusMap.set(employeeId, { hasHours: false, hasAbsence: false });
-        }
-        const currentStatus = statusMap.get(employeeId)!;
-
-        if (stateEntry.absenceReason) {
-            currentStatus.hasAbsence = true;
-        } else {
-            const totalHours = Object.values(stateEntry.productiveHours).reduce((a, b) => a + (b || 0), 0) +
-                               Object.values(stateEntry.unproductiveHours).reduce((a, b) => a + (b || 0), 0);
-            if (totalHours > 0) {
-                currentStatus.hasHours = true;
+        entries.forEach(entry => {
+            if (!statusMap.has(entry.employeeId)) {
+                statusMap.set(entry.employeeId, { hasHours: false, hasAbsence: false });
             }
-        }
+            const currentStatus = statusMap.get(entry.employeeId)!;
+
+            if (entry.absenceReason) {
+                currentStatus.hasAbsence = true;
+            } else {
+                const totalHours = Object.values(entry.productiveHours).reduce((a, b) => a + (b || 0), 0) +
+                                   Object.values(entry.unproductiveHours).reduce((a, b) => a + (b || 0), 0);
+                if (totalHours > 0) {
+                    currentStatus.hasHours = true;
+                }
+            }
+        });
     });
 
     return statusMap;
-  }, [formattedDate, initialDailyReports, laborData, activeDailyReport, laborEntries]);
+  }, [formattedDate, initialDailyReports, laborData, laborEntries, activeDailyReport]);
 
   const approvalSettings = useMemo(() => {
     if (!projectForCrew) return { requiresControl: false, requiresPM: false };
@@ -396,7 +384,7 @@ export default function DailyLaborReport({
                 unproductiveHours: {},
                 absenceReason: null,
                 specialHours: {},
-                observations: '',
+                observations: "",
                 manual: false,
             };
 
@@ -470,13 +458,10 @@ export default function DailyLaborReport({
   }
 
   const handleObservationChange = (employeeId: string, value: string) => {
-    setLaborEntries(prev => ({
-        ...prev,
-        [employeeId]: {
-            ...(prev[employeeId] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} }),
-            observations: value
-        }
-    }));
+    setLaborEntries(prev => {
+      const currentEntry = prev[employeeId] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {}, observations: "" };
+      return { ...prev, [employeeId]: { ...currentEntry, observations: value } };
+    });
   };
 
   const handleSave = () => {
@@ -532,7 +517,7 @@ export default function DailyLaborReport({
                     unproductiveHours: {},
                     absenceReason: null,
                     specialHours: {},
-                    observations: '',
+                    observations: "",
                     manual: selectedCrew?.employeeIds.includes(empId) === false,
                 };
 
@@ -1095,114 +1080,123 @@ export default function DailyLaborReport({
 
   return (
     <TooltipProvider>
-      <Card>
-        <CardHeader>
-          <CardTitle>Carga de Horas por Empleado</CardTitle>
-          <CardDescription>
-            Seleccione fecha, proyecto y cuadrilla para registrar las horas o ausencias del personal.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col md:flex-row flex-wrap items-center gap-4">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full md:w-[280px] justify-start text-left font-normal" disabled={isPending}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {displayDate}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus locale={es} disabled={(date) => date > new Date()} />
-              </PopoverContent>
-            </Popover>
+    <Card>
+      <CardHeader>
+        <CardTitle>Carga de Horas por Empleado</CardTitle>
+        <CardDescription>
+          Seleccione fecha, proyecto y cuadrilla para registrar las horas o ausencias del personal.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex flex-col md:flex-row flex-wrap items-center gap-4">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-full md:w-[280px] justify-start text-left font-normal" disabled={isPending}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {displayDate}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} initialFocus locale={es} disabled={(date) => date > new Date()} />
+            </PopoverContent>
+          </Popover>
 
-            <Select value={selectedProjectId} onValueChange={setSelectedProjectId} disabled={isPending}>
-              <SelectTrigger className="w-full md:w-[250px]">
-                <SelectValue placeholder="Seleccione un proyecto" />
-              </SelectTrigger>
-              <SelectContent>
-                {projectsWithCrews.map(project => (
-                  <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <Select value={selectedProjectId} onValueChange={setSelectedProjectId} disabled={isPending}>
+            <SelectTrigger className="w-full md:w-[250px]">
+              <SelectValue placeholder="Seleccione un proyecto" />
+            </SelectTrigger>
+            <SelectContent>
+              {projectsWithCrews.map(project => (
+                <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            <Combobox
-              options={crewOptions}
-              value={selectedCrewId}
-              onValueChange={setSelectedCrewId}
-              placeholder="Seleccione una cuadrilla"
-              searchPlaceholder="Buscar cuadrilla..."
-              emptyMessage="No hay cuadrillas para este proyecto."
-              disabled={!selectedProjectId || isPending}
-              className="w-full md:w-[250px]"
-            />
-          </div>
-          
-          {selectedCrewId === 'all' && selectedProjectId ? (
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
+          <Combobox
+            options={crewOptions}
+            value={selectedCrewId}
+            onValueChange={setSelectedCrewId}
+            placeholder="Seleccione una cuadrilla"
+            searchPlaceholder="Buscar cuadrilla..."
+            emptyMessage="No hay cuadrillas para este proyecto."
+            disabled={!selectedProjectId || isPending}
+            className="w-full md:w-[250px]"
+          />
+        </div>
+        
+        {selectedCrewId === 'all' && selectedProjectId ? (
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cuadrilla</TableHead>
+                    <TableHead>Capataz</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {crewsForListView.length > 0 ? (
+                    crewsForListView.map(crew => {
+                      const report = dailyReports.find(r => r.date === formattedDate && r.crewId === crew.id);
+                      let statusText = "No Iniciado";
+                      let statusColor = 'text-muted-foreground';
+                      if (report) {
+                          if (report.status === 'NOTIFIED') {
+                              statusText = "Notificado";
+                              statusColor = 'text-green-600';
+                          } else {
+                              statusText = "Pendiente";
+                              statusColor = 'text-yellow-600';
+                          }
+                      }
+
+                      return (
+                        <TableRow key={crew.id}>
+                          <TableCell className="font-medium">{crew.name}</TableCell>
+                          <TableCell>{employeeMap.get(crew.foremanId)?.lastName}, {employeeMap.get(crew.foremanId)?.firstName}</TableCell>
+                          <TableCell className={cn("font-semibold", statusColor)}>{statusText}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" onClick={() => setSelectedCrewId(crew.id)}>
+                              Ver / Editar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  ) : (
                     <TableRow>
-                      <TableHead>Cuadrilla</TableHead>
-                      <TableHead>Capataz</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
+                      <TableCell colSpan={4} className="h-24 text-center">
+                        No hay partes para mostrar para este proyecto y fecha.
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {crewsForListView.length > 0 ? (
-                      crewsForListView.map(crew => {
-                        const report = dailyReports.find(r => r.date === formattedDate && r.crewId === crew.id);
-                        let statusText = "No Iniciado";
-                        let statusColor = 'text-muted-foreground';
-                        if (report) {
-                            if (report.status === 'NOTIFIED') {
-                                statusText = "Notificado";
-                                statusColor = 'text-green-600';
-                            } else {
-                                statusText = "Pendiente";
-                                statusColor = 'text-yellow-600';
-                            }
-                        }
-
-                        return (
-                          <TableRow key={crew.id}>
-                            <TableCell className="font-medium">{crew.name}</TableCell>
-                            <TableCell>{employeeMap.get(crew.foremanId)?.lastName}, {employeeMap.get(crew.foremanId)?.firstName}</TableCell>
-                            <TableCell className={cn("font-semibold", statusColor)}>{statusText}</TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="outline" size="sm" onClick={() => setSelectedCrewId(crew.id)}>
-                                Ver / Editar
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={4} className="h-24 text-center">
-                          No hay partes para mostrar para este proyecto y fecha.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : selectedCrewId ? (
-            <div>
-              {isNotified && (
-                <Alert className="mb-4 border-primary/50 text-primary [&>svg]:text-primary">
-                  <Info className="h-4 w-4" />
-                  <AlertTitle>Parte Notificado</AlertTitle>
-                  <AlertDescription>
-                    Este parte fue notificado el {activeDailyReport?.notifiedAt ? format(new Date(activeDailyReport.notifiedAt), 'Pp', { locale: es }) : ''}. No se admiten más cambios.
-                  </AlertDescription>
-                </Alert>
-              )}
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          ) : selectedCrewId ? (
+          <div>
+            {isNotified && (
+              <Alert className="mb-4 border-primary/50 text-primary [&>svg]:text-primary">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Parte Notificado</AlertTitle>
+                <AlertDescription>
+                  Este parte fue notificado el {activeDailyReport?.notifiedAt ? format(new Date(activeDailyReport.notifiedAt), 'Pp', { locale: es }) : ''}. No se admiten más cambios.
+                </AlertDescription>
+              </Alert>
+            )}
 
             {activeDailyReport && (
-              <div className="mb-4 grid grid-cols-2 md:grid-cols-4 gap-4 rounded-lg border p-4 bg-muted/50">
+              <div className="mb-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 rounded-lg border p-4 bg-muted/50">
+                <div className="lg:col-span-1">
+                  <p className="text-sm font-semibold text-muted-foreground">ID del Parte</p>
+                  <div className="flex items-center gap-2">
+                    <p className="truncate font-mono text-xs" title={activeDailyReport.id}>{activeDailyReport.id}</p>
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigator.clipboard.writeText(activeDailyReport.id).then(() => toast({title: "ID Copiado"}))}>
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
                 <div>
                   <p className="text-sm font-semibold text-muted-foreground">Capataz</p>
                   <p className="truncate">{getCrewDetail('foremanId')}</p>
@@ -1222,79 +1216,79 @@ export default function DailyLaborReport({
               </div>
             )}
 
-              <fieldset disabled={isNotified}>
-                  {isMobile ? (
-                      <div className="space-y-4">
-                          {personnelForTable.map(emp => {
-                              const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
-                              const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
-                              const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
-                              const totalHours = totalProductive + totalUnproductive;
-                              const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
-                              const absenceName = entry.absenceReason ? absenceTypesForProject.find(at => at.id === entry.absenceReason)?.name : null;
+            <fieldset disabled={isNotified}>
+                {isMobile ? (
+                    <div className="space-y-4">
+                        {personnelForTable.map(emp => {
+                            const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
+                            const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
+                            const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
+                            const totalHours = totalProductive + totalUnproductive;
+                            const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
+                            const absenceName = entry.absenceReason ? absenceTypesForProject.find(at => at.id === entry.absenceReason)?.name : null;
 
-                              return (
-                                  <Card key={emp.id} className={cn(entry.absenceReason ? "bg-red-50" : (totalHours > 0 ? "bg-green-50" : ""))}>
-                                      <CardHeader className="pb-4">
-                                          <CardTitle className="text-base">{`${emp.lastName}, ${emp.firstName}`}</CardTitle>
-                                          <CardDescription>Legajo: {emp.internalNumber}</CardDescription>
-                                      </CardHeader>
-                                      <CardContent className="space-y-2 text-sm">
-                                          {absenceName ? (
-                                              <Badge variant="destructive">{absenceName}</Badge>
-                                          ) : (
-                                              <>
-                                                  <p><strong>Horas Prod:</strong> {totalProductive} hs</p>
-                                                  <p><strong>Horas Improd:</strong> {totalUnproductive} hs</p>
-                                                  <p><strong>Total Trabajadas:</strong> {totalHours} hs</p>
-                                              </>
-                                          )}
-                                          {totalSpecialHours > 0 && <p><strong>Horas Especiales:</strong> {totalSpecialHours} hs</p>}
-                                      </CardContent>
-                                      <CardFooter className="flex-col gap-2 items-stretch">
-                                          <Button variant="outline" size="sm" onClick={() => handleOpenMobileHoursModal(emp)} disabled={isPending || isNotified}><Edit className="mr-2 h-4 w-4" /> Cargar Novedades</Button>
-                                          <Button variant="outline" size="sm" onClick={() => handleOpenSpecialHoursModal(emp)} disabled={isPending || isNotified || !totalHours}><Sparkles className="mr-2 h-4 w-4" /> H. Especiales</Button>
-                                      </CardFooter>
-                                  </Card>
-                              )
-                          })}
-                      </div>
-                  ) : (
-                      <div className="relative w-full overflow-auto">
-                          <Table>
-                              <TableHeader>
-                              <TableRow>
-                                  <TableHead className="sticky left-0 bg-background z-10">Legajo</TableHead>
-                                  <TableHead className="sticky left-[70px] bg-background z-10 min-w-[200px]">Apellido y Nombre</TableHead>
-                                  <TableHead className="w-[220px]">Ausencia</TableHead>
-                                  {activePhases.map(phase => (
-                                      <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
-                                  ))}
-                                  <TableHead className="w-[150px] text-center">Horas Improductivas</TableHead>
-                                  <TableHead className="w-[120px] text-center font-bold text-foreground">Horas Totales</TableHead>
-                                  <TableHead className="w-[150px] text-center">Horas Especiales</TableHead>
-                                  <TableHead className="w-[100px] text-right">Acciones</TableHead>
-                              </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                              {personnelForTable.length > 0 ? (
-                                  personnelForTable.map(emp => {
-                                  const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {} };
-                                  
-                                  const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
-                                  const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
-                                  const totalHours = totalProductive + totalUnproductive;
-                                  const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
-                                  
-                                  const employeeGlobalStatus = dailyEmployeeStatus.get(emp.id);
-                                  const hasGlobalConflict = employeeGlobalStatus && employeeGlobalStatus.hasAbsence && employeeGlobalStatus.hasHours;
+                            return (
+                                <Card key={emp.id} className={cn(entry.absenceReason ? "bg-red-50" : (totalHours > 0 ? "bg-green-50" : ""))}>
+                                    <CardHeader className="pb-4">
+                                        <CardTitle className="text-base">{`${emp.lastName}, ${emp.firstName}`}</CardTitle>
+                                        <CardDescription>Legajo: {emp.internalNumber}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2 text-sm">
+                                        {absenceName ? (
+                                            <Badge variant="destructive">{absenceName}</Badge>
+                                        ) : (
+                                            <>
+                                                <p><strong>Horas Prod:</strong> {totalProductive} hs</p>
+                                                <p><strong>Horas Improd:</strong> {totalUnproductive} hs</p>
+                                                <p><strong>Total Trabajadas:</strong> {totalHours} hs</p>
+                                            </>
+                                        )}
+                                        {totalSpecialHours > 0 && <p><strong>Horas Especiales:</strong> {totalSpecialHours} hs</p>}
+                                    </CardContent>
+                                    <CardFooter className="flex-col gap-2 items-stretch">
+                                        <Button variant="outline" size="sm" onClick={() => handleOpenMobileHoursModal(emp)} disabled={isPending || isNotified}><Edit className="mr-2 h-4 w-4" /> Cargar Novedades</Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleOpenSpecialHoursModal(emp)} disabled={isPending || isNotified || !totalHours}><Sparkles className="mr-2 h-4 w-4" /> H. Especiales</Button>
+                                    </CardFooter>
+                                </Card>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <div className="relative w-full overflow-auto">
+                        <Table>
+                            <TableHeader>
+                            <TableRow>
+                                <TableHead className="sticky left-0 bg-background z-10">Legajo</TableHead>
+                                <TableHead className="sticky left-[70px] bg-background z-10 min-w-[200px]">Apellido y Nombre</TableHead>
+                                <TableHead className="w-[220px]">Ausencia</TableHead>
+                                {activePhases.map(phase => (
+                                    <TableHead key={phase.id} className="w-[120px] text-center">{phase.name}</TableHead>
+                                ))}
+                                <TableHead className="w-[150px] text-center">Horas Improductivas</TableHead>
+                                <TableHead className="w-[120px] text-center font-bold text-foreground">Horas Totales</TableHead>
+                                <TableHead className="w-[150px] text-center">Horas Especiales</TableHead>
+                                <TableHead className="w-[100px] text-right">Acciones</TableHead>
+                            </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                            {personnelForTable.length > 0 ? (
+                                personnelForTable.map(emp => {
+                                const entry = laborEntries[emp.id] || { productiveHours: {}, unproductiveHours: {}, absenceReason: null, specialHours: {}, observations: "" };
+                                
+                                const totalProductive = Object.values(entry.productiveHours).reduce((acc, h) => acc + (h || 0), 0);
+                                const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
+                                const totalHours = totalProductive + totalUnproductive;
+                                const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
+                                
+                                const employeeGlobalStatus = dailyEmployeeStatus.get(emp.id);
+                                const hasGlobalConflict = employeeGlobalStatus && employeeGlobalStatus.hasAbsence && employeeGlobalStatus.hasHours;
 
-                                  const isManual = entry.manual === true;
-                                  
-                                  const hasOvertimeWarning = totalHours > 12;
+                                const isManual = entry.manual === true;
+                                
+                                const hasOvertimeWarning = totalHours > 12;
 
-                                  const permissionAbsenceId = permissionsForDate.get(emp.id);
-                                  const isAbsenceFromPermission = !!permissionAbsenceId && entry.absenceReason === permissionAbsenceId;
+                                const permissionAbsenceId = permissionsForDate.get(emp.id);
+                                const isAbsenceFromPermission = !!permissionAbsenceId && entry.absenceReason === permissionAbsenceId;
 
                                 return (
                                 <TableRow key={emp.id} className={cn(
@@ -1427,6 +1421,36 @@ export default function DailyLaborReport({
                                     </TableCell>
                                     <TableCell className="text-right">
                                       <div className="flex justify-end items-center">
+                                        <Popover>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <PopoverTrigger asChild>
+                                                <Button variant="ghost" size="icon" disabled={isPending}>
+                                                    <MessageSquare className={cn("h-4 w-4", entry.observations && "text-primary")} />
+                                                </Button>
+                                              </PopoverTrigger>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Observaciones</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                          <PopoverContent className="w-80">
+                                              <div className="grid gap-4">
+                                              <div className="space-y-2">
+                                                  <h4 className="font-medium leading-none">Observación</h4>
+                                                  <p className="text-sm text-muted-foreground">
+                                                  Agregue una nota para {emp.firstName} {emp.lastName}.
+                                                  </p>
+                                              </div>
+                                              <Textarea
+                                                value={entry.observations || ""}
+                                                onChange={(e) => handleObservationChange(emp.id, e.target.value)}
+                                                rows={3}
+                                              />
+                                              </div>
+                                          </PopoverContent>
+                                        </Popover>
+
                                         {canMoveEmployee && (
                                           <Tooltip>
                                             <TooltipTrigger asChild>
@@ -1490,6 +1514,10 @@ export default function DailyLaborReport({
                                 Eliminar Parte
                             </Button>
                         )}
+                         <Button variant="outline" onClick={handleExport} disabled={isPending || !activeDailyReport}>
+                            <FileSpreadsheet className="mr-2 h-4 w-4" />
+                            Exportar
+                        </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {selectedCrewId && selectedCrewId !== 'all' && crewOptions.some(o => o.value === 'all') && (
@@ -1524,280 +1552,283 @@ export default function DailyLaborReport({
       </CardContent>
     </Card>
 
-      <Dialog open={isAddEmployeeDialogOpen} onOpenChange={setIsAddEmployeeDialogOpen}>
+    <Dialog open={isAddEmployeeDialogOpen} onOpenChange={setIsAddEmployeeDialogOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Agregar Empleado Manualmente</DialogTitle>
+          <DialogDescription>
+            Seleccione un empleado para agregarlo a este parte diario. Solo se guardará cuando presione "Guardar Parte".
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          <Label htmlFor="employee-to-add">Empleado</Label>
+          <Combobox
+            options={availableEmployeesForManualAdd}
+            value={employeeToAdd}
+            onValueChange={setEmployeeToAdd}
+            placeholder="Seleccione un empleado"
+            searchPlaceholder="Buscar por nombre o legajo..."
+            emptyMessage="No hay más empleados disponibles."
+          />
+        </div>
+        <DialogFooter>
+          <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+          <Button onClick={handleAddManualEmployee} disabled={!employeeToAdd || isPending}>
+            {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Agregar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    
+    <Dialog open={!!employeeToMove} onOpenChange={(open) => !open && setEmployeeToMove(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Agregar Empleado Manualmente</DialogTitle>
-            <DialogDescription>
-              Seleccione un empleado para agregarlo a este parte diario. Solo se guardará cuando presione "Guardar Parte".
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="employee-to-add">Empleado</Label>
-            <Combobox
-              options={availableEmployeesForManualAdd}
-              value={employeeToAdd}
-              onValueChange={setEmployeeToAdd}
-              placeholder="Seleccione un empleado"
-              searchPlaceholder="Buscar por nombre o legajo..."
-              emptyMessage="No hay más empleados disponibles."
-            />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
-            <Button onClick={handleAddManualEmployee} disabled={!employeeToAdd || isPending}>
-              {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Agregar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={!!employeeToMove} onOpenChange={(open) => !open && setEmployeeToMove(null)}>
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle>Mover Empleado</DialogTitle>
-                  <DialogDescription>
-                      Mover a <strong>{employeeToMove?.lastName}, {employeeToMove?.firstName}</strong> a otra cuadrilla para la fecha <strong>{displayDate}</strong>. Esta acción quitará al empleado del parte actual y creará una entrada en blanco en el parte de destino.
-                  </DialogDescription>
-              </DialogHeader>
-              <div className="py-4 space-y-2">
-                  <Label htmlFor="destination-crew">Cuadrilla de Destino</Label>
-                  <Select value={destinationCrewId} onValueChange={setDestinationCrewId}>
-                      <SelectTrigger id="destination-crew">
-                          <SelectValue placeholder="Seleccione una cuadrilla" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          {availableCrewsForMove.length > 0 ? (
-                              availableCrewsForMove.map(crew => (
-                                  <SelectItem key={crew.value} value={crew.value}>{crew.label}</SelectItem>
-                              ))
-                          ) : (
-                              <div className="p-4 text-center text-sm text-muted-foreground">
-                                  No hay otras cuadrillas disponibles para mover.
-                              </div>
-                          )}
-                      </SelectContent>
-                  </Select>
-              </div>
-              <DialogFooter>
-                  <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
-                  <Button onClick={handleMoveEmployee} disabled={isPending || !destinationCrewId}>
-                    {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Mover
-                  </Button>
-              </DialogFooter>
-          </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={isNotifyDialogOpen} onOpenChange={setIsNotifyDialogOpen}>
-          <AlertDialogContent>
-              <AlertDialogHeader>
-                  <AlertDialogTitle>¿Notificar y cerrar el parte diario?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                      Esta acción es irreversible. Once notificado, el parte diario para la cuadrilla <strong>{selectedCrew?.name}</strong> en la fecha <strong>{displayDate}</strong> no podrá ser modificado. Asegúrese de que todos los datos son correctos.
-                  </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => setIsNotifyDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction 
-                      onClick={handleNotify} 
-                      disabled={isPending}
-                      className={buttonVariants({ variant: "default" })}
-                  >
-                      {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, notificar y cerrar"}
-                  </AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
-      </AlertDialog>
-      
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <AlertDialogContent>
-              <AlertDialogHeader>
-                  <AlertDialogTitle>¿Eliminar el parte diario completo?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                      Esta acción es irreversible. Se eliminarán permanentemente todas las horas y ausencias cargadas para la cuadrilla <strong>{selectedCrew?.name}</strong> en la fecha <strong>{displayDate}</strong>.
-                  </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction 
-                      onClick={handleDeleteDailyReport} 
-                      disabled={isPending}
-                      className={buttonVariants({ variant: "destructive" })}
-                  >
-                      {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar parte"}
-                  </AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={specialHoursModalState.isOpen} onOpenChange={(isOpen) => setSpecialHoursModalState({ isOpen, employee: isOpen ? specialHoursModalState.employee : null })}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Horas Especiales</DialogTitle>
-            <DialogDescription>
-              Registre las horas especiales para {`${specialHoursModalState.employee?.lastName}, ${specialHoursModalState.employee?.firstName}`} en la fecha {displayDate}. El total no puede exceder las horas totales trabajadas.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 grid gap-4">
-            <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
-               <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Horas Totales Trabajadas</p>
-                  <p className="text-2xl font-bold">{totalHoursForModal} hs</p>
-               </div>
-               <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Horas Especiales</p>
-                  <p className="text-2xl font-bold">{Object.values(modalSpecialHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
-               </div>
+            <DialogHeader>
+                <DialogTitle>Mover Empleado</DialogTitle>
+                <DialogDescription>
+                    Mover a <strong>{employeeToMove?.lastName}, {employeeToMove?.firstName}</strong> a otra cuadrilla para la fecha <strong>{displayDate}</strong>. Esta acción quitará al empleado del parte actual y creará una entrada en blanco en el parte de destino.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-2">
+                <Label htmlFor="destination-crew">Cuadrilla de Destino</Label>
+                <Select value={destinationCrewId} onValueChange={setDestinationCrewId}>
+                    <SelectTrigger id="destination-crew">
+                        <SelectValue placeholder="Seleccione una cuadrilla" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableCrewsForMove.length > 0 ? (
+                            availableCrewsForMove.map(crew => (
+                                <SelectItem key={crew.value} value={crew.value}>{crew.label}</SelectItem>
+                            ))
+                        ) : (
+                            <div className="p-4 text-center text-sm text-muted-foreground">
+                                No hay otras cuadrillas disponibles para mover.
+                            </div>
+                        )}
+                    </SelectContent>
+                </Select>
             </div>
-            {specialHourTypesForProject.length > 0 ? specialHourTypesForProject.map(sht => (
-              <div key={sht.id} className="grid grid-cols-3 items-center gap-4">
-                <Label htmlFor={`special-hours-${sht.id}`} className="text-right">
-                  {sht.name}
-                </Label>
-                <Input 
-                  id={`special-hours-${sht.id}`}
-                  type="number"
-                  className="col-span-2"
-                  value={modalSpecialHours[sht.id] ?? ""}
-                  onChange={(e) => handleModalSpecialHourChange(sht.id, e.target.value)}
-                  step="0.5"
-                  min="0"
-                />
-              </div>
-            )) : (
-              <p className="text-center text-sm text-muted-foreground">Este proyecto no tiene tipos de horas especiales configurados.</p>
-            )}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-            <Button onClick={handleSaveSpecialHours}>Guardar</Button>
-          </DialogFooter>
+            <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="secondary">Cancelar</Button></DialogClose>
+                <Button onClick={handleMoveEmployee} disabled={isPending || !destinationCrewId}>
+                  {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Mover
+                </Button>
+            </DialogFooter>
         </DialogContent>
-      </Dialog>
+    </Dialog>
 
-      <Dialog open={unproductiveHoursModalState.isOpen} onOpenChange={(isOpen) => setUnproductiveHoursModalState({ isOpen, employee: isOpen ? unproductiveHoursModalState.employee : null })}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Horas Improductivas</DialogTitle>
-            <DialogDescription>
-              Registre las horas improductivas para {`${unproductiveHoursModalState.employee?.lastName}, ${unproductiveHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 grid gap-4">
-            <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
-               <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Horas Productivas Totales</p>
-                  <p className="text-2xl font-bold">{totalProductiveHoursForModal} hs</p>
-               </div>
-               <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Horas Improductivas</p>
-                  <p className="text-2xl font-bold">{Object.values(modalUnproductiveHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
-               </div>
-            </div>
-            {unproductiveHourTypesForProject.length > 0 ? unproductiveHourTypesForProject.map(uht => (
-              <div key={uht.id} className="grid grid-cols-3 items-center gap-4">
-                <Label htmlFor={`unproductive-hours-${uht.id}`} className="text-right">
-                  {uht.name}
-                </Label>
-                <Input 
-                  id={`unproductive-hours-${uht.id}`}
-                  type="number"
-                  className="col-span-2"
-                  value={modalUnproductiveHours[uht.id] ?? ""}
-                  onChange={(e) => handleModalUnproductiveHourChange(uht.id, e.target.value)}
-                  step="0.5"
-                  min="0"
-                />
-              </div>
-            )) : (
-              <p className="text-center text-sm text-muted-foreground">Este proyecto no tiene tipos de horas improductivas configurados.</p>
-            )}
+    <AlertDialog open={isNotifyDialogOpen} onOpenChange={setIsNotifyDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Notificar y cerrar el parte diario?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción es irreversible. Once notificado, el parte diario para la cuadrilla <strong>{selectedCrew?.name}</strong> en la fecha <strong>{displayDate}</strong> no podrá ser modificado. Asegúrese de que todos los datos son correctos.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setIsNotifyDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction 
+                    onClick={handleNotify} 
+                    disabled={isPending}
+                    className={buttonVariants({ variant: "default" })}
+                >
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, notificar y cerrar"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    
+    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar el parte diario completo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Esta acción es irreversible. Se eliminarán permanentemente todas las horas y ausencias cargadas para la cuadrilla <strong>{selectedCrew?.name}</strong> en la fecha <strong>{displayDate}</strong>.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)} disabled={isPending}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction 
+                    onClick={handleDeleteDailyReport} 
+                    disabled={isPending}
+                    className={buttonVariants({ variant: "destructive" })}
+                >
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Sí, eliminar parte"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+
+    <Dialog open={specialHoursModalState.isOpen} onOpenChange={(isOpen) => setSpecialHoursModalState({ isOpen, employee: isOpen ? specialHoursModalState.employee : null })}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Registrar Horas Especiales</DialogTitle>
+          <DialogDescription>
+            Registre las horas especiales para {`${specialHoursModalState.employee?.lastName}, ${specialHoursModalState.employee?.firstName}`} en la fecha {displayDate}. El total no puede exceder las horas totales trabajadas.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 grid gap-4">
+          <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
+             <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Horas Totales Trabajadas</p>
+                <p className="text-2xl font-bold">{totalHoursForModal} hs</p>
+             </div>
+             <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Horas Especiales</p>
+                <p className="text-2xl font-bold">{Object.values(modalSpecialHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
+             </div>
           </div>
-          <DialogFooter>
-            <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-            <Button onClick={handleSaveUnproductiveHours}>Guardar</Button>
-          </DialogFooter>
+          {specialHourTypesForProject.length > 0 ? specialHourTypesForProject.map(sht => (
+            <div key={sht.id} className="grid grid-cols-3 items-center gap-4">
+              <Label htmlFor={`special-hours-${sht.id}`} className="text-right">
+                {sht.name}
+              </Label>
+              <Input 
+                id={`special-hours-${sht.id}`}
+                type="number"
+                className="col-span-2"
+                value={modalSpecialHours[sht.id] ?? ""}
+                onChange={(e) => handleModalSpecialHourChange(sht.id, e.target.value)}
+                step="0.5"
+                min="0"
+              />
+            </div>
+          )) : (
+            <p className="text-center text-sm text-muted-foreground">Este proyecto no tiene tipos de horas especiales configurados.</p>
+          )}
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancelar</Button>
+          </DialogClose>
+          <Button onClick={handleSaveSpecialHours}>Guardar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={unproductiveHoursModalState.isOpen} onOpenChange={(isOpen) => setUnproductiveHoursModalState({ isOpen, employee: isOpen ? unproductiveHoursModalState.employee : null })}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Registrar Horas Improductivas</DialogTitle>
+          <DialogDescription>
+            Registre las horas improductivas para {`${unproductiveHoursModalState.employee?.lastName}, ${unproductiveHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-4 grid gap-4">
+          <div className="grid grid-cols-2 items-center gap-4 rounded-lg border p-4 bg-muted/50">
+             <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Horas Productivas Totales</p>
+                <p className="text-2xl font-bold">{totalProductiveHoursForModal} hs</p>
+             </div>
+             <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Horas Improductivas</p>
+                <p className="text-2xl font-bold">{Object.values(modalUnproductiveHours).reduce((acc, h) => acc + (h || 0), 0)} hs</p>
+             </div>
+          </div>
+          {unproductiveHourTypesForProject.length > 0 ? unproductiveHourTypesForProject.map(uht => (
+            <div key={uht.id} className="grid grid-cols-3 items-center gap-4">
+              <Label htmlFor={`unproductive-hours-${uht.id}`} className="text-right">
+                {uht.name}
+              </Label>
+              <Input 
+                id={`unproductive-hours-${uht.id}`}
+                type="number"
+                className="col-span-2"
+                value={modalUnproductiveHours[uht.id] ?? ""}
+                onChange={(e) => handleModalUnproductiveHourChange(uht.id, e.target.value)}
+                step="0.5"
+                min="0"
+              />
+            </div>
+          )) : (
+            <p className="text-center text-sm text-muted-foreground">Este proyecto no tiene tipos de horas improductivas configurados.</p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setUnproductiveHoursModalState({ isOpen: false, employee: null })}>Cancelar</Button>
+          <Button onClick={handleSaveUnproductiveHours}>Guardar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    
+    <Dialog open={mobileHoursModalState.isOpen} onOpenChange={(isOpen) => setMobileHoursModalState({ ...mobileHoursModalState, isOpen })}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Cargar Novedades</DialogTitle>
+                <DialogDescription>
+                    Para {`${mobileHoursModalState.employee?.lastName}, ${mobileHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
+                </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="max-h-[60vh]">
+                <div className="p-4 space-y-4">
+                    <div className="space-y-2">
+                        <Label>Ausencia</Label>
+                        <Select
+                            value={mobileHoursModalState.absence ?? 'NONE'}
+                            onValueChange={(value) => setMobileHoursModalState(p => ({ ...p, absence: value === 'NONE' ? null : value, productive: {}, unproductive: {} }))}
+                            disabled={isPending}
+                        >
+                            <SelectTrigger><SelectValue placeholder="Seleccionar motivo..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="NONE">Sin Ausencia (trabajó)</SelectItem>
+                                {absenceTypesForProject.map(reason => (
+                                    <SelectItem key={reason.id} value={reason.id}>{reason.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    
+                    {!mobileHoursModalState.absence && (
+                        <>
+                             <div>
+                                <h4 className="font-medium mb-2">Horas Productivas</h4>
+                                <div className="space-y-2 rounded-md border p-2">
+                                    {activePhases.length > 0 ? activePhases.map(phase => (
+                                        <div key={phase.id} className="flex items-center justify-between">
+                                            <Label htmlFor={`mobile-prod-${phase.id}`} className="flex-1">{phase.name}</Label>
+                                            <Input
+                                                id={`mobile-prod-${phase.id}`}
+                                                type="number"
+                                                className="w-24 text-center"
+                                                placeholder="-"
+                                                value={mobileHoursModalState.productive[phase.id] ?? ""}
+                                                onChange={(e) => setMobileHoursModalState(p => ({ ...p, productive: {...p.productive, [phase.id]: e.target.value === '' ? null : parseFloat(e.target.value)} }))}
+                                                step="0.5" min="0"
+                                            />
+                                        </div>
+                                    )) : <p className="text-center text-sm text-muted-foreground p-2">No hay fases activas.</p>}
+                                </div>
+                             </div>
+                             <div>
+                                <h4 className="font-medium mb-2">Horas Improductivas</h4>
+                                <div className="space-y-2 rounded-md border p-2">
+                                     {unproductiveHourTypesForProject.length > 0 ? unproductiveHourTypesForProject.map(type => (
+                                        <div key={type.id} className="flex items-center justify-between">
+                                            <Label htmlFor={`mobile-unprod-${type.id}`} className="flex-1">{type.name}</Label>
+                                            <Input
+                                                id={`mobile-unprod-${type.id}`}
+                                                type="number"
+                                                className="w-24 text-center"
+                                                placeholder="-"
+                                                value={mobileHoursModalState.unproductive[type.id] ?? ""}
+                                                onChange={(e) => setMobileHoursModalState(p => ({ ...p, unproductive: {...p.unproductive, [type.id]: e.target.value === '' ? null : parseFloat(e.target.value) } }))}
+                                                step="0.5" min="0"
+                                            />
+                                        </div>
+                                    )) : <p className="text-center text-sm text-muted-foreground p-2">No hay tipos improductivos.</p>}
+                                </div>
+                             </div>
+                        </>
+                    )}
+                </div>
+            </ScrollArea>
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setMobileHoursModalState({ ...mobileHoursModalState, isOpen: false })}>Cancelar</Button>
+                <Button onClick={handleSaveMobileHours}>Guardar Novedades</Button>
+            </DialogFooter>
         </DialogContent>
-      </Dialog>
-      
-      <Dialog open={mobileHoursModalState.isOpen} onOpenChange={(isOpen) => setMobileHoursModalState({ ...mobileHoursModalState, isOpen })}>
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle>Cargar Novedades</DialogTitle>
-                  <DialogDescription>
-                      Para {`${mobileHoursModalState.employee?.lastName}, ${mobileHoursModalState.employee?.firstName}`} en la fecha {displayDate}.
-                  </DialogDescription>
-              </DialogHeader>
-              <ScrollArea className="max-h-[60vh]">
-                  <div className="p-4 space-y-4">
-                      <div className="space-y-2">
-                          <Label>Ausencia</Label>
-                          <Select
-                              value={mobileHoursModalState.absence ?? 'NONE'}
-                              onValueChange={(value) => setMobileHoursModalState(p => ({ ...p, absence: value === 'NONE' ? null : value, productive: {}, unproductive: {} }))}
-                              disabled={isPending}
-                          >
-                              <SelectTrigger><SelectValue placeholder="Seleccionar motivo..." /></SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="NONE">Sin Ausencia (trabajó)</SelectItem>
-                                  {absenceTypesForProject.map(reason => (
-                                      <SelectItem key={reason.id} value={reason.id}>{reason.name}</SelectItem>
-                                  ))}
-                              </SelectContent>
-                          </Select>
-                      </div>
-                      
-                      {!mobileHoursModalState.absence && (
-                          <>
-                               <div>
-                                  <h4 className="font-medium mb-2">Horas Productivas</h4>
-                                  <div className="space-y-2 rounded-md border p-2">
-                                      {activePhases.length > 0 ? activePhases.map(phase => (
-                                          <div key={phase.id} className="flex items-center justify-between">
-                                              <Label htmlFor={`mobile-prod-${phase.id}`} className="flex-1">{phase.name}</Label>
-                                              <Input
-                                                  id={`mobile-prod-${phase.id}`}
-                                                  type="number"
-                                                  className="w-24 text-center"
-                                                  placeholder="-"
-                                                  value={mobileHoursModalState.productive[phase.id] ?? ""}
-                                                  onChange={(e) => setMobileHoursModalState(p => ({ ...p, productive: {...p.productive, [phase.id]: e.target.value === '' ? null : parseFloat(e.target.value)} }))}
-                                                  step="0.5" min="0"
-                                              />
-                                          </div>
-                                      )) : <p className="text-center text-sm text-muted-foreground p-2">No hay fases activas.</p>}
-                                  </div>
-                               </div>
-                               <div>
-                                  <h4 className="font-medium mb-2">Horas Improductivas</h4>
-                                  <div className="space-y-2 rounded-md border p-2">
-                                       {unproductiveHourTypesForProject.map(type => (
-                                          <div key={type.id} className="flex items-center justify-between">
-                                              <Label htmlFor={`mobile-unprod-${type.id}`} className="flex-1">{type.name}</Label>
-                                              <Input
-                                                  id={`mobile-unprod-${type.id}`}
-                                                  type="number"
-                                                  className="w-24 text-center"
-                                                  placeholder="-"
-                                                  value={mobileHoursModalState.unproductive[type.id] ?? ""}
-                                                  onChange={(e) => setMobileHoursModalState(p => ({ ...p, unproductive: {...p.unproductive, [type.id]: e.target.value === '' ? null : parseFloat(e.target.value)}}))}
-                                                  step="0.5" min="0"
-                                              />
-                                          </div>
-                                      )) : <p className="text-center text-sm text-muted-foreground p-2">No hay tipos improductivos.</p>}
-                                  </div>
-                               </div>
-                          </>
-                      )}
-                  </div>
-              </ScrollArea>
-              <DialogFooter>
-                  <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                  <Button onClick={handleSaveMobileHours}>Guardar Novedades</Button>
-              </DialogFooter>
-          </DialogContent>
-      </Dialog>
+    </Dialog>
+
     </TooltipProvider>
   );
 }
