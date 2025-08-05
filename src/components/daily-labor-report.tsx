@@ -876,7 +876,7 @@ export default function DailyLaborReport({
                 const totalProductive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
                 const totalUnproductive = Object.values(entry.unproductiveHours).reduce((sum, h) => sum + (h || 0), 0);
                 const totalHours = totalProductive + totalUnproductive;
-                const absenceName = entry.absenceReason ? (absenceTypesForProject.find(a => a.id === entry.absenceReason)?.name || entry.absenceReason) : "-";
+                const absenceName = entry.absenceReason ? (initialAbsenceTypes.find(a => a.id === entry.absenceReason)?.name || entry.absenceReason) : "-";
 
                 return {
                     "Legajo": emp.internalNumber,
@@ -1077,6 +1077,22 @@ export default function DailyLaborReport({
     setMobileHoursModalState({ isOpen: false, employee: null, absence: null, productive: {}, unproductive: {} });
   };
 
+  // For rendering the absence dropdown. It includes the project's allowed types plus any legacy type the employee might have.
+  const getAbsenceOptionsForEmployee = (employeeId: string) => {
+    const entry = laborEntries[employeeId];
+    let options = [...absenceTypesForProject];
+    
+    if (entry?.absenceReason && !options.some(opt => opt.id === entry.absenceReason)) {
+      const historicalAbsence = initialAbsenceTypes.find(at => at.id === entry.absenceReason);
+      if (historicalAbsence) {
+        options.push(historicalAbsence);
+        options.sort((a,b) => a.name.localeCompare(b.name));
+      }
+    }
+    
+    return options;
+  };
+
 
   return (
     <TooltipProvider>
@@ -1225,7 +1241,7 @@ export default function DailyLaborReport({
                             const totalUnproductive = Object.values(entry.unproductiveHours).reduce((acc, h) => acc + (h || 0), 0);
                             const totalHours = totalProductive + totalUnproductive;
                             const totalSpecialHours = Object.values(entry.specialHours).reduce((acc, h) => acc + (h || 0), 0);
-                            const absenceName = entry.absenceReason ? absenceTypesForProject.find(at => at.id === entry.absenceReason)?.name : null;
+                            const absenceName = entry.absenceReason ? initialAbsenceTypes.find(at => at.id === entry.absenceReason)?.name : null;
 
                             return (
                                 <Card key={emp.id} className={cn(entry.absenceReason ? "bg-red-50" : (totalHours > 0 ? "bg-green-50" : ""))}>
@@ -1289,6 +1305,7 @@ export default function DailyLaborReport({
 
                                 const permissionAbsenceId = permissionsForDate.get(emp.id);
                                 const isAbsenceFromPermission = !!permissionAbsenceId && entry.absenceReason === permissionAbsenceId;
+                                const absenceOptions = getAbsenceOptionsForEmployee(emp.id);
 
                                 return (
                                 <TableRow key={emp.id} className={cn(
@@ -1343,7 +1360,7 @@ export default function DailyLaborReport({
                                               </SelectTrigger>
                                               <SelectContent>
                                                   <SelectItem value="NONE">-</SelectItem>
-                                                  {absenceTypesForProject.map(reason => (
+                                                  {absenceOptions.map(reason => (
                                                       <SelectItem key={reason.id} value={reason.id}>
                                                           {reason.name}
                                                       </SelectItem>
@@ -1422,18 +1439,18 @@ export default function DailyLaborReport({
                                     <TableCell className="text-right">
                                       <div className="flex justify-end items-center">
                                         <Popover>
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <PopoverTrigger asChild>
-                                                <Button variant="ghost" size="icon" disabled={isPending}>
-                                                    <MessageSquare className={cn("h-4 w-4", entry.observations && "text-primary")} />
-                                                </Button>
-                                              </PopoverTrigger>
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Observaciones</p>
-                                            </TooltipContent>
-                                          </Tooltip>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="ghost" size="icon" disabled={isPending}>
+                                                        <MessageSquare className={cn("h-4 w-4", entry.observations && "text-primary")} />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Observaciones</p>
+                                                </TooltipContent>
+                                            </Tooltip>
                                           <PopoverContent className="w-80">
                                               <div className="grid gap-4">
                                               <div className="space-y-2">

@@ -118,10 +118,10 @@ export default function StatisticsDashboard({
             relevantEmployeeIds.add(entry.employeeId);
             if (entry.absenceReason) {
                 totalAbsences++;
-                const reasonName = absenceTypeMap.get(entry.absenceReason) || "Unknown";
+                const reasonName = absenceTypeMap.get(entry.absenceReason) || "Motivo Desconocido";
                 absenceCounts[reasonName] = (absenceCounts[reasonName] || 0) + 1;
 
-                const crewName = crewMap.get(report.crewId)?.name || 'Unknown';
+                const crewName = crewMap.get(report.crewId)?.name || 'Cuadrilla Desconocida';
                 absenceByCrew[crewName] = (absenceByCrew[crewName] || 0) + 1;
             } else {
                 let entryProductive = Object.values(entry.productiveHours).reduce((sum, h) => sum + (h || 0), 0);
@@ -419,3 +419,4 @@ export default function StatisticsDashboard({
     </div>
   );
 }
+
