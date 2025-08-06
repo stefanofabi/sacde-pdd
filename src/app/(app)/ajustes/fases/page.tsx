@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import PhasesManager from "@/components/phases-manager";
 import { Loader2 } from "lucide-react";
-import type { Phase } from '@/types';
+import type { Phase, Project } from '@/types';
 import { useAuth } from '@/context/auth-context';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -12,6 +12,7 @@ import { db } from '@/lib/firebase';
 export default function FasesPage() {
   const { user, loading: authLoading } = useAuth();
   const [initialPhases, setInitialPhases] = useState<Phase[]>([]);
+  const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,8 +20,12 @@ export default function FasesPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const phasesSnapshot = await getDocs(collection(db, 'phases'));
+        const [phasesSnapshot, projectsSnapshot] = await Promise.all([
+            getDocs(collection(db, 'phases')),
+            getDocs(collection(db, 'projects'))
+        ]);
         setInitialPhases(phasesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Phase[]);
+        setInitialProjects(projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[]);
       } catch (error) {
         console.error("Failed to fetch phases data:", error);
       } finally {
@@ -40,7 +45,7 @@ export default function FasesPage() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <PhasesManager initialPhases={initialPhases} />
+        <PhasesManager initialPhases={initialPhases} initialProjects={initialProjects} />
       )}
     </>
   );

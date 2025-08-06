@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -23,31 +23,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { Phase } from "@/types";
+import type { Phase, Project } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/firebase";
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 
 interface PhasesManagerProps {
   initialPhases: Phase[];
+  initialProjects: Project[];
 }
 
-export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
+export default function PhasesManager({ initialPhases, initialProjects }: PhasesManagerProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const [allPhases, setAllPhases] = useState<Phase[]>(initialPhases.sort((a, b) => a.name.localeCompare(b.name)));
+  const [allPhases, setAllPhases] = useState<Phase[]>(initialPhases);
   const [newPhase, setNewPhase] = useState({ name: "", pepElement: "" });
   const [phaseToDelete, setPhaseToDelete] = useState<Phase | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(initialProjects[0]?.id);
   const [isPending, startTransition] = useTransition();
 
+  const sortedProjects = useMemo(() => [...initialProjects].sort((a,b) => a.name.localeCompare(b.name)), [initialProjects]);
+  
+  const filteredPhases = useMemo(() => {
+    if (!selectedProjectId) return [];
+    return allPhases
+        .filter(p => p.projectId === selectedProjectId)
+        .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allPhases, selectedProjectId]);
+
+
   const handleAddPhase = () => {
-    if (!newPhase.name.trim() || !newPhase.pepElement.trim()) {
+    if (!selectedProjectId || !newPhase.name.trim() || !newPhase.pepElement.trim()) {
       toast({
         title: "Error de validación",
-        description: "El nombre de la fase y el elemento PEP no pueden estar vacíos.",
+        description: "Debe seleccionar un proyecto y completar el nombre y el elemento PEP de la fase.",
         variant: "destructive",
       });
       return;
@@ -55,17 +68,21 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
     startTransition(async () => {
       try {
         const collectionRef = collection(db, 'phases');
-        const q = query(collectionRef, where("name", "==", newPhase.name));
+        const q = query(collectionRef, where("name", "==", newPhase.name), where("projectId", "==", selectedProjectId));
         const existing = await getDocs(q);
         if (!existing.empty) {
-            throw new Error('Ya existe una fase con el mismo nombre.');
+            throw new Error('Ya existe una fase con el mismo nombre en este proyecto.');
         }
 
-        const dataToSave = { name: newPhase.name, pepElement: newPhase.pepElement.toUpperCase() };
+        const dataToSave = { 
+            name: newPhase.name, 
+            pepElement: newPhase.pepElement.toUpperCase(),
+            projectId: selectedProjectId
+        };
         const docRef = await addDoc(collectionRef, dataToSave);
         const addedPhase = { id: docRef.id, ...dataToSave };
 
-        setAllPhases((prev) => [...prev, addedPhase].sort((a, b) => a.name.localeCompare(b.name)));
+        setAllPhases((prev) => [...prev, addedPhase]);
         setNewPhase({ name: "", pepElement: "" });
         toast({
           title: "Fase agregada",
@@ -128,11 +145,27 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
         <CardHeader>
           <CardTitle>Fases del Proyecto</CardTitle>
           <CardDescription>
-            Gestione las fases y sus elementos PEP asociados.
+            Seleccione un proyecto para gestionar sus fases y elementos PEP asociados.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-6">
+            <div className="space-y-2">
+                <Label htmlFor="project-filter">Proyecto</Label>
+                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                    <SelectTrigger id="project-filter">
+                        <SelectValue placeholder="Seleccione un proyecto..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {sortedProjects.map(project => (
+                            <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+            
             <div className="flex flex-col gap-2">
               <h3 className="font-semibold">Agregar Nueva Fase</h3>
               <div className="flex flex-col sm:flex-row items-end gap-2">
@@ -143,7 +176,7 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
                     placeholder="Ej. Movimiento de Suelos"
                     value={newPhase.name}
                     onChange={(e) => setNewPhase(prev => ({ ...prev, name: e.target.value }))}
-                    disabled={isPending}
+                    disabled={isPending || !selectedProjectId}
                   />
                 </div>
                 <div className="grid gap-1.5 w-full sm:w-auto flex-1">
@@ -153,7 +186,7 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
                     placeholder="Ej. A-110-C1001"
                     value={newPhase.pepElement}
                     onChange={(e) => setNewPhase(prev => ({ ...prev, pepElement: e.target.value }))}
-                    disabled={isPending}
+                    disabled={isPending || !selectedProjectId}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                           handleAddPhase();
@@ -161,24 +194,24 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
                     }}
                   />
                 </div>
-                <Button onClick={handleAddPhase} disabled={isPending || !newPhase.name.trim() || !newPhase.pepElement.trim()} className="w-full sm:w-auto shrink-0">
+                <Button onClick={handleAddPhase} disabled={isPending || !newPhase.name.trim() || !newPhase.pepElement.trim() || !selectedProjectId} className="w-full sm:w-auto shrink-0">
                   {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Agregar
                 </Button>
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <h3 className="font-semibold">Fases Existentes ({allPhases.length})</h3>
+              <h3 className="font-semibold">Fases Existentes ({filteredPhases.length})</h3>
               <ScrollArea className="h-72 rounded-md border">
                 {isMobile ? (
                   <div className="space-y-2 p-2">
-                     {allPhases.map(phase => <MobilePhaseCard key={phase.id} phase={phase} />)}
+                     {filteredPhases.map(phase => <MobilePhaseCard key={phase.id} phase={phase} />)}
                   </div>
                 ) : (
                   <div className="p-4">
-                    {allPhases.length > 0 ? (
+                    {filteredPhases.length > 0 ? (
                       <ul className="space-y-2">
-                        {allPhases.map((phase) => (
+                        {filteredPhases.map((phase) => (
                           <li key={phase.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-2 rounded-md bg-muted/50">
                             <div className="flex items-center gap-3">
                                 <Badge variant="secondary" className="font-mono">{phase.pepElement.toUpperCase()}</Badge>
@@ -199,7 +232,7 @@ export default function PhasesManager({ initialPhases }: PhasesManagerProps) {
                       </ul>
                     ) : (
                       <p className="text-sm text-muted-foreground p-2 text-center">
-                        No hay fases creadas.
+                        {selectedProjectId ? "No hay fases creadas para este proyecto." : "Por favor, seleccione un proyecto."}
                       </p>
                     )}
                   </div>

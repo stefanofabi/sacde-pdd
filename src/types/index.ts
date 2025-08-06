@@ -4,6 +4,7 @@
 
 
 
+
 export type PermissionKey = 
   | 'dashboard' 
   | 'crews'
@@ -72,6 +73,7 @@ export interface Phase {
   id: string;
   name: string;
   pepElement: string;
+  projectId: string;
 }
 
 export interface CrewPhaseAssignment {

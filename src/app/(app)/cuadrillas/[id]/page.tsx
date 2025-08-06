@@ -238,11 +238,14 @@ export default function CrewFormPage() {
     }, [allEmployees]);
   
     const phaseOptions = useMemo(() => {
-      return allPhases.map(phase => ({
-          value: phase.id,
-          label: `${phase.name} (${phase.pepElement})`
-      }));
-    }, [allPhases]);
+      if (!formState.projectId) return [];
+      return allPhases
+        .filter(phase => phase.projectId === formState.projectId)
+        .map(phase => ({
+            value: phase.id,
+            label: `${phase.name} (${phase.pepElement})`
+        }));
+    }, [allPhases, formState.projectId]);
   
     const jornalEmployees = useMemo(() => {
       return allEmployees.filter(emp => emp.condition === 'DAY' && emp.status === 'activo');
