@@ -894,6 +894,7 @@ export default function DailyLaborReport({
                         acc[type.name] = entry.specialHours[type.id] || 0;
                         return acc;
                     }, {} as Record<string, number>),
+                    "Observaciones": entry.observations || "",
                 };
             }).filter(Boolean);
 
