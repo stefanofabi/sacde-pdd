@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { Phase, Project } from "@/types";
+import type { Phase, Project, Crew, DailyReport, DailyLaborEntry } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -31,13 +31,23 @@ import { db } from "@/lib/firebase";
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from "firebase/firestore";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
+import { isWithinInterval } from "date-fns";
 
 interface PhasesManagerProps {
   initialPhases: Phase[];
   initialProjects: Project[];
+  initialCrews: Crew[];
+  initialDailyReports: DailyReport[];
+  initialDailyLabor: DailyLaborEntry[];
 }
 
-export default function PhasesManager({ initialPhases, initialProjects }: PhasesManagerProps) {
+export default function PhasesManager({ 
+  initialPhases, 
+  initialProjects, 
+  initialCrews, 
+  initialDailyReports, 
+  initialDailyLabor 
+}: PhasesManagerProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [allPhases, setAllPhases] = useState<Phase[]>(initialPhases);
@@ -103,6 +113,53 @@ export default function PhasesManager({ initialPhases, initialProjects }: Phases
 
     startTransition(async () => {
       try {
+        const phaseId = phaseToDelete.id;
+        
+        // Check if phase is used in any daily labor report within its date range
+        const crewsWithPhase = initialCrews.filter(crew => 
+            crew.assignedPhases?.some(p => p.phaseId === phaseId)
+        );
+
+        let isPhaseInUse = false;
+        
+        for (const crew of crewsWithPhase) {
+            const assignment = crew.assignedPhases?.find(p => p.phaseId === phaseId);
+            if (!assignment) continue;
+
+            const assignmentStart = new Date(assignment.startDate);
+            const assignmentEnd = new Date(assignment.endDate);
+
+            const relevantReports = initialDailyReports.filter(report => {
+                if (report.crewId !== crew.id) return false;
+                const reportDate = new Date(report.date + 'T00:00:00');
+                return isWithinInterval(reportDate, { start: assignmentStart, end: assignmentEnd });
+            });
+
+            const relevantReportIds = new Set(relevantReports.map(r => r.id));
+            if (relevantReportIds.size === 0) continue;
+
+            const phaseUsedInLabor = initialDailyLabor.some(labor => 
+                relevantReportIds.has(labor.dailyReportId) && 
+                labor.productiveHours && 
+                Object.keys(labor.productiveHours).includes(phaseId)
+            );
+
+            if (phaseUsedInLabor) {
+                isPhaseInUse = true;
+                break;
+            }
+        }
+        
+        if (isPhaseInUse) {
+            toast({
+                title: "No se puede eliminar la fase",
+                description: "Esta fase ha sido utilizada en partes diarios y no puede ser eliminada.",
+                variant: "destructive",
+            });
+            setPhaseToDelete(null);
+            return;
+        }
+
         await deleteDoc(doc(db, 'phases', phaseToDelete.id));
         setAllPhases((prev) => prev.filter((p) => p.id !== phaseToDelete.id));
         toast({
@@ -248,7 +305,7 @@ export default function PhasesManager({ initialPhases, initialProjects }: Phases
             <AlertDialogHeader>
                 <AlertDialogTitle>¿Está absolutamente seguro?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta acción no se puede deshacer. Se eliminará permanentemente la fase "{phaseToDelete?.name}". Esta acción fallará si la fase está asignada a alguna cuadrilla.
+                    Esta acción no se puede deshacer. Se eliminará permanentemente la fase "{phaseToDelete?.name}". Esta acción fallará si la fase está asignada a alguna cuadrilla y ha sido usada en un parte diario.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
