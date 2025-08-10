@@ -303,6 +303,27 @@ export default function CrewFormPage() {
     };
   
     const handleRemovePhaseAssignment = (assignmentId: string) => {
+      const assignmentToRemove = (formState.assignedPhases || []).find(p => p.id === assignmentId);
+      if (!assignmentToRemove) return;
+  
+      const assignmentStart = new Date(assignmentToRemove.startDate + 'T00:00:00');
+      const assignmentEnd = new Date(assignmentToRemove.endDate + 'T00:00:00');
+  
+      const isPhaseUsed = allDailyReports.some(report => {
+        if (report.crewId !== crewId) return false;
+        const reportDate = new Date(report.date + 'T00:00:00');
+        return isWithinInterval(reportDate, { start: assignmentStart, end: assignmentEnd });
+      });
+  
+      if (isPhaseUsed) {
+        toast({
+          title: "No se puede quitar la fase",
+          description: "Esta fase no se puede quitar porque existen partes diarios cargados en su rango de fechas.",
+          variant: "destructive",
+        });
+        return;
+      }
+  
       handleInputChange('assignedPhases', (formState.assignedPhases || []).filter(p => p.id !== assignmentId));
     };
   
@@ -661,5 +682,7 @@ export default function CrewFormPage() {
         </main>
     );
 }
+
+    
 
     
