@@ -49,6 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MultiSelectCombobox, type ComboboxOption } from "./ui/multi-select-combobox";
 
 
 interface EmployeesManagerProps {
@@ -65,7 +66,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<"all" | EmployeeStatus>("all");
   const [isPending, startTransition] = useTransition();
 
@@ -84,6 +85,11 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
   }, [initialPositions]);
 
   const sortedProjects = useMemo(() => [...initialProjects].sort((a,b) => a.name.localeCompare(b.name)), [initialProjects]);
+  
+  const projectOptions: ComboboxOption[] = useMemo(() => 
+    sortedProjects.map(p => ({ value: p.id, label: p.name })), 
+    [sortedProjects]
+  );
 
   const filteredEmployees = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
@@ -93,7 +99,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
             return false;
         }
 
-        if (selectedProjectId !== "all" && emp.projectId !== selectedProjectId) {
+        if (selectedProjectIds.length > 0 && !selectedProjectIds.includes(emp.projectId)) {
             return false;
         }
 
@@ -113,7 +119,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
             emp.firstName.toLowerCase().includes(lowerCaseSearchTerm)
         );
     });
-  }, [employees, searchTerm, selectedProjectId, selectedStatus]);
+  }, [employees, searchTerm, selectedProjectIds, selectedStatus]);
   
   const handleOpenAddPage = () => {
     router.push('/empleados/nuevo');
@@ -261,19 +267,15 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
                             className="pl-10 w-full"
                         />
                     </div>
-                    <Select onValueChange={setSelectedProjectId} defaultValue="all">
-                        <SelectTrigger className="w-full sm:w-auto">
-                            <SelectValue placeholder="Filtrar por proyecto..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos los Proyectos</SelectItem>
-                            {sortedProjects.map((project) => (
-                                <SelectItem key={project.id} value={project.id}>
-                                    {project.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                     <MultiSelectCombobox
+                        options={projectOptions}
+                        selected={selectedProjectIds}
+                        onChange={setSelectedProjectIds}
+                        placeholder="Filtrar por proyecto..."
+                        className="w-full sm:w-[250px]"
+                        selectAllLabel="Todos los proyectos"
+                        deselectAllLabel="Quitar todos"
+                    />
                     <Select onValueChange={(value) => setSelectedStatus(value as "all" | EmployeeStatus)} defaultValue="all">
                         <SelectTrigger className="w-full sm:w-auto">
                             <SelectValue placeholder="Filtrar por estado..." />
