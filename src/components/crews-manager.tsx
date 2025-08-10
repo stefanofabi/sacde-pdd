@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -39,11 +39,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, PlusCircle, Trash2, Pencil, Search, Users } from "lucide-react";
-import type { Crew, Project, Employee } from "@/types";
+import type { Crew, Project, Employee, DailyReport } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { db } from "@/lib/firebase";
-import { deleteDoc, doc } from "firebase/firestore";
+import { deleteDoc, doc, getDocs, collection, query, where } from "firebase/firestore";
 import { useAuth } from "@/context/auth-context";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -52,9 +52,10 @@ interface CrewsManagerProps {
   initialCrews: Crew[];
   initialProjects: Project[];
   initialEmployees: Employee[];
+  initialDailyReports: DailyReport[];
 }
 
-export default function CrewsManager({ initialCrews, initialProjects, initialEmployees }: CrewsManagerProps) {
+export default function CrewsManager({ initialCrews, initialProjects, initialEmployees, initialDailyReports }: CrewsManagerProps) {
   const { toast } = useToast();
   const router = useRouter();
   const { user } = useAuth();
@@ -63,7 +64,7 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
   const [crewToDelete, setCrewToDelete] = useState<Crew | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [isPending, startTransition] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const canEdit = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('crews.editInfo'), [user]);
   const canDelete = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('crews.editInfo'), [user]);
@@ -95,26 +96,36 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
   
   const handleDeleteCrew = () => {
     if (!crewToDelete) return;
-    startTransition(true);
-    deleteDoc(doc(db, "crews", crewToDelete.id))
-        .then(() => {
+    startTransition(async () => {
+        try {
+            const hasDailyReports = initialDailyReports.some(report => report.crewId === crewToDelete.id);
+
+            if (hasDailyReports) {
+                toast({
+                    title: "No se puede eliminar la cuadrilla",
+                    description: "Esta cuadrilla tiene partes diarios asociados y no puede ser eliminada.",
+                    variant: "destructive",
+                });
+                setCrewToDelete(null);
+                return;
+            }
+
+            await deleteDoc(doc(db, "crews", crewToDelete.id));
             setAllCrews((prev) => prev.filter((c) => c.id !== crewToDelete.id));
             toast({
                 title: "Cuadrilla eliminada",
                 description: `La cuadrilla "${crewToDelete.name}" ha sido eliminada con éxito.`,
             });
-        })
-        .catch((error) => {
-            toast({
+        } catch (error) {
+             toast({
                 title: "Error al eliminar",
                 description: error instanceof Error ? error.message : "Ocurrió un error inesperado.",
                 variant: "destructive",
             });
-        })
-        .finally(() => {
+        } finally {
             setCrewToDelete(null);
-            startTransition(false);
-        });
+        }
+    });
   };
 
   const handleOpenAddPage = () => {
@@ -330,5 +341,3 @@ export default function CrewsManager({ initialCrews, initialProjects, initialEmp
     </TooltipProvider>
   );
 }
-
-    

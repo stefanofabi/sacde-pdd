@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import CrewsManager from "@/components/crews-manager";
 import { getDocs, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Crew, Project, Employee, Phase } from '@/types';
+import type { Crew, Project, Employee, Phase, DailyReport } from '@/types';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 
@@ -14,7 +14,7 @@ export default function CuadrillasPage() {
   const [initialCrews, setInitialCrews] = useState<Crew[]>([]);
   const [initialProjects, setInitialProjects] = useState<Project[]>([]);
   const [initialEmployees, setInitialEmployees] = useState<Employee[]>([]);
-  const [initialPhases, setInitialPhases] = useState<Phase[]>([]);
+  const [initialDailyReports, setInitialDailyReports] = useState<DailyReport[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,22 +22,22 @@ export default function CuadrillasPage() {
       if (!user) return;
       setLoading(true);
       try {
-        const [crewsSnapshot, projectsSnapshot, employeesSnapshot, phasesSnapshot] = await Promise.all([
+        const [crewsSnapshot, projectsSnapshot, employeesSnapshot, dailyReportsSnapshot] = await Promise.all([
           getDocs(collection(db, 'crews')),
           getDocs(collection(db, 'projects')),
           getDocs(collection(db, 'employees')),
-          getDocs(collection(db, 'phases')),
+          getDocs(collection(db, 'daily-reports')),
         ]);
         
         const crewsData = crewsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Crew[];
         const projectsData = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Project[];
         const employeesData = employeesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Employee[];
-        const phasesData = phasesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Phase[];
+        const dailyReportsData = dailyReportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as DailyReport[];
 
         setInitialCrews(crewsData);
         setInitialProjects(projectsData);
         setInitialEmployees(employeesData);
-        setInitialPhases(phasesData);
+        setInitialDailyReports(dailyReportsData);
       } catch (error) {
         console.error("Failed to fetch crews data:", error);
       } finally {
@@ -71,6 +71,7 @@ export default function CuadrillasPage() {
               initialCrews={initialCrews}
               initialProjects={initialProjects}
               initialEmployees={initialEmployees}
+              initialDailyReports={initialDailyReports}
             />
           )}
         </div>
@@ -78,5 +79,3 @@ export default function CuadrillasPage() {
     </>
   );
 }
-
-    
