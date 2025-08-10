@@ -250,54 +250,52 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
     <>
       <Card>
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                   <CardTitle>Lista de Empleados</CardTitle>
                   <CardDescription>
                       Busque, edite, agregue nuevos empleados o exporte el listado.
                   </CardDescription>
               </div>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto shrink-0">
-                  <Button onClick={handleExport} variant="outline" disabled={isPending} className="w-full sm:w-auto">
-                      <FileSpreadsheet className="mr-2 h-4 w-4" />
-                      Exportar
-                  </Button>
-                  <Button onClick={handleOpenAddPage} disabled={!canManage} className="w-full sm:w-auto">
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Agregar
-                  </Button>
-              </div>
-          </div>
-          <div className="mt-4 flex flex-col md:flex-row md:items-center gap-2">
-              <div className="relative w-full md:w-1/3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                      placeholder="Buscar empleado..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                          placeholder="Buscar empleado..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-10 w-full sm:w-auto"
+                      />
+                  </div>
+                  <MultiSelectCombobox
+                      options={projectOptions}
+                      selected={selectedProjectIds}
+                      onChange={setSelectedProjectIds}
+                      placeholder="Filtrar por proyecto..."
+                      className="w-full sm:w-[250px]"
+                      selectAllLabel="Todos los proyectos"
+                      deselectAllLabel="Quitar todos"
                   />
+                  <Select onValueChange={(value) => setSelectedStatus(value as "all" | EmployeeStatus)} defaultValue="all">
+                      <SelectTrigger className="w-full sm:w-auto">
+                          <SelectValue placeholder="Filtrar por estado..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="all">Todos los Estados</SelectItem>
+                          <SelectItem value="activo">Activo</SelectItem>
+                          <SelectItem value="suspendido">Suspendido</SelectItem>
+                          <SelectItem value="baja">Baja</SelectItem>
+                      </SelectContent>
+                  </Select>
+                  <Button onClick={handleExport} variant="outline" disabled={isPending}>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      Exportar a Excel
+                  </Button>
+                  <Button onClick={handleOpenAddPage} disabled={!canManage}>
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Agregar Empleado
+                  </Button>
               </div>
-              <MultiSelectCombobox
-                  options={projectOptions}
-                  selected={selectedProjectIds}
-                  onChange={setSelectedProjectIds}
-                  placeholder="Filtrar por proyecto..."
-                  className="w-full md:w-[250px]"
-                  selectAllLabel="Todos los proyectos"
-                  deselectAllLabel="Quitar todos"
-              />
-              <Select onValueChange={(value) => setSelectedStatus(value as "all" | EmployeeStatus)} defaultValue="all">
-                  <SelectTrigger className="w-full md:w-[180px]">
-                      <SelectValue placeholder="Filtrar por estado..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                      <SelectItem value="all">Todos los Estados</SelectItem>
-                      <SelectItem value="activo">Activo</SelectItem>
-                      <SelectItem value="suspendido">Suspendido</SelectItem>
-                      <SelectItem value="baja">Baja</SelectItem>
-                  </SelectContent>
-              </Select>
           </div>
         </CardHeader>
         <CardContent>
