@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, PlusCircle, Trash2, Search, Pencil, FileSpreadsheet } from "lucide-react";
-import type { Employee, Project, EmployeePosition, EmployeeCondition } from "@/types";
+import type { Employee, Project, EmployeePosition, EmployeeCondition, EmployeeStatus } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -65,6 +65,8 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
   const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<"all" | EmployeeStatus>("all");
   const [isPending, startTransition] = useTransition();
 
   const canManage = useMemo(() => user?.is_superuser || user?.role?.permissions.includes('employees.manage'), [user]);
@@ -81,13 +83,24 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
     return Object.fromEntries(initialPositions.map(pos => [pos.id, pos.name]));
   }, [initialPositions]);
 
+  const sortedProjects = useMemo(() => [...initialProjects].sort((a,b) => a.name.localeCompare(b.name)), [initialProjects]);
+
   const filteredEmployees = useMemo(() => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
-    if (!lowerCaseSearchTerm) {
-        return employees;
-    }
-
+    
     return employees.filter((emp) => {
+        if (selectedStatus !== "all" && emp.status !== selectedStatus) {
+            return false;
+        }
+
+        if (selectedProjectId !== "all" && emp.projectId !== selectedProjectId) {
+            return false;
+        }
+
+        if (!lowerCaseSearchTerm) {
+            return true;
+        }
+
         const fullName = `${emp.firstName} ${emp.lastName}`.toLowerCase();
         const internalNumber = emp.internalNumber.toLowerCase();
         const identificationNumber = emp.identificationNumber ? emp.identificationNumber.toLowerCase() : '';
@@ -100,7 +113,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
             emp.firstName.toLowerCase().includes(lowerCaseSearchTerm)
         );
     });
-  }, [employees, searchTerm]);
+  }, [employees, searchTerm, selectedProjectId, selectedStatus]);
   
   const handleOpenAddPage = () => {
     router.push('/empleados/nuevo');
@@ -136,7 +149,7 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
   const handleExport = () => {
     startTransition(() => {
         try {
-            const dataToExport = employees.map(emp => ({
+            const dataToExport = filteredEmployees.map(emp => ({
                 "Legajo": emp.internalNumber,
                 "Apellido": emp.lastName,
                 "Nombre": emp.firstName,
@@ -248,6 +261,30 @@ export default function EmployeesManager({ initialEmployees, initialProjects, in
                             className="pl-10 w-full"
                         />
                     </div>
+                    <Select onValueChange={setSelectedProjectId} defaultValue="all">
+                        <SelectTrigger className="w-full sm:w-auto">
+                            <SelectValue placeholder="Filtrar por proyecto..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos los Proyectos</SelectItem>
+                            {sortedProjects.map((project) => (
+                                <SelectItem key={project.id} value={project.id}>
+                                    {project.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select onValueChange={(value) => setSelectedStatus(value as "all" | EmployeeStatus)} defaultValue="all">
+                        <SelectTrigger className="w-full sm:w-auto">
+                            <SelectValue placeholder="Filtrar por estado..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todos los Estados</SelectItem>
+                            <SelectItem value="activo">Activo</SelectItem>
+                            <SelectItem value="suspendido">Suspendido</SelectItem>
+                            <SelectItem value="baja">Baja</SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Button onClick={handleExport} variant="outline" disabled={isPending} className="w-full sm:w-auto">
                         <FileSpreadsheet className="mr-2 h-4 w-4" />
                         Exportar a Excel
